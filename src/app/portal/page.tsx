@@ -44,11 +44,12 @@ export default function StudentPortal() {
             .single();
           setProfile(prof);
 
-          // Check Pre-Survey
+          // Check Pre-Survey (by user_id or email synced from Google Sheets)
+          const userEmail = (user.email || '').trim().toLowerCase();
           const { data: pre } = await supabase
             .from('surveys')
             .select('id')
-            .eq('user_id', user.id)
+            .or(`user_id.eq.${user.id},respondent_email.eq.${userEmail}`)
             .eq('survey_type', 'pre')
             .maybeSingle();
           if (pre) setPreSurveyCompleted(true);
@@ -67,11 +68,11 @@ export default function StudentPortal() {
             setQuizScore(quiz.score);
           }
 
-          // Check Post-Survey
+          // Check Post-Survey (by user_id or email synced from Google Sheets)
           const { data: post } = await supabase
             .from('surveys')
             .select('id')
-            .eq('user_id', user.id)
+            .or(`user_id.eq.${user.id},respondent_email.eq.${userEmail}`)
             .eq('survey_type', 'post')
             .maybeSingle();
           if (post) setPostSurveyCompleted(true);

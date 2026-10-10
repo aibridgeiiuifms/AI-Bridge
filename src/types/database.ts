@@ -53,13 +53,32 @@ export interface MCQQuestion {
 
 export interface SurveyResponse {
   id: string;
-  user_id: string;
+  user_id: string | null;
+  respondent_email: string;
   survey_type: 'pre' | 'post';
   answers: Record<string, any>;
   hours_saved_estimate: number;
   comprehension_self_rating: number;
   feedback_notes: string | null;
+  sheet_row_number?: number | null;
   submitted_at: string;
+  updated_at: string;
+}
+
+export interface SurveyAuditLog {
+  id: string;
+  survey_id: string | null;
+  user_id: string | null;
+  user_email: string;
+  survey_type: 'pre' | 'post' | null;
+  action: 'INSERT' | 'UPDATE' | 'DELETE';
+  source: 'google_sheets' | 'web_portal' | 'api' | 'database' | 'admin_override';
+  sheet_row_number: number | null;
+  performed_by: string | null;
+  old_data: Record<string, any> | null;
+  new_data: Record<string, any> | null;
+  changed_fields: string[];
+  created_at: string;
 }
 
 export interface QuizAttempt {

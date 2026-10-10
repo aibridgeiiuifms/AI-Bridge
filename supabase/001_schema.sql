@@ -66,14 +66,17 @@ CREATE TABLE IF NOT EXISTS public.mcq_pool (
 -- 6. Survey Responses (Pre-Survey & Post-Survey)
 CREATE TABLE IF NOT EXISTS public.surveys (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    respondent_email TEXT NOT NULL,
     survey_type TEXT NOT NULL CHECK (survey_type IN ('pre', 'post')),
-    answers JSONB NOT NULL,
+    answers JSONB NOT NULL DEFAULT '{}'::jsonb,
     hours_saved_estimate NUMERIC DEFAULT 0, -- Tracked for QIP Metric: 3-5 hrs/week
     comprehension_self_rating INT CHECK (comprehension_self_rating BETWEEN 1 AND 5),
     feedback_notes TEXT,
+    sheet_row_number INT,
     submitted_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-    CONSTRAINT unique_user_survey UNIQUE (user_id, survey_type)
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    CONSTRAINT unique_respondent_survey UNIQUE (respondent_email, survey_type)
 );
 
 -- 7. Course Assessment Attempts (30 randomized MCQs drawn from pool)
@@ -123,6 +126,27 @@ INSERT INTO public.system_settings (key, value) VALUES
 ('certification', '{"passing_percentage": 70, "questions_per_quiz": 30, "total_pool_size": 50, "signatory_name": "Dr. Abdul Zahid Khan", "signatory_title": "Chairperson, Dept. of Technology & Project Management"}'::jsonb)
 ON CONFLICT (key) DO NOTHING;
 
+-- 10. Survey Audit & Synchronization Logs (Tracks INSERT, UPDATE, and DELETE operations)
+CREATE TABLE IF NOT EXISTS public.survey_audit_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    survey_id UUID,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    user_email TEXT NOT NULL,
+    survey_type TEXT CHECK (survey_type IN ('pre', 'post')),
+    action TEXT NOT NULL CHECK (action IN ('INSERT', 'UPDATE', 'DELETE')),
+    source TEXT NOT NULL DEFAULT 'google_sheets' CHECK (source IN ('google_sheets', 'web_portal', 'api', 'database', 'admin_override')),
+    sheet_row_number INT,
+    performed_by TEXT, -- Email or username of the person editing the sheet/system
+    old_data JSONB,
+    new_data JSONB,
+    changed_fields TEXT[] DEFAULT '{}',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_survey_audit_email ON public.survey_audit_logs(user_email);
+CREATE INDEX IF NOT EXISTS idx_survey_audit_action ON public.survey_audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_survey_audit_created_at ON public.survey_audit_logs(created_at DESC);
+
 -- ==============================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- ==============================================================================
@@ -135,6 +159,7 @@ ALTER TABLE public.surveys ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quiz_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.survey_audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- Helper Function: Check User Role
 CREATE OR REPLACE FUNCTION public.get_user_role()
@@ -143,6 +168,7 @@ RETURNS TEXT AS $$
 $$ LANGUAGE sql SECURITY DEFINER;
 
 -- PROFILES POLICIES
+DROP POLICY IF EXISTS "Users can view own profile or admin/members can view all" ON public.profiles;
 CREATE POLICY "Users can view own profile or admin/members can view all"
 ON public.profiles FOR SELECT
 USING (
@@ -150,74 +176,183 @@ USING (
   OR public.get_user_role() IN ('admin', 'member')
 );
 
+DROP POLICY IF EXISTS "Users can update own basic profile" ON public.profiles;
 CREATE POLICY "Users can update own basic profile"
 ON public.profiles FOR UPDATE
 USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Admins can manage all profiles" ON public.profiles;
 CREATE POLICY "Admins can manage all profiles"
 ON public.profiles FOR ALL
 USING (public.get_user_role() = 'admin');
 
 -- EVENTS POLICIES
+DROP POLICY IF EXISTS "Public events visible to all" ON public.events;
 CREATE POLICY "Public events visible to all"
 ON public.events FOR SELECT
 USING (visibility = 'public' OR public.get_user_role() IN ('admin', 'member'));
 
+DROP POLICY IF EXISTS "Admins and authorized members can manage events" ON public.events;
 CREATE POLICY "Admins and authorized members can manage events"
 ON public.events FOR ALL
 USING (public.get_user_role() IN ('admin', 'member'));
 
 -- MCQ POOL POLICIES
+DROP POLICY IF EXISTS "Anyone authenticated can view active questions (excluding answer checking)" ON public.mcq_pool;
 CREATE POLICY "Anyone authenticated can view active questions (excluding answer checking)"
 ON public.mcq_pool FOR SELECT
 USING (is_active = true);
 
+DROP POLICY IF EXISTS "Admins can manage mcq pool" ON public.mcq_pool;
 CREATE POLICY "Admins can manage mcq pool"
 ON public.mcq_pool FOR ALL
 USING (public.get_user_role() = 'admin');
 
 -- SURVEYS POLICIES
+DROP POLICY IF EXISTS "Users can manage own surveys" ON public.surveys;
 CREATE POLICY "Users can manage own surveys"
 ON public.surveys FOR ALL
 USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Admins and members can view all surveys" ON public.surveys;
 CREATE POLICY "Admins and members can view all surveys"
 ON public.surveys FOR SELECT
 USING (public.get_user_role() IN ('admin', 'member'));
 
 -- QUIZ ATTEMPTS POLICIES
+DROP POLICY IF EXISTS "Users can view and insert own attempts" ON public.quiz_attempts;
 CREATE POLICY "Users can view and insert own attempts"
 ON public.quiz_attempts FOR ALL
 USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Admins and members can view all quiz attempts" ON public.quiz_attempts;
 CREATE POLICY "Admins and members can view all quiz attempts"
 ON public.quiz_attempts FOR SELECT
 USING (public.get_user_role() IN ('admin', 'member'));
 
 -- CERTIFICATES POLICIES
+DROP POLICY IF EXISTS "Public verification can read certificate by verification_code or id" ON public.certificates;
 CREATE POLICY "Public verification can read certificate by verification_code or id"
 ON public.certificates FOR SELECT
 USING (true); -- Public verification needs read access
 
+DROP POLICY IF EXISTS "Users can view own certificate" ON public.certificates;
 CREATE POLICY "Users can view own certificate"
 ON public.certificates FOR SELECT
 USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Admins can manage certificates" ON public.certificates;
 CREATE POLICY "Admins can manage certificates"
 ON public.certificates FOR ALL
 USING (public.get_user_role() = 'admin');
 
 -- SYSTEM SETTINGS POLICIES
+DROP POLICY IF EXISTS "Public read general settings" ON public.system_settings;
 CREATE POLICY "Public read general settings"
 ON public.system_settings FOR SELECT
 USING (true);
 
+DROP POLICY IF EXISTS "Admins manage settings" ON public.system_settings;
 CREATE POLICY "Admins manage settings"
 ON public.system_settings FOR ALL
 USING (public.get_user_role() = 'admin');
 
+-- SURVEY AUDIT LOGS POLICIES
+DROP POLICY IF EXISTS "Admins and members can view survey audit logs" ON public.survey_audit_logs;
+CREATE POLICY "Admins and members can view survey audit logs"
+ON public.survey_audit_logs FOR SELECT
+USING (public.get_user_role() IN ('admin', 'member'));
+
+DROP POLICY IF EXISTS "Admins can manage survey audit logs" ON public.survey_audit_logs;
+CREATE POLICY "Admins can manage survey audit logs"
+ON public.survey_audit_logs FOR ALL
+USING (public.get_user_role() = 'admin');
+
+DROP POLICY IF EXISTS "Allow server inserts on audit logs" ON public.survey_audit_logs;
+CREATE POLICY "Allow server inserts on audit logs"
+ON public.survey_audit_logs FOR INSERT
+WITH CHECK (true);
+
 -- ==============================================================================
--- AUTOMATIC PROFILE CREATION TRIGGER
+-- AUTOMATIC SURVEY AUDIT TRIGGER (INSERT, UPDATE, DELETE)
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.log_survey_audit()
+RETURNS trigger AS $$
+DECLARE
+    v_user_email TEXT;
+    v_changed TEXT[] := '{}';
+    v_source TEXT;
+    v_performer TEXT;
+BEGIN
+    v_source := COALESCE(current_setting('app.audit_source', true), 'google_sheets');
+    v_performer := current_setting('app.audit_performer', true);
+
+    IF (TG_OP = 'INSERT') THEN
+        v_user_email := LOWER(TRIM(COALESCE(NEW.respondent_email, (SELECT email FROM public.profiles WHERE id = NEW.user_id), 'unknown')));
+        IF v_performer IS NULL THEN
+            v_performer := v_user_email;
+        END IF;
+
+        INSERT INTO public.survey_audit_logs (
+            survey_id, user_id, user_email, survey_type, action, source, 
+            sheet_row_number, performed_by, new_data
+        ) VALUES (
+            NEW.id, NEW.user_id, v_user_email, NEW.survey_type, 'INSERT', 
+            v_source, NEW.sheet_row_number, v_performer, to_jsonb(NEW)
+        );
+        RETURN NEW;
+
+    ELSIF (TG_OP = 'UPDATE') THEN
+        v_user_email := LOWER(TRIM(COALESCE(NEW.respondent_email, (SELECT email FROM public.profiles WHERE id = NEW.user_id), 'unknown')));
+        IF v_performer IS NULL THEN
+            v_performer := v_user_email;
+        END IF;
+
+        -- Automatically detect altered columns
+        IF (OLD.answers IS DISTINCT FROM NEW.answers) THEN v_changed := array_append(v_changed, 'answers'); END IF;
+        IF (OLD.hours_saved_estimate IS DISTINCT FROM NEW.hours_saved_estimate) THEN v_changed := array_append(v_changed, 'hours_saved_estimate'); END IF;
+        IF (OLD.comprehension_self_rating IS DISTINCT FROM NEW.comprehension_self_rating) THEN v_changed := array_append(v_changed, 'comprehension_self_rating'); END IF;
+        IF (OLD.feedback_notes IS DISTINCT FROM NEW.feedback_notes) THEN v_changed := array_append(v_changed, 'feedback_notes'); END IF;
+        IF (OLD.sheet_row_number IS DISTINCT FROM NEW.sheet_row_number) THEN v_changed := array_append(v_changed, 'sheet_row_number'); END IF;
+
+        -- Update the updated_at timestamp
+        NEW.updated_at := timezone('utc'::text, now());
+
+        INSERT INTO public.survey_audit_logs (
+            survey_id, user_id, user_email, survey_type, action, source, 
+            sheet_row_number, performed_by, old_data, new_data, changed_fields
+        ) VALUES (
+            NEW.id, NEW.user_id, v_user_email, NEW.survey_type, 'UPDATE', 
+            v_source, NEW.sheet_row_number, v_performer, to_jsonb(OLD), to_jsonb(NEW), v_changed
+        );
+        RETURN NEW;
+
+    ELSIF (TG_OP = 'DELETE') THEN
+        v_user_email := LOWER(TRIM(COALESCE(OLD.respondent_email, (SELECT email FROM public.profiles WHERE id = OLD.user_id), 'unknown')));
+        IF v_performer IS NULL THEN
+            v_performer := v_user_email;
+        END IF;
+
+        INSERT INTO public.survey_audit_logs (
+            survey_id, user_id, user_email, survey_type, action, source, 
+            sheet_row_number, performed_by, old_data
+        ) VALUES (
+            OLD.id, OLD.user_id, v_user_email, OLD.survey_type, 'DELETE', 
+            v_source, OLD.sheet_row_number, v_performer, to_jsonb(OLD)
+        );
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_survey_audit ON public.surveys;
+CREATE TRIGGER trg_survey_audit
+  AFTER INSERT OR UPDATE OR DELETE ON public.surveys
+  FOR EACH ROW EXECUTE PROCEDURE public.log_survey_audit();
+
+-- ==============================================================================
+-- AUTOMATIC PROFILE CREATION TRIGGER & SURVEY AUTO-LINK
 -- ==============================================================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
@@ -234,6 +369,12 @@ BEGIN
     COALESCE(new.raw_user_meta_data->>'avatar_url', new.raw_user_meta_data->>'picture', '')
   )
   ON CONFLICT (id) DO NOTHING;
+
+  -- Automatically link any previously submitted surveys by this email to the new user ID
+  UPDATE public.surveys
+  SET user_id = new.id
+  WHERE respondent_email = LOWER(TRIM(new.email)) AND user_id IS NULL;
+
   RETURN new;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -243,3 +384,4 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+

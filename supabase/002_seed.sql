@@ -3,6 +3,9 @@
 -- Database Seed File: 50-MCQ Question Pool, Team Structure & Initial Data
 -- ==============================================================================
 
+SET search_path TO public;
+SET row_security = off; -- Bypass RLS for seed inserts (safe in SQL Editor as superuser)
+
 -- 1. Insert 50 MCQs into mcq_pool
 INSERT INTO public.mcq_pool (question_text, options, correct_option_index, explanation, category, difficulty) VALUES
 -- NotebookLM Basics & Source Grounding
@@ -231,3 +234,5 @@ INSERT INTO public.events (title, event_date, location, description, sdg_tags, t
  'Showcasing The AI Bridge digital platform, live QR verification of student certificates, and final analytical impact report to university leadership and national campaign evaluators.',
  ARRAY['SDG 4: Quality Education', 'SDG 8: Decent Work', 'SDG 10: Reduced Inequalities', 'SDG 17: Partnerships'], 'general', 'public')
 ON CONFLICT DO NOTHING;
+
+SET row_security = on; -- Re-enable RLS after seed is complete

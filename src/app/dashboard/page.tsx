@@ -13,11 +13,17 @@ import {
   Download, 
   Layers,
   Sparkles,
-  ShieldCheck
+  ShieldCheck,
+  History,
+  FileSpreadsheet,
+  RefreshCw,
+  Trash2,
+  Edit3,
+  PlusCircle
 } from 'lucide-react';
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'metrics' | 'participants' | 'mcqs' | 'team'>('metrics');
+  const [activeTab, setActiveTab] = useState<'metrics' | 'participants' | 'mcqs' | 'team' | 'audit'>('metrics');
 
   // Sample data simulating current campaign baseline metrics
   const stats = [
@@ -109,6 +115,17 @@ export default function AdminDashboard() {
           }`}
         >
           10 SDG Ambassadors Roster
+        </button>
+        <button
+          onClick={() => setActiveTab('audit')}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 ${
+            activeTab === 'audit'
+              ? 'bg-emerald-700 text-white shadow-sm'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <History className="w-3.5 h-3.5" />
+          <span>Audit & Sync Trail (Sheets)</span>
         </button>
       </div>
 
@@ -282,6 +299,192 @@ export default function AdminDashboard() {
                 </tr>
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Tab Content: Audit & Sync Trail */}
+      {activeTab === 'audit' && (
+        <div className="space-y-6">
+          {/* Top Audit Overview Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-500 font-medium">Inserts Synced</p>
+                <p className="text-2xl font-extrabold text-slate-900 mt-1">45</p>
+                <p className="text-[11px] text-emerald-600 font-medium mt-0.5">Google Form submissions</p>
+              </div>
+              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600">
+                <PlusCircle className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-500 font-medium">Edits Captured</p>
+                <p className="text-2xl font-extrabold text-slate-900 mt-1">12</p>
+                <p className="text-[11px] text-amber-600 font-medium mt-0.5">Direct spreadsheet edits</p>
+              </div>
+              <div className="p-3 rounded-xl bg-amber-50 text-amber-600">
+                <Edit3 className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-500 font-medium">Deletions Logged</p>
+                <p className="text-2xl font-extrabold text-slate-900 mt-1">3</p>
+                <p className="text-[11px] text-rose-600 font-medium mt-0.5">Reset & audit archived</p>
+              </div>
+              <div className="p-3 rounded-xl bg-rose-50 text-rose-600">
+                <Trash2 className="w-5 h-5" />
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div>
+                <p className="text-xs text-slate-500 font-medium">Webhook Health</p>
+                <p className="text-sm font-extrabold text-emerald-700 mt-1">Ready & Listening</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">/api/webhooks/google-sheets</p>
+              </div>
+              <div className="p-3 rounded-xl bg-teal-50 text-teal-600">
+                <FileSpreadsheet className="w-5 h-5" />
+              </div>
+            </div>
+          </div>
+
+          {/* Real-time Audit Trail Log Table */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Survey Database Audit Trail</h2>
+                <p className="text-xs text-slate-500">
+                  Full history of inserts, updates, and deletes triggered from Google Forms, Google Sheets, or the Web Portal.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/webhooks/google-sheets');
+                      const data = await res.json();
+                      alert(`Webhook Health Status: ${data.status.toUpperCase()}\n${data.message}`);
+                    } catch (e: any) {
+                      alert('Webhook ping error: ' + e.message);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 transition-colors"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Test Webhook Ping</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-400 font-semibold uppercase tracking-wider pb-2">
+                    <th className="py-2.5">Action</th>
+                    <th>Survey</th>
+                    <th>Respondent Email</th>
+                    <th>Source & Location</th>
+                    <th>Changed Fields / Notes</th>
+                    <th>Performed By</th>
+                    <th>Timestamp</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  <tr className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-3">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                        UPDATE
+                      </span>
+                    </td>
+                    <td><span className="font-semibold text-slate-800">Pre-Survey</span></td>
+                    <td className="font-mono text-slate-700">003912bsar24@student.iiu.edu.pk</td>
+                    <td>
+                      <span className="inline-flex items-center gap-1 text-slate-600">
+                        <FileSpreadsheet className="w-3 h-3 text-emerald-600" />
+                        Google Sheet (Row 8)
+                      </span>
+                    </td>
+                    <td>
+                      <span className="text-slate-600 font-mono text-[11px]">
+                        hours_saved: 2.5 → 4.5 hrs
+                      </span>
+                    </td>
+                    <td className="text-slate-500">ibrahim.faisal@student.iiu.edu.pk</td>
+                    <td className="text-slate-400">Just now</td>
+                  </tr>
+
+                  <tr className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-3">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                        INSERT
+                      </span>
+                    </td>
+                    <td><span className="font-semibold text-slate-800">Pre-Survey</span></td>
+                    <td className="font-mono text-slate-700">004122bsus24@student.iiu.edu.pk</td>
+                    <td>
+                      <span className="inline-flex items-center gap-1 text-slate-600">
+                        <FileSpreadsheet className="w-3 h-3 text-emerald-600" />
+                        Google Form Submit (Row 9)
+                      </span>
+                    </td>
+                    <td>
+                      <span className="text-emerald-700 font-medium">New initial submission</span>
+                    </td>
+                    <td className="text-slate-500">004122bsus24@student.iiu.edu.pk</td>
+                    <td className="text-slate-400">12 mins ago</td>
+                  </tr>
+
+                  <tr className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-3">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                        UPDATE
+                      </span>
+                    </td>
+                    <td><span className="font-semibold text-slate-800">Post-Survey</span></td>
+                    <td className="font-mono text-slate-700">dr.farooq@iiu.edu.pk</td>
+                    <td>
+                      <span className="inline-flex items-center gap-1 text-slate-600">
+                        <FileSpreadsheet className="w-3 h-3 text-emerald-600" />
+                        Google Sheet (Row 4)
+                      </span>
+                    </td>
+                    <td>
+                      <span className="text-slate-600 font-mono text-[11px]">
+                        comprehension_rating: 3 → 5
+                      </span>
+                    </td>
+                    <td className="text-slate-500">003822bsbaf24@student.iiu.edu.pk</td>
+                    <td className="text-slate-400">45 mins ago</td>
+                  </tr>
+
+                  <tr className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-3">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">
+                        DELETE
+                      </span>
+                    </td>
+                    <td><span className="font-semibold text-slate-800">Pre-Survey</span></td>
+                    <td className="font-mono text-slate-700">test.duplicate@student.iiu.edu.pk</td>
+                    <td>
+                      <span className="inline-flex items-center gap-1 text-slate-600">
+                        <FileSpreadsheet className="w-3 h-3 text-rose-600" />
+                        Sheet Action Menu
+                      </span>
+                    </td>
+                    <td>
+                      <span className="text-rose-700 font-medium">Removed duplicate entry</span>
+                    </td>
+                    <td className="text-slate-500">003822bsbaf24@student.iiu.edu.pk</td>
+                    <td className="text-slate-400">2 hours ago</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
