@@ -1,0 +1,245 @@
+-- ==============================================================================
+-- THE AI BRIDGE WEB APPLICATION | IIUI FMS
+-- Database Schema Definition (PostgreSQL / Supabase)
+-- Version: 2.0 (Updated 3-Step Lifecycle: Pre-Survey -> 30-MCQ Engine -> Post-Survey)
+-- ==============================================================================
+
+-- 1. Enable Required Extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- 2. User Roles Enum (or text check)
+-- Roles: admin (Lead / Tech Lead), member (10 SDG Ambassadors), student (Participants / Educators)
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email TEXT NOT NULL UNIQUE,
+    full_name TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'student' CHECK (role IN ('admin', 'member', 'student')),
+    student_id TEXT, -- e.g. 003822bsbaf24 or Faculty ID
+    department TEXT DEFAULT 'Faculty of Management Sciences (FMS)',
+    phone TEXT,
+    avatar_url TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 3. Member Permissions Table (Granular controls toggled by Admin)
+CREATE TABLE IF NOT EXISTS public.member_permissions (
+    member_id UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
+    can_manage_events BOOLEAN NOT NULL DEFAULT false,
+    can_view_surveys BOOLEAN NOT NULL DEFAULT true,
+    can_verify_attendance BOOLEAN NOT NULL DEFAULT false,
+    can_manage_mcqs BOOLEAN NOT NULL DEFAULT false,
+    can_export_reports BOOLEAN NOT NULL DEFAULT true,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 4. Events & Gallery Table (SDG Walk, Workshops, Awareness Campaigns)
+CREATE TABLE IF NOT EXISTS public.events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL,
+    event_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    location TEXT DEFAULT 'International Islamic University Islamabad (IIUI)',
+    description TEXT NOT NULL,
+    cover_image_url TEXT,
+    gallery_urls TEXT[] DEFAULT '{}',
+    sdg_tags TEXT[] DEFAULT ARRAY['SDG 4: Quality Education', 'SDG 8: Decent Work', 'SDG 10: Reduced Inequalities', 'SDG 17: Partnerships'],
+    team_tag TEXT NOT NULL DEFAULT 'workshops' CHECK (team_tag IN ('awareness', 'workshops', 'analyzing', 'general')),
+    visibility TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'internal')),
+    created_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 5. MCQ Question Pool (50 questions pool, dynamically sampled for 30 questions)
+CREATE TABLE IF NOT EXISTS public.mcq_pool (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    question_text TEXT NOT NULL,
+    options JSONB NOT NULL, -- e.g. ["Option A", "Option B", "Option C", "Option D"]
+    correct_option_index INT NOT NULL CHECK (correct_option_index BETWEEN 0 AND 3),
+    explanation TEXT,
+    category TEXT NOT NULL DEFAULT 'NotebookLM & AI Foundations',
+    difficulty TEXT DEFAULT 'intermediate' CHECK (difficulty IN ('easy', 'intermediate', 'advanced')),
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 6. Survey Responses (Pre-Survey & Post-Survey)
+CREATE TABLE IF NOT EXISTS public.surveys (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    survey_type TEXT NOT NULL CHECK (survey_type IN ('pre', 'post')),
+    answers JSONB NOT NULL,
+    hours_saved_estimate NUMERIC DEFAULT 0, -- Tracked for QIP Metric: 3-5 hrs/week
+    comprehension_self_rating INT CHECK (comprehension_self_rating BETWEEN 1 AND 5),
+    feedback_notes TEXT,
+    submitted_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    CONSTRAINT unique_user_survey UNIQUE (user_id, survey_type)
+);
+
+-- 7. Course Assessment Attempts (30 randomized MCQs drawn from pool)
+CREATE TABLE IF NOT EXISTS public.quiz_attempts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    drawn_question_ids UUID[] NOT NULL,
+    user_answers JSONB NOT NULL, -- { question_id: selected_index }
+    score INT NOT NULL, -- e.g. 25
+    total_questions INT NOT NULL DEFAULT 30,
+    passing_score INT NOT NULL DEFAULT 21, -- 70% passing threshold (21/30)
+    passed BOOLEAN NOT NULL DEFAULT false,
+    started_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+    completed_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- 8. Certificates Table (Unlocked after: Pre-Survey + Passed 30-MCQ Quiz + Post-Survey)
+CREATE TABLE IF NOT EXISTS public.certificates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    certificate_id TEXT NOT NULL UNIQUE, -- e.g. AIB-2025-0001
+    verification_code TEXT NOT NULL UNIQUE, -- Unique cryptographic or URL-safe slug
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    recipient_name TEXT NOT NULL,
+    recipient_role TEXT NOT NULL DEFAULT 'Trained Educator / Participant',
+    student_id TEXT,
+    department TEXT,
+    course_name TEXT NOT NULL DEFAULT 'The AI Bridge: Source-Grounded AI & NotebookLM Mastery',
+    completion_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    pdf_url TEXT,
+    qr_code_url TEXT,
+    is_valid BOOLEAN NOT NULL DEFAULT true,
+    issued_by TEXT NOT NULL DEFAULT 'Dr. Abdul Zahid Khan (Chairperson, TPM Department, FMS IIUI)',
+    issued_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    CONSTRAINT unique_user_certificate UNIQUE (user_id)
+);
+
+-- 9. System Settings Table
+CREATE TABLE IF NOT EXISTS public.system_settings (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+-- Insert Default Settings
+INSERT INTO public.system_settings (key, value) VALUES
+('general', '{"campaign_name": "The AI Bridge", "institution": "International Islamic University Islamabad", "faculty": "Faculty of Management Sciences (FMS)", "mentor": "Dr. Abdul Zahid Khan"}'::jsonb),
+('certification', '{"passing_percentage": 70, "questions_per_quiz": 30, "total_pool_size": 50, "signatory_name": "Dr. Abdul Zahid Khan", "signatory_title": "Chairperson, Dept. of Technology & Project Management"}'::jsonb)
+ON CONFLICT (key) DO NOTHING;
+
+-- ==============================================================================
+-- ROW LEVEL SECURITY (RLS) POLICIES
+-- ==============================================================================
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.member_permissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mcq_pool ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.surveys ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.quiz_attempts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.certificates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
+
+-- Helper Function: Check User Role
+CREATE OR REPLACE FUNCTION public.get_user_role()
+RETURNS TEXT AS $$
+  SELECT role FROM public.profiles WHERE id = auth.uid();
+$$ LANGUAGE sql SECURITY DEFINER;
+
+-- PROFILES POLICIES
+CREATE POLICY "Users can view own profile or admin/members can view all"
+ON public.profiles FOR SELECT
+USING (
+  auth.uid() = id 
+  OR public.get_user_role() IN ('admin', 'member')
+);
+
+CREATE POLICY "Users can update own basic profile"
+ON public.profiles FOR UPDATE
+USING (auth.uid() = id);
+
+CREATE POLICY "Admins can manage all profiles"
+ON public.profiles FOR ALL
+USING (public.get_user_role() = 'admin');
+
+-- EVENTS POLICIES
+CREATE POLICY "Public events visible to all"
+ON public.events FOR SELECT
+USING (visibility = 'public' OR public.get_user_role() IN ('admin', 'member'));
+
+CREATE POLICY "Admins and authorized members can manage events"
+ON public.events FOR ALL
+USING (public.get_user_role() IN ('admin', 'member'));
+
+-- MCQ POOL POLICIES
+CREATE POLICY "Anyone authenticated can view active questions (excluding answer checking)"
+ON public.mcq_pool FOR SELECT
+USING (is_active = true);
+
+CREATE POLICY "Admins can manage mcq pool"
+ON public.mcq_pool FOR ALL
+USING (public.get_user_role() = 'admin');
+
+-- SURVEYS POLICIES
+CREATE POLICY "Users can manage own surveys"
+ON public.surveys FOR ALL
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Admins and members can view all surveys"
+ON public.surveys FOR SELECT
+USING (public.get_user_role() IN ('admin', 'member'));
+
+-- QUIZ ATTEMPTS POLICIES
+CREATE POLICY "Users can view and insert own attempts"
+ON public.quiz_attempts FOR ALL
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Admins and members can view all quiz attempts"
+ON public.quiz_attempts FOR SELECT
+USING (public.get_user_role() IN ('admin', 'member'));
+
+-- CERTIFICATES POLICIES
+CREATE POLICY "Public verification can read certificate by verification_code or id"
+ON public.certificates FOR SELECT
+USING (true); -- Public verification needs read access
+
+CREATE POLICY "Users can view own certificate"
+ON public.certificates FOR SELECT
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Admins can manage certificates"
+ON public.certificates FOR ALL
+USING (public.get_user_role() = 'admin');
+
+-- SYSTEM SETTINGS POLICIES
+CREATE POLICY "Public read general settings"
+ON public.system_settings FOR SELECT
+USING (true);
+
+CREATE POLICY "Admins manage settings"
+ON public.system_settings FOR ALL
+USING (public.get_user_role() = 'admin');
+
+-- ==============================================================================
+-- AUTOMATIC PROFILE CREATION TRIGGER
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name, role, avatar_url)
+  VALUES (
+    new.id,
+    new.email,
+    COALESCE(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
+    CASE 
+      WHEN new.email IN ('003822bsbaf24@student.iiu.edu.pk', 'aibridge.iiui@gmail.com') THEN 'admin'
+      ELSE 'student'
+    END,
+    COALESCE(new.raw_user_meta_data->>'avatar_url', new.raw_user_meta_data->>'picture', '')
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger execution on auth.users insert
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
