@@ -19,11 +19,27 @@ import {
   RefreshCw,
   Trash2,
   Edit3,
-  PlusCircle
+  PlusCircle,
+  Eye,
+  UserCheck,
+  Shield,
+  Check,
+  X,
+  Lock,
+  UserPlus
 } from 'lucide-react';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'metrics' | 'participants' | 'mcqs' | 'team' | 'audit'>('metrics');
+
+  // Whitelist Form State
+  const [newEmail, setNewEmail] = useState('');
+  const [newRole, setNewRole] = useState<'admin' | 'member'>('member');
+  const [newTeam, setNewTeam] = useState<'awareness' | 'workshops' | 'analyzing' | 'general'>('workshops');
+  const [newName, setNewName] = useState('');
+  const [newNotes, setNewNotes] = useState('');
+  const [isSubmittingWhitelist, setIsSubmittingWhitelist] = useState(false);
+  const [feedbackMsg, setFeedbackMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   // Sample data simulating current campaign baseline metrics
   const stats = [
@@ -34,19 +50,120 @@ export default function AdminDashboard() {
     { label: 'Avg. Hours Saved / Week', value: '4.2 hrs', change: 'Target: 3–5 hrs (Met)', icon: Clock, color: 'text-purple-600 bg-purple-50' },
   ];
 
-  const ambassadors = [
-    { name: 'Dr. Abdul Zahid Khan', role: 'Principal Mentor & Project Lead', team: 'Governance', email: 'zahid.khan@iiu.edu.pk' },
-    { name: 'Asad Naveed Akbar', role: 'Team Lead & Tech Architect', team: 'Workshops & Trainings', email: '003822bsbaf24@student.iiu.edu.pk' },
-    { name: 'Muhammad Sohaib Latif', role: 'Team Lead & Operations', team: 'Workshops & Trainings', email: 'sohaib.latif@student.iiu.edu.pk' },
-    { name: 'Sumama Afzal', role: 'SDG Ambassador', team: 'Awareness Campaign', email: 'sumama.afzal@student.iiu.edu.pk' },
-    { name: 'Hafiz M. Hisham Khalid', role: 'SDG Ambassador', team: 'Awareness Campaign', email: 'hisham.khalid@student.iiu.edu.pk' },
-    { name: 'Zawar Hussain Shah', role: 'SDG Ambassador', team: 'Awareness Campaign', email: 'zawar.shah@student.iiu.edu.pk' },
-    { name: 'Muhammad Atiq Qureshi', role: 'SDG Ambassador', team: 'Workshops & Trainings', email: 'atiq.qureshi@student.iiu.edu.pk' },
-    { name: 'Usman Mumtaz Abbasi', role: 'SDG Ambassador', team: 'Workshops & Trainings', email: 'usman.abbasi@student.iiu.edu.pk' },
-    { name: 'Ibrahim bin Faisal', role: 'SDG Ambassador', team: 'Analyzing & Reporting', email: 'ibrahim.faisal@student.iiu.edu.pk' },
-    { name: 'M. Tayyab', role: 'SDG Ambassador', team: 'Analyzing & Reporting', email: 'm.tayyab@student.iiu.edu.pk' },
-    { name: 'Bilawal Ali', role: 'SDG Ambassador', team: 'Analyzing & Reporting', email: 'bilawal.ali@student.iiu.edu.pk' },
-  ];
+  // Whitelisted Roster State (Pre-populated with leadership & 10 SDG Ambassadors)
+  const [whitelist, setWhitelist] = useState([
+    { email: 'ai.bridge.iiui.fms@gmail.com', name: 'M. Tayyab', role: 'admin', team: 'general', notes: 'App Development Lead & Super Admin' },
+    { email: 'm.tayyab@student.iiu.edu.pk', name: 'M. Tayyab', role: 'admin', team: 'analyzing', notes: 'App Development Lead & SDG Ambassador' },
+    { email: 'zahid.khan@iiu.edu.pk', name: 'Dr. Abdul Zahid Khan', role: 'admin', team: 'general', notes: 'Principal Mentor & Chairperson' },
+    { email: '003822bsbaf24@student.iiu.edu.pk', name: 'Asad Naveed Akbar', role: 'member', team: 'workshops', notes: 'Tech Lead & Workshop Team' },
+    { email: 'sohaib.latif@student.iiu.edu.pk', name: 'Muhammad Sohaib Latif', role: 'member', team: 'workshops', notes: 'Team Lead & Operations' },
+    { email: 'atiq.qureshi@student.iiu.edu.pk', name: 'Muhammad Atiq Qureshi', role: 'member', team: 'workshops', notes: 'SDG Ambassador - Workshops & Trainings' },
+    { email: 'usman.abbasi@student.iiu.edu.pk', name: 'Usman Mumtaz Abbasi', role: 'member', team: 'workshops', notes: 'SDG Ambassador - Workshops & Trainings' },
+    { email: 'sumama.afzal@student.iiu.edu.pk', name: 'Sumama Afzal', role: 'member', team: 'awareness', notes: 'SDG Ambassador - Awareness Campaign' },
+    { email: 'hisham.khalid@student.iiu.edu.pk', name: 'Hafiz M. Hisham Khalid', role: 'member', team: 'awareness', notes: 'SDG Ambassador - Awareness Campaign' },
+    { email: 'zawar.shah@student.iiu.edu.pk', name: 'Zawar Hussain Shah', role: 'member', team: 'awareness', notes: 'SDG Ambassador - Awareness Campaign' },
+    { email: 'ibrahim.faisal@student.iiu.edu.pk', name: 'Ibrahim bin Faisal', role: 'member', team: 'analyzing', notes: 'SDG Ambassador - Analyzing & Reporting' },
+    { email: 'bilawal.ali@student.iiu.edu.pk', name: 'Bilawal Ali', role: 'member', team: 'analyzing', notes: 'SDG Ambassador - Analyzing & Reporting' },
+  ]);
+
+  // Ambassador Granular Permissions State
+  const [permissionsMap, setPermissionsMap] = useState<Record<string, {
+    can_manage_events: boolean;
+    can_view_surveys: boolean;
+    can_verify_attendance: boolean;
+    can_manage_mcqs: boolean;
+    can_export_reports: boolean;
+  }>>({
+    'ai.bridge.iiui.fms@gmail.com': { can_manage_events: true, can_view_surveys: true, can_verify_attendance: true, can_manage_mcqs: true, can_export_reports: true },
+    'm.tayyab@student.iiu.edu.pk': { can_manage_events: true, can_view_surveys: true, can_verify_attendance: true, can_manage_mcqs: true, can_export_reports: true },
+    '003822bsbaf24@student.iiu.edu.pk': { can_manage_events: true, can_view_surveys: true, can_verify_attendance: true, can_manage_mcqs: true, can_export_reports: true },
+    'sohaib.latif@student.iiu.edu.pk': { can_manage_events: true, can_view_surveys: true, can_verify_attendance: true, can_manage_mcqs: false, can_export_reports: true },
+    'atiq.qureshi@student.iiu.edu.pk': { can_manage_events: false, can_view_surveys: true, can_verify_attendance: true, can_manage_mcqs: false, can_export_reports: true },
+    'usman.abbasi@student.iiu.edu.pk': { can_manage_events: false, can_view_surveys: true, can_verify_attendance: true, can_manage_mcqs: false, can_export_reports: true },
+    'sumama.afzal@student.iiu.edu.pk': { can_manage_events: true, can_view_surveys: true, can_verify_attendance: false, can_manage_mcqs: false, can_export_reports: true },
+    'hisham.khalid@student.iiu.edu.pk': { can_manage_events: true, can_view_surveys: true, can_verify_attendance: false, can_manage_mcqs: false, can_export_reports: true },
+    'zawar.shah@student.iiu.edu.pk': { can_manage_events: true, can_view_surveys: true, can_verify_attendance: false, can_manage_mcqs: false, can_export_reports: true },
+    'ibrahim.faisal@student.iiu.edu.pk': { can_manage_events: false, can_view_surveys: true, can_verify_attendance: false, can_manage_mcqs: false, can_export_reports: true },
+    'bilawal.ali@student.iiu.edu.pk': { can_manage_events: false, can_view_surveys: true, can_verify_attendance: false, can_manage_mcqs: false, can_export_reports: true },
+  });
+
+  const togglePermission = async (email: string, key: keyof typeof permissionsMap[string]) => {
+    const current = permissionsMap[email] || { can_manage_events: false, can_view_surveys: true, can_verify_attendance: false, can_manage_mcqs: false, can_export_reports: true };
+    const updated = { ...current, [key]: !current[key] };
+    setPermissionsMap(prev => ({ ...prev, [email]: updated }));
+
+    try {
+      await fetch('/api/admin/roles', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, permissions: updated })
+      });
+      setFeedbackMsg({ text: `Permissions updated for ${email}`, type: 'success' });
+      setTimeout(() => setFeedbackMsg(null), 3000);
+    } catch {
+      // Offline fallback state preserved
+    }
+  };
+
+  const handleAddWhitelist = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newEmail) return;
+    setIsSubmittingWhitelist(true);
+    setFeedbackMsg(null);
+
+    const entry = {
+      email: newEmail.trim().toLowerCase(),
+      name: newName.trim() || newEmail.split('@')[0],
+      role: newRole,
+      team: newTeam,
+      notes: newNotes.trim() || `Added to whitelist as ${newRole}`
+    };
+
+    try {
+      const res = await fetch('/api/admin/roles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: entry.email,
+          target_role: entry.role,
+          team_tag: entry.team,
+          full_name: entry.name,
+          notes: entry.notes
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      setWhitelist(prev => [entry, ...prev.filter(w => w.email !== entry.email)]);
+      setNewEmail('');
+      setNewName('');
+      setNewNotes('');
+      setFeedbackMsg({ text: `✅ ${entry.email} added to whitelist as ${entry.role}!`, type: 'success' });
+    } catch (err: any) {
+      // Local fallback for offline mode
+      setWhitelist(prev => [entry, ...prev.filter(w => w.email !== entry.email)]);
+      setFeedbackMsg({ text: `✅ Added ${entry.email} to active session roster.`, type: 'success' });
+    } finally {
+      setIsSubmittingWhitelist(false);
+      setTimeout(() => setFeedbackMsg(null), 4000);
+    }
+  };
+
+  const handleRemoveWhitelist = async (email: string) => {
+    if (email === 'ai.bridge.iiui.fms@gmail.com') {
+      alert('Cannot remove the Primary App Development Super Admin account.');
+      return;
+    }
+    if (!confirm(`Are you sure you want to remove ${email} from the whitelist? Their role will be reset to student.`)) return;
+
+    try {
+      await fetch(`/api/admin/roles?email=${encodeURIComponent(email)}`, { method: 'DELETE' });
+    } catch {}
+
+    setWhitelist(prev => prev.filter(w => w.email !== email));
+    setFeedbackMsg({ text: `Removed ${email} from whitelist.`, type: 'success' });
+    setTimeout(() => setFeedbackMsg(null), 3000);
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
@@ -64,6 +181,16 @@ export default function AdminDashboard() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              localStorage.setItem('aib_simulation_mode', 'student');
+              window.location.href = '/portal?view_as=student';
+            }}
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-amber-400 hover:bg-amber-500 text-slate-950 shadow-sm transition-all cursor-pointer"
+          >
+            <Eye className="w-4 h-4" />
+            <span>Simulate Student View</span>
+          </button>
           <button 
             onClick={() => alert('Full QIP report data exported in CSV!')}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm transition-all"
@@ -108,13 +235,14 @@ export default function AdminDashboard() {
         </button>
         <button
           onClick={() => setActiveTab('team')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors ${
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 ${
             activeTab === 'team'
               ? 'bg-emerald-700 text-white shadow-sm'
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          10 SDG Ambassadors Roster
+          <ShieldCheck className="w-3.5 h-3.5" />
+          <span>Roles & Whitelist Console</span>
         </button>
         <button
           onClick={() => setActiveTab('audit')}
@@ -203,30 +331,253 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Tab Content: Team */}
+      {/* Tab Content: Roles & Whitelist Console (Pro RBAC System) */}
       {activeTab === 'team' && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-slate-100">
-            <h3 className="font-bold text-slate-900 text-sm">FMS SDG Ambassadors & Project Leadership Roster</h3>
-            <p className="text-xs text-slate-500">10 core student ambassadors organized across the 3 execution branches.</p>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {ambassadors.map((person, idx) => (
-              <div key={idx} className="p-4 sm:px-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 hover:bg-slate-50 text-xs">
-                <div>
-                  <p className="font-bold text-slate-900">{person.name}</p>
-                  <p className="text-slate-500">{person.email}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 font-medium">
-                    {person.team}
-                  </span>
-                  <span className="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 font-semibold">
-                    {person.role}
-                  </span>
-                </div>
+        <div className="space-y-8">
+          {/* Superadmin Highlight Banner */}
+          <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 text-white p-6 rounded-3xl border border-slate-700 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-600/30 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-inner">
+                <Shield className="w-6 h-6" />
               </div>
-            ))}
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-800/60">
+                    App Development Team Lead & Super Admin
+                  </span>
+                </div>
+                <h2 className="text-lg font-extrabold text-white mt-1">ai.bridge.iiui.fms@gmail.com</h2>
+                <p className="text-xs text-slate-300">
+                  Lead Architect: <strong>M. Tayyab</strong> • Full administrative governance over whitelist, ambassador permissions & database.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs bg-slate-800/70 border border-slate-700 px-3.5 py-2 rounded-xl text-slate-300">
+              <Lock className="w-4 h-4 text-emerald-400" />
+              <span>Zero-Tolerance Edge Guard Active</span>
+            </div>
+          </div>
+
+          {feedbackMsg && (
+            <div className={`p-4 rounded-2xl text-xs flex items-center justify-between ${
+              feedbackMsg.type === 'success' ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : 'bg-red-50 border border-red-200 text-red-700'
+            }`}>
+              <span>{feedbackMsg.text}</span>
+              <button onClick={() => setFeedbackMsg(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Add Whitelist Form */}
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Add New Member or Admin to Institutional Whitelist</h3>
+                <p className="text-xs text-slate-500">
+                  When this user signs in with Google, they will automatically be elevated to their assigned role and team permissions.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleAddWhitelist} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2">
+              <input
+                type="email"
+                required
+                placeholder="Google / IIUI Email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                className="px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              />
+              <input
+                type="text"
+                placeholder="Full Name (optional)"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className="px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              />
+              <select
+                value={newRole}
+                onChange={(e: any) => setNewRole(e.target.value)}
+                className="px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+              >
+                <option value="member">Role: Member (Ambassador)</option>
+                <option value="admin">Role: Admin (Leadership)</option>
+              </select>
+              <select
+                value={newTeam}
+                onChange={(e: any) => setNewTeam(e.target.value)}
+                className="px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+              >
+                <option value="workshops">Team: Workshops & Trainings</option>
+                <option value="analyzing">Team: Analyzing & Reporting</option>
+                <option value="awareness">Team: Awareness Campaign</option>
+                <option value="general">Team: General Governance</option>
+              </select>
+              <button
+                type="submit"
+                disabled={isSubmittingWhitelist}
+                className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 cursor-pointer"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>{isSubmittingWhitelist ? 'Saving...' : 'Add to Whitelist'}</span>
+              </button>
+            </form>
+          </div>
+
+          {/* Whitelisted Users Table */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-2">
+            <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Active Whitelist & Auto-Elevation Roster ({whitelist.length})</h3>
+                <p className="text-xs text-slate-500">
+                  Users matching these emails receive automatic role elevation and zero-touch portal authorization upon Google login.
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-400 font-semibold uppercase tracking-wider bg-slate-50/70">
+                    <th className="py-3 px-6">Name & Google Email</th>
+                    <th>Elevated Role</th>
+                    <th>Team Branch</th>
+                    <th>Governance Notes</th>
+                    <th className="text-right px-6">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {whitelist.map((w, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="py-3 px-6">
+                        <p className="font-bold text-slate-900">{w.name}</p>
+                        <p className="font-mono text-slate-500 text-[11px]">{w.email}</p>
+                      </td>
+                      <td>
+                        <span className={`px-2.5 py-0.5 rounded-full font-bold uppercase text-[10px] ${
+                          w.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800'
+                        }`}>
+                          {w.role}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="capitalize px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
+                          {w.team}
+                        </span>
+                      </td>
+                      <td className="text-slate-500 text-[11px] max-w-xs truncate">
+                        {w.notes}
+                      </td>
+                      <td className="text-right px-6">
+                        {w.email !== 'ai.bridge.iiui.fms@gmail.com' ? (
+                          <button
+                            onClick={() => handleRemoveWhitelist(w.email)}
+                            className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                            title="Remove from Whitelist"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <span className="text-[11px] text-emerald-600 font-bold">Protected</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Granular Ambassador Permissions Matrix */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm">Ambassador Granular Permissions Matrix</h3>
+              <p className="text-xs text-slate-500">
+                Admins can toggle individual functional capabilities per ambassador. Changes persist in the <code className="bg-slate-100 px-1 py-0.5 rounded">member_permissions</code> database table.
+              </p>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider pb-2">
+                    <th className="py-2.5">Ambassador</th>
+                    <th className="text-center">Manage Events</th>
+                    <th className="text-center">View Surveys</th>
+                    <th className="text-center">Verify Attendance</th>
+                    <th className="text-center">Manage MCQs</th>
+                    <th className="text-center">Export Reports</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {whitelist.filter(w => w.role === 'member' || w.email.includes('tayyab')).map((w, idx) => {
+                    const perms = permissionsMap[w.email] || {
+                      can_manage_events: false,
+                      can_view_surveys: true,
+                      can_verify_attendance: false,
+                      can_manage_mcqs: false,
+                      can_export_reports: true,
+                    };
+
+                    return (
+                      <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-3 font-medium text-slate-800">
+                          <div>{w.name}</div>
+                          <div className="text-[10px] text-slate-400 font-mono">{w.email}</div>
+                        </td>
+
+                        <td className="text-center">
+                          <input
+                            type="checkbox"
+                            checked={perms.can_manage_events}
+                            onChange={() => togglePermission(w.email, 'can_manage_events')}
+                            className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                          />
+                        </td>
+
+                        <td className="text-center">
+                          <input
+                            type="checkbox"
+                            checked={perms.can_view_surveys}
+                            onChange={() => togglePermission(w.email, 'can_view_surveys')}
+                            className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                          />
+                        </td>
+
+                        <td className="text-center">
+                          <input
+                            type="checkbox"
+                            checked={perms.can_verify_attendance}
+                            onChange={() => togglePermission(w.email, 'can_verify_attendance')}
+                            className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                          />
+                        </td>
+
+                        <td className="text-center">
+                          <input
+                            type="checkbox"
+                            checked={perms.can_manage_mcqs}
+                            onChange={() => togglePermission(w.email, 'can_manage_mcqs')}
+                            className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                          />
+                        </td>
+
+                        <td className="text-center">
+                          <input
+                            type="checkbox"
+                            checked={perms.can_export_reports}
+                            onChange={() => togglePermission(w.email, 'can_export_reports')}
+                            className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}

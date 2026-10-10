@@ -13,7 +13,9 @@ import {
   HelpCircle,
   FileText,
   Award,
-  AlertCircle
+  AlertCircle,
+  Eye,
+  ShieldAlert
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -21,6 +23,8 @@ export default function StudentPortal() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [accessRestricted, setAccessRestricted] = useState(false);
 
   // 3-Step Progress State
   const [preSurveyCompleted, setPreSurveyCompleted] = useState(false);
@@ -94,10 +98,58 @@ export default function StudentPortal() {
       }
     }
     loadData();
+
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('view_as') === 'student' || localStorage.getItem('aib_simulation_mode') === 'student') {
+        setIsSimulating(true);
+        localStorage.setItem('aib_simulation_mode', 'student');
+      }
+      if (params.get('access_denied') === 'restricted_dashboard') {
+        setAccessRestricted(true);
+      }
+    }
   }, []);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
+      {/* Simulation Banner (Pro Feature) */}
+      {isSimulating && (
+        <div className="bg-amber-400 text-slate-950 p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 font-medium text-xs shadow-md border border-amber-500 animate-fade-in">
+          <div className="flex items-center gap-2.5">
+            <Eye className="w-5 h-5 text-slate-950 flex-shrink-0" />
+            <div>
+              <p className="font-bold">Admin Simulation Mode Active</p>
+              <p className="text-[11px] text-slate-800">
+                You are previewing this portal as a Student (Beneficiary View). Real Role: {profile?.role?.toUpperCase() || 'ADMIN'}.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              localStorage.removeItem('aib_simulation_mode');
+              window.location.href = '/dashboard';
+            }}
+            className="px-3.5 py-1.5 bg-slate-950 text-white rounded-xl text-xs font-bold hover:bg-slate-900 transition-colors shadow-sm whitespace-nowrap cursor-pointer"
+          >
+            Exit Simulation & Return to Dashboard →
+          </button>
+        </div>
+      )}
+
+      {/* Access Restricted Alert (Zero-Tolerance Security Guard) */}
+      {accessRestricted && (
+        <div className="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-2xl text-xs flex items-start gap-3 animate-fade-in">
+          <ShieldAlert className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold">Access Restricted: Leadership & Ambassador Console</p>
+            <p className="text-[11px] text-rose-700 mt-0.5 leading-relaxed">
+              The Management Console (/dashboard) is restricted strictly to FMS SDG Ambassadors and Administrators. You have been redirected to your personal Student Certification Workspace.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header Banner */}
       <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>

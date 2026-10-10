@@ -23,6 +23,16 @@ export interface MemberPermissions {
   updated_at: string;
 }
 
+export interface RoleWhitelistEntry {
+  email: string;
+  target_role: UserRole;
+  team_tag: 'awareness' | 'workshops' | 'analyzing' | 'general';
+  full_name?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface EventItem {
   id: string;
   title: string;
