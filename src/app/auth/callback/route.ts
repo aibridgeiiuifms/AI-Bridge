@@ -7,8 +7,15 @@ export async function GET(request: Request) {
   const origin = requestUrl.origin;
 
   if (code) {
-    const supabase = await createClient();
-    await supabase.auth.exchangeCodeForSession(code);
+    try {
+      const supabase = await createClient();
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (error) {
+        console.error('exchangeCodeForSession error:', error);
+      }
+    } catch (err) {
+      console.error('Error during auth exchange:', err);
+    }
   }
 
   // URL to redirect to after sign in process completes
