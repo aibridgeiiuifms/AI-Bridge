@@ -186,6 +186,24 @@ CREATE POLICY "Admins can manage all profiles"
 ON public.profiles FOR ALL
 USING (public.get_user_role() = 'admin');
 
+-- MEMBER PERMISSIONS POLICIES
+DROP POLICY IF EXISTS "Users can view own permissions or admin view all" ON public.member_permissions;
+CREATE POLICY "Users can view own permissions or admin view all"
+ON public.member_permissions FOR SELECT
+USING (
+  member_id = auth.uid() 
+  OR public.get_user_role() = 'admin'
+  OR (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
+);
+
+DROP POLICY IF EXISTS "Admins can manage member permissions" ON public.member_permissions;
+CREATE POLICY "Admins can manage member permissions"
+ON public.member_permissions FOR ALL
+USING (
+  public.get_user_role() = 'admin'
+  OR (SELECT role FROM public.profiles WHERE id = auth.uid()) = 'admin'
+);
+
 -- EVENTS POLICIES
 DROP POLICY IF EXISTS "Public events visible to all" ON public.events;
 CREATE POLICY "Public events visible to all"

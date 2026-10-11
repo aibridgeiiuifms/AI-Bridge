@@ -232,6 +232,17 @@ export async function PATCH(req: NextRequest) {
           return NextResponse.json({ success: false, error: permError.message }, { status: 400 });
         }
       }
+
+      // Also ensure can_manage_team is persisted to role_whitelist for this email
+      if (email && permissions.can_manage_team !== undefined) {
+        await supabase
+          .from('role_whitelist')
+          .update({
+            can_manage_team: Boolean(permissions.can_manage_team),
+            updated_at: new Date().toISOString()
+          })
+          .eq('email', email.trim().toLowerCase());
+      }
     }
 
     return NextResponse.json({

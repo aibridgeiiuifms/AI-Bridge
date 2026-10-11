@@ -86,8 +86,20 @@ export default function AdminDashboard() {
 
         const pMap: Record<string, any> = {};
         (data.profiles || []).forEach((p: any) => {
-          if (p.member_permissions && p.member_permissions.length > 0) {
-            pMap[p.email] = p.member_permissions[0];
+          let permObj: any = null;
+          if (Array.isArray(p.member_permissions) && p.member_permissions.length > 0) {
+            permObj = p.member_permissions[0];
+          } else if (p.member_permissions && typeof p.member_permissions === 'object') {
+            permObj = p.member_permissions;
+          }
+
+          const wlMatch = (data.whitelist || []).find((w: any) => w.email?.toLowerCase() === p.email?.toLowerCase());
+
+          if (permObj) {
+            pMap[p.email] = {
+              ...permObj,
+              can_manage_team: permObj.can_manage_team ?? Boolean(wlMatch?.can_manage_team)
+            };
           } else {
             pMap[p.email] = {
               can_manage_events: false,
@@ -95,11 +107,40 @@ export default function AdminDashboard() {
               can_verify_attendance: false,
               can_manage_mcqs: false,
               can_export_reports: true,
-              can_manage_team: false,
+              can_manage_team: Boolean(wlMatch?.can_manage_team),
             };
           }
         });
+
+        // Also ensure whitelist members without profiles yet are represented in pMap
+        (data.whitelist || []).forEach((w: any) => {
+          if (!pMap[w.email]) {
+            pMap[w.email] = {
+              can_manage_events: false,
+              can_view_surveys: true,
+              can_verify_attendance: false,
+              can_manage_mcqs: false,
+              can_export_reports: true,
+              can_manage_team: Boolean(w.can_manage_team),
+            };
+          } else if (w.can_manage_team) {
+            pMap[w.email].can_manage_team = true;
+          }
+        });
         setPermissionsMap(pMap);
+
+        // Cross-verify whether current user has delegated management permission
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+          const emailLower = user.email.toLowerCase();
+          const isSuper = emailLower === 'ai.bridge.iiui.fms@gmail.com';
+          const hasDelegated = Boolean(pMap[emailLower]?.can_manage_team) ||
+            Boolean((data.whitelist || []).find((w: any) => w.email?.toLowerCase() === emailLower)?.can_manage_team);
+          if (isSuper || hasDelegated) {
+            setCanManageTeam(true);
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to fetch roles from Supabase:', err);
@@ -109,6 +150,15 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
+    // Check URL parameters for tab navigation (e.g. ?tab=team)
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      if (tabParam && ['metrics', 'participants', 'mcqs', 'team', 'audit'].includes(tabParam)) {
+        setActiveTab(tabParam as any);
+      }
+    }
+
     const supabase = createClient();
     async function checkUser() {
       try {
@@ -125,10 +175,45 @@ export default function AdminDashboard() {
 
           const isSuperAdmin = emailLower === 'ai.bridge.iiui.fms@gmail.com' || prof?.role === 'admin';
           setCurrentUserRole(prof?.role || 'member');
-          const hasDelegatedPermission = prof?.member_permissions?.[0]?.can_manage_team || false;
+
+          let hasDelegatedPermission = false;
+          if (prof?.member_permissions) {
+            if (Array.isArray(prof.member_permissions) && prof.member_permissions.length > 0) {
+              hasDelegatedPermission = Boolean(prof.member_permissions[0]?.can_manage_team);
+            } else if (typeof prof.member_permissions === 'object') {
+              hasDelegatedPermission = Boolean((prof.member_permissions as any)?.can_manage_team);
+            }
+          }
+
+          // Direct check on member_permissions table if join was blocked or empty
+          if (!hasDelegatedPermission && user.id) {
+            const { data: directPerm } = await supabase
+              .from('member_permissions')
+              .select('can_manage_team')
+              .eq('member_id', user.id)
+              .maybeSingle();
+            if (directPerm?.can_manage_team) {
+              hasDelegatedPermission = true;
+            }
+          }
+
+          // Whitelist check
+          if (!hasDelegatedPermission) {
+            const { data: wl } = await supabase
+              .from('role_whitelist')
+              .select('can_manage_team')
+              .eq('email', emailLower)
+              .maybeSingle();
+            if (wl?.can_manage_team) {
+              hasDelegatedPermission = true;
+            }
+          }
+
           setCanManageTeam(isSuperAdmin || hasDelegatedPermission);
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('Error verifying user permissions:', e);
+      }
     }
     checkUser();
     fetchRolesData();
@@ -366,6 +451,11 @@ export default function AdminDashboard() {
         >
           <ShieldCheck className="w-3.5 h-3.5" />
           <span>Roles & Whitelist Console</span>
+          {canManageTeam && !isSuperAdmin && (
+            <span className="ml-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-300">
+              Manager Access
+            </span>
+          )}
         </button>
         <button
           onClick={() => setActiveTab('audit')}
@@ -379,6 +469,28 @@ export default function AdminDashboard() {
           <span>Audit & Sync Trail (Sheets)</span>
         </button>
       </div>
+
+      {/* Quick Access Banner for Delegated Team Managers */}
+      {canManageTeam && !isSuperAdmin && activeTab !== 'team' && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-2.5 text-xs">
+            <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="font-bold text-slate-900">Delegated Team Manager Access Active</p>
+              <p className="text-slate-600 text-[11px]">The Lead Admin has authorized your account to add team members, enter emails/names, and assign tasks.</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setActiveTab('team')}
+            className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl cursor-pointer transition-all shadow-sm flex items-center gap-1.5 flex-shrink-0"
+          >
+            <span>Open Whitelist & Add Members</span>
+            <span>&rarr;</span>
+          </button>
+        </div>
+      )}
 
       {/* Tab Content: Metrics */}
       {activeTab === 'metrics' && (
