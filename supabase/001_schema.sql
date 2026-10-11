@@ -352,12 +352,35 @@ CREATE TRIGGER trg_survey_audit
   FOR EACH ROW EXECUTE PROCEDURE public.log_survey_audit();
 
 -- ==============================================================================
+-- DYNAMIC CAMPAIGN TASKS TABLE
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS public.campaign_tasks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title TEXT NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.campaign_tasks ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone authenticated can view campaign tasks" ON public.campaign_tasks;
+CREATE POLICY "Anyone authenticated can view campaign tasks"
+ON public.campaign_tasks FOR SELECT
+USING (true);
+
+DROP POLICY IF EXISTS "Admins can manage campaign tasks" ON public.campaign_tasks;
+CREATE POLICY "Admins can manage campaign tasks"
+ON public.campaign_tasks FOR ALL
+USING (public.get_user_role() = 'admin');
+
+-- ==============================================================================
 -- ROLE WHITELIST TABLE & POLICIES
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.role_whitelist (
     email TEXT PRIMARY KEY,
     target_role TEXT NOT NULL DEFAULT 'member' CHECK (target_role IN ('admin', 'member', 'student')),
     team_tag TEXT NOT NULL DEFAULT 'general' CHECK (team_tag IN ('awareness', 'workshops', 'analyzing', 'general')),
+    assigned_tasks TEXT[] DEFAULT '{}',
     full_name TEXT,
     notes TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),

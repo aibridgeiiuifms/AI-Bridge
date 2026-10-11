@@ -9,6 +9,7 @@ export interface Profile {
   department: string | null;
   phone: string | null;
   avatar_url: string | null;
+  assigned_tasks?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -20,13 +21,22 @@ export interface MemberPermissions {
   can_verify_attendance: boolean;
   can_manage_mcqs: boolean;
   can_export_reports: boolean;
+  can_manage_team?: boolean;
   updated_at: string;
+}
+
+export interface CampaignTask {
+  id: string;
+  title: string;
+  description: string | null;
+  created_at: string;
 }
 
 export interface RoleWhitelistEntry {
   email: string;
   target_role: UserRole;
-  team_tag: 'awareness' | 'workshops' | 'analyzing' | 'general';
+  team_tag?: 'awareness' | 'workshops' | 'analyzing' | 'general';
+  assigned_tasks?: string[];
   full_name?: string | null;
   notes?: string | null;
   created_at?: string;

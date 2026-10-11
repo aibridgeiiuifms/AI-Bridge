@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import { 
   Users, 
   CheckCircle2, 
@@ -26,7 +27,10 @@ import {
   Check,
   X,
   Lock,
-  UserPlus
+  UserPlus,
+  Briefcase,
+  Tag,
+  ListPlus
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -35,11 +39,22 @@ export default function AdminDashboard() {
   // Whitelist Form State
   const [newEmail, setNewEmail] = useState('');
   const [newRole, setNewRole] = useState<'admin' | 'member'>('member');
-  const [newTeam, setNewTeam] = useState<'awareness' | 'workshops' | 'analyzing' | 'general'>('workshops');
   const [newName, setNewName] = useState('');
   const [newNotes, setNewNotes] = useState('');
   const [isSubmittingWhitelist, setIsSubmittingWhitelist] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+
+  // Dynamic Tasks State
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskDesc, setNewTaskDesc] = useState('');
+  const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
+
+  // Current User Identity & Delegation Permissions
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
+  const [currentUserRole, setCurrentUserRole] = useState<string>('member');
+  const [canManageTeam, setCanManageTeam] = useState<boolean>(false);
 
   // Live Supabase Database State (Zero Hardcoded Data)
   const [whitelist, setWhitelist] = useState<any[]>([]);
@@ -63,6 +78,7 @@ export default function AdminDashboard() {
       if (data.success) {
         setWhitelist(data.whitelist || []);
         setRegisteredProfiles(data.profiles || []);
+        setTasks(data.tasks || []);
 
         if (data.stats) {
           setDbStats(data.stats);
@@ -79,6 +95,7 @@ export default function AdminDashboard() {
               can_verify_attendance: false,
               can_manage_mcqs: false,
               can_export_reports: true,
+              can_manage_team: false,
             };
           }
         });
@@ -92,6 +109,28 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
+    const supabase = createClient();
+    async function checkUser() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+          const emailLower = user.email.toLowerCase();
+          setCurrentUserEmail(emailLower);
+
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('role, member_permissions(*)')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          const isSuperAdmin = emailLower === 'ai.bridge.iiui.fms@gmail.com' || prof?.role === 'admin';
+          setCurrentUserRole(prof?.role || 'member');
+          const hasDelegatedPermission = prof?.member_permissions?.[0]?.can_manage_team || false;
+          setCanManageTeam(isSuperAdmin || hasDelegatedPermission);
+        }
+      } catch (e) {}
+    }
+    checkUser();
     fetchRolesData();
   }, []);
 
@@ -104,8 +143,72 @@ export default function AdminDashboard() {
     { label: 'Avg. Hours Saved / Week', value: dbStats.avgHoursSaved, change: 'Live from Supabase', icon: Clock, color: 'text-purple-600 bg-purple-50' },
   ];
 
+  const isSuperAdmin = currentUserEmail === 'ai.bridge.iiui.fms@gmail.com' || currentUserRole === 'admin';
+
+  // Toggle dynamic task selection for new member
+  const toggleTaskSelection = (taskTitle: string) => {
+    setSelectedTasks(prev => 
+      prev.includes(taskTitle) ? prev.filter(t => t !== taskTitle) : [...prev, taskTitle]
+    );
+  };
+
+  // Master Task Pool Handlers
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTaskTitle.trim()) return;
+    setIsCreatingTask(true);
+    setFeedbackMsg(null);
+
+    try {
+      const res = await fetch('/api/admin/roles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'create_task',
+          title: newTaskTitle.trim(),
+          description: newTaskDesc.trim()
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      setNewTaskTitle('');
+      setNewTaskDesc('');
+      await fetchRolesData();
+      setFeedbackMsg({ text: `✅ Added task "${data.task.title}" to master campaign pool!`, type: 'success' });
+    } catch (err: any) {
+      setFeedbackMsg({ text: `❌ ${err.message}`, type: 'error' });
+    } finally {
+      setIsCreatingTask(false);
+      setTimeout(() => setFeedbackMsg(null), 3000);
+    }
+  };
+
+  const handleDeleteTask = async (taskId: string, title: string) => {
+    if (!confirm(`Are you sure you want to delete task "${title}" from the master pool?`)) return;
+    try {
+      const res = await fetch(`/api/admin/roles?action=delete_task&taskId=${encodeURIComponent(taskId)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      await fetchRolesData();
+      setFeedbackMsg({ text: `Task "${title}" removed from pool.`, type: 'success' });
+    } catch (err: any) {
+      setFeedbackMsg({ text: `❌ ${err.message}`, type: 'error' });
+    } finally {
+      setTimeout(() => setFeedbackMsg(null), 3000);
+    }
+  };
+
   const togglePermission = async (email: string, key: string) => {
-    const current = permissionsMap[email] || { can_manage_events: false, can_view_surveys: true, can_verify_attendance: false, can_manage_mcqs: false, can_export_reports: true };
+    const current = permissionsMap[email] || { 
+      can_manage_events: false, 
+      can_view_surveys: true, 
+      can_verify_attendance: false, 
+      can_manage_mcqs: false, 
+      can_export_reports: true,
+      can_manage_team: false
+    };
     const updated = { ...current, [key]: !current[key] };
     setPermissionsMap(prev => ({ ...prev, [email]: updated }));
 
@@ -139,10 +242,12 @@ export default function AdminDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: emailNormalized,
-          target_role: newRole,
-          team_tag: newTeam,
+          // Only Super Admin can pick 'admin'. Permitted members always add as 'member'!
+          target_role: isSuperAdmin ? newRole : 'member',
+          assigned_tasks: selectedTasks,
           full_name: newName.trim(),
-          notes: newNotes.trim()
+          notes: newNotes.trim(),
+          isRequesterAdmin: isSuperAdmin
         })
       });
       const data = await res.json();
@@ -152,7 +257,8 @@ export default function AdminDashboard() {
       setNewEmail('');
       setNewName('');
       setNewNotes('');
-      setFeedbackMsg({ text: `✅ Saved ${emailNormalized} to Supabase role_whitelist!`, type: 'success' });
+      setSelectedTasks([]);
+      setFeedbackMsg({ text: `✅ Saved ${emailNormalized} as ${isSuperAdmin ? newRole : 'member'} with ${selectedTasks.length} task(s)!`, type: 'success' });
     } catch (err: any) {
       setFeedbackMsg({ text: `❌ Error saving to Supabase: ${err.message}`, type: 'error' });
     } finally {
@@ -348,31 +454,38 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Tab Content: Roles & Whitelist Console (Pro RBAC System) */}
+      {/* Tab Content: Dynamic Tasks & Delegated Team Management */}
       {activeTab === 'team' && (
         <div className="space-y-8">
-          {/* Superadmin Highlight Banner */}
+          {/* Superadmin & Delegation Banner */}
           <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 text-white p-6 rounded-3xl border border-slate-700 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-600/30 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-inner">
-                <Shield className="w-6 h-6" />
+              <div className="w-12 h-12 rounded-2xl bg-emerald-600/30 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-inner flex-shrink-0">
+                <Briefcase className="w-6 h-6" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-800/60">
-                    App Development Team Lead & Super Admin
+                    App Development Lead & Super Admin
                   </span>
+                  <span className="text-[11px] text-slate-400">• ai.bridge.iiui.fms@gmail.com</span>
                 </div>
-                <h2 className="text-lg font-extrabold text-white mt-1">ai.bridge.iiui.fms@gmail.com</h2>
+                <h2 className="text-lg font-extrabold text-white mt-1">
+                  Dynamic Task Assignment & Team Governance
+                </h2>
                 <p className="text-xs text-slate-300">
-                  Lead Architect: <strong>M. Tayyab</strong> • Full administrative governance over whitelist, ambassador permissions & database.
+                  {isSuperAdmin
+                    ? 'Super Admin Mode: You have full authority to modify the master task pool, assign tasks, and delegate team management permissions.'
+                    : canManageTeam
+                    ? 'Delegated Manager Mode: You are authorized to manage team members, emails, names, and assigned tasks.'
+                    : 'Viewing team roster and assigned campaign tasks.'}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 text-xs bg-slate-800/70 border border-slate-700 px-3.5 py-2 rounded-xl text-slate-300">
-              <Lock className="w-4 h-4 text-emerald-400" />
-              <span>Zero-Tolerance Edge Guard Active</span>
+            <div className="flex items-center gap-2 text-xs bg-slate-800/80 border border-slate-700 px-3.5 py-2 rounded-xl text-slate-300">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>{isSuperAdmin ? 'Full Admin Access' : canManageTeam ? 'Delegated Team Manager' : 'Team Member View'}</span>
             </div>
           </div>
 
@@ -387,69 +500,185 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Add Whitelist Form */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
+          {/* Master Campaign Tasks Pool (Admin Control) */}
+          {(isSuperAdmin || canManageTeam) && (
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-emerald-700" />
+                    <span>Master Campaign Tasks Pool ({tasks.length})</span>
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Campaign tasks defined here can be dynamically assigned to ambassadors and team members.
+                  </p>
+                </div>
+              </div>
+
+              {/* Tasks Chips / Badges */}
+              <div className="flex flex-wrap gap-2 pt-1">
+                {tasks.map((t) => (
+                  <div
+                    key={t.id}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 shadow-2xs group"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span className="font-semibold">{t.title}</span>
+                    {isSuperAdmin && (
+                      <button
+                        onClick={() => handleDeleteTask(t.id, t.title)}
+                        className="text-slate-400 hover:text-rose-600 transition-colors ml-1 p-0.5"
+                        title="Delete Task from Pool"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Add New Task Form (Admin Only) */}
+              {isSuperAdmin && (
+                <form onSubmit={handleCreateTask} className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-slate-100">
+                  <input
+                    type="text"
+                    required
+                    placeholder="New Task Title (e.g. Poster Design, Lab Logistics)"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    className="flex-1 px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Description (optional)"
+                    value={newTaskDesc}
+                    onChange={(e) => setNewTaskDesc(e.target.value)}
+                    className="flex-1 px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isCreatingTask}
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 cursor-pointer"
+                  >
+                    <ListPlus className="w-4 h-4" />
+                    <span>{isCreatingTask ? 'Adding...' : 'Add Task to Pool'}</span>
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {/* Add Team Member & Assign Tasks Form (Admin or Permitted Member) */}
+          {(isSuperAdmin || canManageTeam) && (
+            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
               <div>
-                <h3 className="font-bold text-slate-900 text-sm">Add New Member or Admin to Institutional Whitelist</h3>
+                <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                  <UserPlus className="w-4 h-4 text-emerald-700" />
+                  <span>Add Team Member & Assign Tasks</span>
+                </h3>
                 <p className="text-xs text-slate-500">
-                  When this user signs in with Google, they will automatically be elevated to their assigned role and team permissions.
+                  {isSuperAdmin
+                    ? 'Admins can assign roles and tasks. When they sign in with Google, tasks and access are automatically granted.'
+                    : 'As a delegated team manager, any person you add will be configured as a Member with your assigned tasks.'}
                 </p>
               </div>
+
+              <form onSubmit={handleAddWhitelist} className="space-y-4 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <input
+                    type="email"
+                    required
+                    placeholder="Google / IIUI Email Address"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    className="px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Full Name (e.g. Asad Naveed)"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    className="px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+
+                  {/* Role Selector: Shown ONLY if Super Admin! For delegated members, hidden completely */}
+                  {isSuperAdmin ? (
+                    <select
+                      value={newRole}
+                      onChange={(e: any) => setNewRole(e.target.value)}
+                      className="px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white font-medium"
+                    >
+                      <option value="member">Role: Member (Ambassador)</option>
+                      <option value="admin">Role: Admin (Leadership)</option>
+                    </select>
+                  ) : (
+                    <div className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-600 flex items-center gap-1.5 font-medium">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                      <span>Role: Member (Ambassador) [Fixed]</span>
+                    </div>
+                  )}
+
+                  <input
+                    type="text"
+                    placeholder="Notes (optional)"
+                    value={newNotes}
+                    onChange={(e) => setNewNotes(e.target.value)}
+                    className="px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                </div>
+
+                {/* Task Selection Checkboxes / Pills */}
+                <div className="space-y-2 pt-2 border-t border-slate-100">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Select Tasks to Assign to this Member:
+                  </label>
+                  {tasks.length === 0 ? (
+                    <p className="text-xs text-slate-400">No tasks in pool yet. Add tasks above first.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {tasks.map((t) => {
+                        const isSelected = selectedTasks.includes(t.title);
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => toggleTaskSelection(t.title)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
+                              isSelected
+                                ? 'bg-emerald-700 text-white shadow-sm'
+                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                            }`}
+                          >
+                            <span>{isSelected ? '✓' : '+'}</span>
+                            <span>{t.title}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isSubmittingWhitelist}
+                    className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-2 disabled:opacity-60 cursor-pointer"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>{isSubmittingWhitelist ? 'Saving...' : 'Add Member & Assign Tasks'}</span>
+                  </button>
+                </div>
+              </form>
             </div>
+          )}
 
-            <form onSubmit={handleAddWhitelist} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2">
-              <input
-                type="email"
-                required
-                placeholder="Google / IIUI Email"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                className="px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-              />
-              <input
-                type="text"
-                placeholder="Full Name (optional)"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                className="px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-              />
-              <select
-                value={newRole}
-                onChange={(e: any) => setNewRole(e.target.value)}
-                className="px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
-              >
-                <option value="member">Role: Member (Ambassador)</option>
-                <option value="admin">Role: Admin (Leadership)</option>
-              </select>
-              <select
-                value={newTeam}
-                onChange={(e: any) => setNewTeam(e.target.value)}
-                className="px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
-              >
-                <option value="workshops">Team: Workshops & Trainings</option>
-                <option value="analyzing">Team: Analyzing & Reporting</option>
-                <option value="awareness">Team: Awareness Campaign</option>
-                <option value="general">Team: General Governance</option>
-              </select>
-              <button
-                type="submit"
-                disabled={isSubmittingWhitelist}
-                className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 cursor-pointer"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>{isSubmittingWhitelist ? 'Saving...' : 'Add to Whitelist'}</span>
-              </button>
-            </form>
-          </div>
-
-          {/* Whitelisted Users Table */}
+          {/* Team Roster & Assigned Tasks Table */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden space-y-2">
             <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
               <div>
-                <h3 className="font-bold text-slate-900 text-sm">Active Whitelist & Auto-Elevation Roster ({whitelist.length})</h3>
+                <h3 className="font-bold text-slate-900 text-sm">Team Roster & Dynamic Tasks ({whitelist.length})</h3>
                 <p className="text-xs text-slate-500">
-                  Data loaded live from Supabase (<code className="bg-slate-100 px-1 py-0.5 rounded">public.role_whitelist</code>).
+                  Data loaded live from Supabase. Tasks assigned here are automatically reflected in each member&apos;s profile.
                 </p>
               </div>
               <button
@@ -467,9 +696,9 @@ export default function AdminDashboard() {
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-400 font-semibold uppercase tracking-wider bg-slate-50/70">
                     <th className="py-3 px-6">Name & Google Email</th>
-                    <th>Elevated Role</th>
-                    <th>Team Branch</th>
-                    <th>Governance Notes</th>
+                    <th>Role</th>
+                    <th>Assigned Tasks</th>
+                    <th className="text-center">Can Manage Team</th>
                     <th className="text-right px-6">Action</th>
                   </tr>
                 </thead>
@@ -479,16 +708,16 @@ export default function AdminDashboard() {
                       <td colSpan={5} className="py-12 text-center text-slate-400">
                         <div className="flex items-center justify-center gap-2">
                           <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-                          <span>Querying Supabase database (role_whitelist)...</span>
+                          <span>Querying Supabase database...</span>
                         </div>
                       </td>
                     </tr>
                   ) : whitelist.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-12 text-center text-slate-400">
-                        <p className="font-bold text-slate-700 text-sm">No whitelisted accounts found in Supabase.</p>
+                        <p className="font-bold text-slate-700 text-sm">No team members found in Supabase.</p>
                         <p className="text-[11px] text-slate-400 mt-1">
-                          The database table is empty. Add an email in the form above to insert a new live entry.
+                          The database is empty. Add a member above to configure their tasks.
                         </p>
                       </td>
                     </tr>
@@ -497,8 +726,8 @@ export default function AdminDashboard() {
                       const email = w.email;
                       const name = w.full_name || w.name || email.split('@')[0];
                       const role = w.target_role || w.role || 'member';
-                      const team = w.team_tag || w.team || 'general';
-                      const notes = w.notes || '—';
+                      const assignedList: string[] = Array.isArray(w.assigned_tasks) ? w.assigned_tasks : [];
+                      const canManage = permissionsMap[email]?.can_manage_team || false;
 
                       return (
                         <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
@@ -513,16 +742,50 @@ export default function AdminDashboard() {
                               {role}
                             </span>
                           </td>
-                          <td>
-                            <span className="capitalize px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
-                              {team}
-                            </span>
+                          <td className="py-3">
+                            {assignedList.length === 0 ? (
+                              <span className="text-slate-400 italic text-[11px]">No tasks assigned</span>
+                            ) : (
+                              <div className="flex flex-wrap gap-1 max-w-sm">
+                                {assignedList.map((t, tIdx) => (
+                                  <span
+                                    key={tIdx}
+                                    className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-medium"
+                                  >
+                                    {t}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </td>
-                          <td className="text-slate-500 text-[11px] max-w-xs truncate">
-                            {notes}
+
+                          {/* Can Manage Team Delegation Toggle */}
+                          <td className="text-center">
+                            {isSuperAdmin && email !== 'ai.bridge.iiui.fms@gmail.com' ? (
+                              <label className="inline-flex items-center gap-1.5 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={canManage}
+                                  onChange={() => togglePermission(email, 'can_manage_team')}
+                                  className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                                />
+                                <span className="text-[10px] text-slate-600 font-medium">
+                                  {canManage ? 'Manager' : 'No'}
+                                </span>
+                              </label>
+                            ) : (
+                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
+                                email === 'ai.bridge.iiui.fms@gmail.com' || canManage
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'text-slate-400'
+                              }`}>
+                                {email === 'ai.bridge.iiui.fms@gmail.com' ? 'Super Admin' : canManage ? 'Yes (Delegated)' : 'No'}
+                              </span>
+                            )}
                           </td>
+
                           <td className="text-right px-6">
-                            {email !== 'ai.bridge.iiui.fms@gmail.com' ? (
+                            {(isSuperAdmin || canManageTeam) && email !== 'ai.bridge.iiui.fms@gmail.com' ? (
                               <button
                                 onClick={() => handleRemoveWhitelist(email)}
                                 className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
@@ -543,13 +806,13 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          {/* Granular Ambassador Permissions Matrix */}
+          {/* Granular Ambassador Capabilities Matrix */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="font-bold text-slate-900 text-sm">Ambassador Granular Permissions Matrix</h3>
+                <h3 className="font-bold text-slate-900 text-sm">Ambassador Permissions & Authority Matrix</h3>
                 <p className="text-xs text-slate-500">
-                  Live toggles saved in <code className="bg-slate-100 px-1 py-0.5 rounded">member_permissions</code> in Supabase.
+                  Admins can delegate permissions (including &ldquo;Manage Team&rdquo;) per ambassador. Stored live in <code className="bg-slate-100 px-1 py-0.5 rounded">member_permissions</code>.
                 </p>
               </div>
             </div>
@@ -559,6 +822,7 @@ export default function AdminDashboard() {
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider pb-2">
                     <th className="py-2.5">Ambassador</th>
+                    <th className="text-center">Manage Team</th>
                     <th className="text-center">Manage Events</th>
                     <th className="text-center">View Surveys</th>
                     <th className="text-center">Verify Attendance</th>
@@ -569,14 +833,14 @@ export default function AdminDashboard() {
                 <tbody className="divide-y divide-slate-100">
                   {loadingRoles ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-400">
+                      <td colSpan={7} className="py-8 text-center text-slate-400">
                         Loading live permissions from Supabase...
                       </td>
                     </tr>
                   ) : whitelist.filter(w => (w.target_role || w.role) === 'member' || w.email.includes('tayyab')).length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-400">
-                        No ambassador members currently in Supabase. Add a member above to configure permissions.
+                      <td colSpan={7} className="py-8 text-center text-slate-400">
+                        No ambassador members currently in Supabase. Add a member above to configure capabilities.
                       </td>
                     </tr>
                   ) : (
@@ -589,6 +853,7 @@ export default function AdminDashboard() {
                         can_verify_attendance: false,
                         can_manage_mcqs: false,
                         can_export_reports: true,
+                        can_manage_team: false,
                       };
 
                       return (
@@ -601,45 +866,60 @@ export default function AdminDashboard() {
                           <td className="text-center">
                             <input
                               type="checkbox"
+                              disabled={!isSuperAdmin}
+                              checked={perms.can_manage_team}
+                              onChange={() => togglePermission(email, 'can_manage_team')}
+                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
+                            />
+                          </td>
+
+                          <td className="text-center">
+                            <input
+                              type="checkbox"
+                              disabled={!isSuperAdmin && !canManageTeam}
                               checked={perms.can_manage_events}
                               onChange={() => togglePermission(email, 'can_manage_events')}
-                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
                             />
                           </td>
 
                           <td className="text-center">
                             <input
                               type="checkbox"
+                              disabled={!isSuperAdmin && !canManageTeam}
                               checked={perms.can_view_surveys}
                               onChange={() => togglePermission(email, 'can_view_surveys')}
-                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
                             />
                           </td>
 
                           <td className="text-center">
                             <input
                               type="checkbox"
+                              disabled={!isSuperAdmin && !canManageTeam}
                               checked={perms.can_verify_attendance}
                               onChange={() => togglePermission(email, 'can_verify_attendance')}
-                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
                             />
                           </td>
 
                           <td className="text-center">
                             <input
                               type="checkbox"
+                              disabled={!isSuperAdmin && !canManageTeam}
                               checked={perms.can_manage_mcqs}
                               onChange={() => togglePermission(email, 'can_manage_mcqs')}
-                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
                             />
                           </td>
 
                           <td className="text-center">
                             <input
                               type="checkbox"
+                              disabled={!isSuperAdmin && !canManageTeam}
                               checked={perms.can_export_reports}
                               onChange={() => togglePermission(email, 'can_export_reports')}
-                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
                             />
                           </td>
                         </tr>

@@ -2,26 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 /**
- * Administrative API endpoint for Role & Whitelist Management
+ * Administrative API endpoint for Dynamic Task Assignment & Delegated Team Management
  * Superadmin: ai.bridge.iiui.fms@gmail.com (M. Tayyab, App Development Team Lead)
  */
 export async function GET(req: NextRequest) {
   try {
     const supabase = createAdminClient();
 
-    // Fetch Whitelist entries directly from Supabase
+    // 1. Fetch Dynamic Tasks
+    const { data: tasks } = await supabase
+      .from('campaign_tasks')
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    // 2. Fetch Whitelist entries
     const { data: whitelist } = await supabase
       .from('role_whitelist')
       .select('*')
       .order('created_at', { ascending: false });
 
-    // Fetch Registered Profiles with their member_permissions
+    // 3. Fetch Registered Profiles with their member_permissions
     const { data: profiles } = await supabase
       .from('profiles')
       .select('*, member_permissions(*)')
       .order('created_at', { ascending: false });
 
-    // Fetch Real Metrics from Database
+    // 4. Fetch Real Metrics from Database
     const { count: totalProfiles } = await supabase
       .from('profiles')
       .select('*', { count: 'exact', head: true });
@@ -53,6 +59,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      tasks: tasks || [],
       whitelist: whitelist || [],
       profiles: profiles || [],
       stats: {
@@ -65,7 +72,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (err: any) {
     return NextResponse.json(
-      { success: false, error: err.message || 'Internal error fetching roles' },
+      { success: false, error: err.message || 'Internal error fetching roles and tasks' },
       { status: 500 }
     );
   }
@@ -74,23 +81,58 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { email, target_role = 'member', team_tag = 'general', full_name = '', notes = '' } = body;
+    const supabase = createAdminClient();
+
+    // Action A: Create New Campaign Task
+    if (body.type === 'create_task') {
+      const { title, description = '' } = body;
+      if (!title || !title.trim()) {
+        return NextResponse.json({ success: false, error: 'Task title is required' }, { status: 400 });
+      }
+
+      const { data, error } = await supabase
+        .from('campaign_tasks')
+        .insert({
+          title: title.trim(),
+          description: description.trim() || null,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+      }
+
+      return NextResponse.json({ success: true, task: data });
+    }
+
+    // Action B: Add/Whitelist Team Member
+    const { 
+      email, 
+      target_role = 'member', 
+      assigned_tasks = [], 
+      full_name = '', 
+      notes = '',
+      isRequesterAdmin = false
+    } = body;
 
     if (!email) {
       return NextResponse.json({ success: false, error: 'Email is required' }, { status: 400 });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const supabase = createAdminClient();
 
-    // Insert or update in role_whitelist
+    // Security Rule: If requester is NOT admin (e.g. delegated member), enforce role = 'member'
+    const finalRole = isRequesterAdmin ? target_role : 'member';
+
+    // Upsert in role_whitelist
     const { data, error } = await supabase
       .from('role_whitelist')
       .upsert(
         {
           email: normalizedEmail,
-          target_role,
-          team_tag,
+          target_role: finalRole,
+          assigned_tasks: Array.isArray(assigned_tasks) ? assigned_tasks : [],
           full_name: full_name || null,
           notes: notes || null,
           updated_at: new Date().toISOString(),
@@ -104,14 +146,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 
+    // Also sync assigned_tasks to existing profile if user already registered
+    await supabase
+      .from('profiles')
+      .update({
+        role: finalRole,
+        assigned_tasks: Array.isArray(assigned_tasks) ? assigned_tasks : [],
+        updated_at: new Date().toISOString(),
+      })
+      .eq('email', normalizedEmail);
+
     return NextResponse.json({
       success: true,
-      message: `User ${normalizedEmail} successfully whitelisted as ${target_role}.`,
+      message: `User ${normalizedEmail} successfully configured as ${finalRole} with assigned tasks.`,
       entry: data,
     });
   } catch (err: any) {
     return NextResponse.json(
-      { success: false, error: err.message || 'Internal error adding to whitelist' },
+      { success: false, error: err.message || 'Internal error processing request' },
       { status: 500 }
     );
   }
@@ -120,16 +172,31 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { userId, newRole, permissions } = body;
-
-    if (!userId) {
-      return NextResponse.json({ success: false, error: 'User ID is required' }, { status: 400 });
-    }
-
+    const { email, userId, newRole, assigned_tasks, permissions, isRequesterAdmin = false } = body;
     const supabase = createAdminClient();
 
-    // Update Role if provided
-    if (newRole) {
+    // 1. Update Assigned Tasks for a Member
+    if (email && assigned_tasks !== undefined) {
+      const normalizedEmail = email.trim().toLowerCase();
+      await supabase
+        .from('role_whitelist')
+        .update({
+          assigned_tasks: Array.isArray(assigned_tasks) ? assigned_tasks : [],
+          updated_at: new Date().toISOString()
+        })
+        .eq('email', normalizedEmail);
+
+      await supabase
+        .from('profiles')
+        .update({
+          assigned_tasks: Array.isArray(assigned_tasks) ? assigned_tasks : [],
+          updated_at: new Date().toISOString()
+        })
+        .eq('email', normalizedEmail);
+    }
+
+    // 2. Update Role if provided (Only allowed by Admin)
+    if (userId && newRole && isRequesterAdmin) {
       const { error: roleError } = await supabase
         .from('profiles')
         .update({ role: newRole, updated_at: new Date().toISOString() })
@@ -140,24 +207,36 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    // Update Member Permissions if provided
-    if (permissions) {
-      const { error: permError } = await supabase
-        .from('member_permissions')
-        .upsert({
-          member_id: userId,
-          ...permissions,
-          updated_at: new Date().toISOString(),
-        });
+    // 3. Update Member Permissions if provided
+    if (permissions && (userId || email)) {
+      let targetId = userId;
+      if (!targetId && email) {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', email.trim().toLowerCase())
+          .maybeSingle();
+        targetId = prof?.id;
+      }
 
-      if (permError) {
-        return NextResponse.json({ success: false, error: permError.message }, { status: 400 });
+      if (targetId) {
+        const { error: permError } = await supabase
+          .from('member_permissions')
+          .upsert({
+            member_id: targetId,
+            ...permissions,
+            updated_at: new Date().toISOString(),
+          });
+
+        if (permError) {
+          return NextResponse.json({ success: false, error: permError.message }, { status: 400 });
+        }
       }
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Role and permissions successfully updated in Supabase.',
+      message: 'Updated successfully in Supabase.',
     });
   } catch (err: any) {
     return NextResponse.json(
@@ -170,8 +249,30 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const email = searchParams.get('email');
+    const action = searchParams.get('action');
+    const supabase = createAdminClient();
 
+    // Action A: Delete Task from Master Task Pool
+    if (action === 'delete_task') {
+      const taskId = searchParams.get('taskId');
+      if (!taskId) {
+        return NextResponse.json({ success: false, error: 'Task ID required' }, { status: 400 });
+      }
+
+      const { error } = await supabase
+        .from('campaign_tasks')
+        .delete()
+        .eq('id', taskId);
+
+      if (error) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+      }
+
+      return NextResponse.json({ success: true, message: 'Task deleted from campaign pool.' });
+    }
+
+    // Action B: Remove Member from Whitelist
+    const email = searchParams.get('email');
     if (!email) {
       return NextResponse.json({ success: false, error: 'Email parameter is required' }, { status: 400 });
     }
@@ -185,8 +286,6 @@ export async function DELETE(req: NextRequest) {
         { status: 403 }
       );
     }
-
-    const supabase = createAdminClient();
 
     const { error } = await supabase
       .from('role_whitelist')
