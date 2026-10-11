@@ -9,22 +9,59 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = createAdminClient();
 
-    // Fetch Whitelist entries
-    const { data: whitelist, error: wlError } = await supabase
+    // Fetch Whitelist entries directly from Supabase
+    const { data: whitelist } = await supabase
       .from('role_whitelist')
       .select('*')
       .order('created_at', { ascending: false });
 
-    // Fetch Registered Profiles
-    const { data: profiles, error: profError } = await supabase
+    // Fetch Registered Profiles with their member_permissions
+    const { data: profiles } = await supabase
       .from('profiles')
       .select('*, member_permissions(*)')
       .order('created_at', { ascending: false });
+
+    // Fetch Real Metrics from Database
+    const { count: totalProfiles } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true });
+
+    const { count: preSurveysCount } = await supabase
+      .from('surveys')
+      .select('*', { count: 'exact', head: true })
+      .eq('survey_type', 'pre');
+
+    const { count: passedQuizzesCount } = await supabase
+      .from('quiz_attempts')
+      .select('*', { count: 'exact', head: true })
+      .eq('passed', true);
+
+    const { count: certificatesCount } = await supabase
+      .from('certificates')
+      .select('*', { count: 'exact', head: true });
+
+    const { data: surveyHours } = await supabase
+      .from('surveys')
+      .select('hours_saved_estimate')
+      .not('hours_saved_estimate', 'is', null);
+
+    let avgHours = 0;
+    if (surveyHours && surveyHours.length > 0) {
+      const totalHours = surveyHours.reduce((acc, curr) => acc + (Number(curr.hours_saved_estimate) || 0), 0);
+      avgHours = parseFloat((totalHours / surveyHours.length).toFixed(1));
+    }
 
     return NextResponse.json({
       success: true,
       whitelist: whitelist || [],
       profiles: profiles || [],
+      stats: {
+        totalProfiles: totalProfiles || 0,
+        preSurveysCount: preSurveysCount || 0,
+        passedQuizzesCount: passedQuizzesCount || 0,
+        certificatesCount: certificatesCount || 0,
+        avgHoursSaved: avgHours > 0 ? `${avgHours} hrs` : '0.0 hrs'
+      }
     });
   } catch (err: any) {
     return NextResponse.json(

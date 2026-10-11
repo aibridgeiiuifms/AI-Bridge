@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Users, 
   CheckCircle2, 
@@ -41,67 +41,87 @@ export default function AdminDashboard() {
   const [isSubmittingWhitelist, setIsSubmittingWhitelist] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
-  // Sample data simulating current campaign baseline metrics
-  const stats = [
-    { label: 'Total Enrolled Beneficiaries', value: '48', change: '+12 this week', icon: Users, color: 'text-blue-600 bg-blue-50' },
-    { label: 'Pre-Surveys Completed', value: '45', change: '93.7% completion', icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50' },
-    { label: '30-MCQ Passed (≥70%)', value: '38', change: '84.4% pass rate', icon: HelpCircle, color: 'text-amber-600 bg-amber-50' },
-    { label: 'Certificates Unlocked', value: '36', change: 'Direct portal downloads', icon: Award, color: 'text-teal-600 bg-teal-50' },
-    { label: 'Avg. Hours Saved / Week', value: '4.2 hrs', change: 'Target: 3–5 hrs (Met)', icon: Clock, color: 'text-purple-600 bg-purple-50' },
-  ];
-
-  // Whitelisted Roster State (Pre-populated with leadership & 10 SDG Ambassadors)
-  const [whitelist, setWhitelist] = useState([
-    { email: 'ai.bridge.iiui.fms@gmail.com', name: 'M. Tayyab', role: 'admin', team: 'general', notes: 'App Development Lead & Super Admin' },
-    { email: 'm.tayyab@student.iiu.edu.pk', name: 'M. Tayyab', role: 'admin', team: 'analyzing', notes: 'App Development Lead & SDG Ambassador' },
-    { email: 'zahid.khan@iiu.edu.pk', name: 'Dr. Abdul Zahid Khan', role: 'admin', team: 'general', notes: 'Principal Mentor & Chairperson' },
-    { email: '003822bsbaf24@student.iiu.edu.pk', name: 'Asad Naveed Akbar', role: 'member', team: 'workshops', notes: 'Tech Lead & Workshop Team' },
-    { email: 'sohaib.latif@student.iiu.edu.pk', name: 'Muhammad Sohaib Latif', role: 'member', team: 'workshops', notes: 'Team Lead & Operations' },
-    { email: 'atiq.qureshi@student.iiu.edu.pk', name: 'Muhammad Atiq Qureshi', role: 'member', team: 'workshops', notes: 'SDG Ambassador - Workshops & Trainings' },
-    { email: 'usman.abbasi@student.iiu.edu.pk', name: 'Usman Mumtaz Abbasi', role: 'member', team: 'workshops', notes: 'SDG Ambassador - Workshops & Trainings' },
-    { email: 'sumama.afzal@student.iiu.edu.pk', name: 'Sumama Afzal', role: 'member', team: 'awareness', notes: 'SDG Ambassador - Awareness Campaign' },
-    { email: 'hisham.khalid@student.iiu.edu.pk', name: 'Hafiz M. Hisham Khalid', role: 'member', team: 'awareness', notes: 'SDG Ambassador - Awareness Campaign' },
-    { email: 'zawar.shah@student.iiu.edu.pk', name: 'Zawar Hussain Shah', role: 'member', team: 'awareness', notes: 'SDG Ambassador - Awareness Campaign' },
-    { email: 'ibrahim.faisal@student.iiu.edu.pk', name: 'Ibrahim bin Faisal', role: 'member', team: 'analyzing', notes: 'SDG Ambassador - Analyzing & Reporting' },
-    { email: 'bilawal.ali@student.iiu.edu.pk', name: 'Bilawal Ali', role: 'member', team: 'analyzing', notes: 'SDG Ambassador - Analyzing & Reporting' },
-  ]);
-
-  // Ambassador Granular Permissions State
-  const [permissionsMap, setPermissionsMap] = useState<Record<string, {
-    can_manage_events: boolean;
-    can_view_surveys: boolean;
-    can_verify_attendance: boolean;
-    can_manage_mcqs: boolean;
-    can_export_reports: boolean;
-  }>>({
-    'ai.bridge.iiui.fms@gmail.com': { can_manage_events: true, can_view_surveys: true, can_verify_attendance: true, can_manage_mcqs: true, can_export_reports: true },
-    'm.tayyab@student.iiu.edu.pk': { can_manage_events: true, can_view_surveys: true, can_verify_attendance: true, can_manage_mcqs: true, can_export_reports: true },
-    '003822bsbaf24@student.iiu.edu.pk': { can_manage_events: true, can_view_surveys: true, can_verify_attendance: true, can_manage_mcqs: true, can_export_reports: true },
-    'sohaib.latif@student.iiu.edu.pk': { can_manage_events: true, can_view_surveys: true, can_verify_attendance: true, can_manage_mcqs: false, can_export_reports: true },
-    'atiq.qureshi@student.iiu.edu.pk': { can_manage_events: false, can_view_surveys: true, can_verify_attendance: true, can_manage_mcqs: false, can_export_reports: true },
-    'usman.abbasi@student.iiu.edu.pk': { can_manage_events: false, can_view_surveys: true, can_verify_attendance: true, can_manage_mcqs: false, can_export_reports: true },
-    'sumama.afzal@student.iiu.edu.pk': { can_manage_events: true, can_view_surveys: true, can_verify_attendance: false, can_manage_mcqs: false, can_export_reports: true },
-    'hisham.khalid@student.iiu.edu.pk': { can_manage_events: true, can_view_surveys: true, can_verify_attendance: false, can_manage_mcqs: false, can_export_reports: true },
-    'zawar.shah@student.iiu.edu.pk': { can_manage_events: true, can_view_surveys: true, can_verify_attendance: false, can_manage_mcqs: false, can_export_reports: true },
-    'ibrahim.faisal@student.iiu.edu.pk': { can_manage_events: false, can_view_surveys: true, can_verify_attendance: false, can_manage_mcqs: false, can_export_reports: true },
-    'bilawal.ali@student.iiu.edu.pk': { can_manage_events: false, can_view_surveys: true, can_verify_attendance: false, can_manage_mcqs: false, can_export_reports: true },
+  // Live Supabase Database State (Zero Hardcoded Data)
+  const [whitelist, setWhitelist] = useState<any[]>([]);
+  const [permissionsMap, setPermissionsMap] = useState<Record<string, any>>({});
+  const [registeredProfiles, setRegisteredProfiles] = useState<any[]>([]);
+  const [loadingRoles, setLoadingRoles] = useState(true);
+  const [dbStats, setDbStats] = useState({
+    totalProfiles: 0,
+    preSurveysCount: 0,
+    passedQuizzesCount: 0,
+    certificatesCount: 0,
+    avgHoursSaved: '0.0 hrs'
   });
 
-  const togglePermission = async (email: string, key: keyof typeof permissionsMap[string]) => {
+  // Fetch Live Data Directly from Supabase
+  const fetchRolesData = async () => {
+    setLoadingRoles(true);
+    try {
+      const res = await fetch('/api/admin/roles');
+      const data = await res.json();
+      if (data.success) {
+        setWhitelist(data.whitelist || []);
+        setRegisteredProfiles(data.profiles || []);
+
+        if (data.stats) {
+          setDbStats(data.stats);
+        }
+
+        const pMap: Record<string, any> = {};
+        (data.profiles || []).forEach((p: any) => {
+          if (p.member_permissions && p.member_permissions.length > 0) {
+            pMap[p.email] = p.member_permissions[0];
+          } else {
+            pMap[p.email] = {
+              can_manage_events: false,
+              can_view_surveys: true,
+              can_verify_attendance: false,
+              can_manage_mcqs: false,
+              can_export_reports: true,
+            };
+          }
+        });
+        setPermissionsMap(pMap);
+      }
+    } catch (err) {
+      console.error('Failed to fetch roles from Supabase:', err);
+    } finally {
+      setLoadingRoles(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRolesData();
+  }, []);
+
+  // Live Metric Cards derived from Supabase
+  const stats = [
+    { label: 'Total Enrolled Beneficiaries', value: String(dbStats.totalProfiles), change: 'Live from Supabase', icon: Users, color: 'text-blue-600 bg-blue-50' },
+    { label: 'Pre-Surveys Completed', value: String(dbStats.preSurveysCount), change: 'Live from Supabase', icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50' },
+    { label: '30-MCQ Passed (≥70%)', value: String(dbStats.passedQuizzesCount), change: 'Live from Supabase', icon: HelpCircle, color: 'text-amber-600 bg-amber-50' },
+    { label: 'Certificates Unlocked', value: String(dbStats.certificatesCount), change: 'Live from Supabase', icon: Award, color: 'text-teal-600 bg-teal-50' },
+    { label: 'Avg. Hours Saved / Week', value: dbStats.avgHoursSaved, change: 'Live from Supabase', icon: Clock, color: 'text-purple-600 bg-purple-50' },
+  ];
+
+  const togglePermission = async (email: string, key: string) => {
     const current = permissionsMap[email] || { can_manage_events: false, can_view_surveys: true, can_verify_attendance: false, can_manage_mcqs: false, can_export_reports: true };
     const updated = { ...current, [key]: !current[key] };
     setPermissionsMap(prev => ({ ...prev, [email]: updated }));
 
     try {
-      await fetch('/api/admin/roles', {
+      const res = await fetch('/api/admin/roles', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, permissions: updated })
       });
-      setFeedbackMsg({ text: `Permissions updated for ${email}`, type: 'success' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      setFeedbackMsg({ text: `Permissions updated in Supabase for ${email}`, type: 'success' });
       setTimeout(() => setFeedbackMsg(null), 3000);
-    } catch {
-      // Offline fallback state preserved
+    } catch (err: any) {
+      setFeedbackMsg({ text: `Failed to update permissions: ${err.message}`, type: 'error' });
     }
   };
 
@@ -111,38 +131,30 @@ export default function AdminDashboard() {
     setIsSubmittingWhitelist(true);
     setFeedbackMsg(null);
 
-    const entry = {
-      email: newEmail.trim().toLowerCase(),
-      name: newName.trim() || newEmail.split('@')[0],
-      role: newRole,
-      team: newTeam,
-      notes: newNotes.trim() || `Added to whitelist as ${newRole}`
-    };
+    const emailNormalized = newEmail.trim().toLowerCase();
 
     try {
       const res = await fetch('/api/admin/roles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: entry.email,
-          target_role: entry.role,
-          team_tag: entry.team,
-          full_name: entry.name,
-          notes: entry.notes
+          email: emailNormalized,
+          target_role: newRole,
+          team_tag: newTeam,
+          full_name: newName.trim(),
+          notes: newNotes.trim()
         })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      setWhitelist(prev => [entry, ...prev.filter(w => w.email !== entry.email)]);
+      await fetchRolesData();
       setNewEmail('');
       setNewName('');
       setNewNotes('');
-      setFeedbackMsg({ text: `✅ ${entry.email} added to whitelist as ${entry.role}!`, type: 'success' });
+      setFeedbackMsg({ text: `✅ Saved ${emailNormalized} to Supabase role_whitelist!`, type: 'success' });
     } catch (err: any) {
-      // Local fallback for offline mode
-      setWhitelist(prev => [entry, ...prev.filter(w => w.email !== entry.email)]);
-      setFeedbackMsg({ text: `✅ Added ${entry.email} to active session roster.`, type: 'success' });
+      setFeedbackMsg({ text: `❌ Error saving to Supabase: ${err.message}`, type: 'error' });
     } finally {
       setIsSubmittingWhitelist(false);
       setTimeout(() => setFeedbackMsg(null), 4000);
@@ -154,15 +166,20 @@ export default function AdminDashboard() {
       alert('Cannot remove the Primary App Development Super Admin account.');
       return;
     }
-    if (!confirm(`Are you sure you want to remove ${email} from the whitelist? Their role will be reset to student.`)) return;
+    if (!confirm(`Are you sure you want to delete ${email} from Supabase role_whitelist?`)) return;
 
     try {
-      await fetch(`/api/admin/roles?email=${encodeURIComponent(email)}`, { method: 'DELETE' });
-    } catch {}
+      const res = await fetch(`/api/admin/roles?email=${encodeURIComponent(email)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
 
-    setWhitelist(prev => prev.filter(w => w.email !== email));
-    setFeedbackMsg({ text: `Removed ${email} from whitelist.`, type: 'success' });
-    setTimeout(() => setFeedbackMsg(null), 3000);
+      await fetchRolesData();
+      setFeedbackMsg({ text: `Successfully removed ${email} from Supabase.`, type: 'success' });
+    } catch (err: any) {
+      setFeedbackMsg({ text: `❌ Failed to remove from Supabase: ${err.message}`, type: 'error' });
+    } finally {
+      setTimeout(() => setFeedbackMsg(null), 3000);
+    }
   };
 
   return (
@@ -432,9 +449,17 @@ export default function AdminDashboard() {
               <div>
                 <h3 className="font-bold text-slate-900 text-sm">Active Whitelist & Auto-Elevation Roster ({whitelist.length})</h3>
                 <p className="text-xs text-slate-500">
-                  Users matching these emails receive automatic role elevation and zero-touch portal authorization upon Google login.
+                  Data loaded live from Supabase (<code className="bg-slate-100 px-1 py-0.5 rounded">public.role_whitelist</code>).
                 </p>
               </div>
+              <button
+                onClick={fetchRolesData}
+                disabled={loadingRoles}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingRoles ? 'animate-spin' : ''}`} />
+                <span>Refresh from Supabase</span>
+              </button>
             </div>
 
             <div className="overflow-x-auto">
@@ -449,42 +474,70 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {whitelist.map((w, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="py-3 px-6">
-                        <p className="font-bold text-slate-900">{w.name}</p>
-                        <p className="font-mono text-slate-500 text-[11px]">{w.email}</p>
-                      </td>
-                      <td>
-                        <span className={`px-2.5 py-0.5 rounded-full font-bold uppercase text-[10px] ${
-                          w.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800'
-                        }`}>
-                          {w.role}
-                        </span>
-                      </td>
-                      <td>
-                        <span className="capitalize px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
-                          {w.team}
-                        </span>
-                      </td>
-                      <td className="text-slate-500 text-[11px] max-w-xs truncate">
-                        {w.notes}
-                      </td>
-                      <td className="text-right px-6">
-                        {w.email !== 'ai.bridge.iiui.fms@gmail.com' ? (
-                          <button
-                            onClick={() => handleRemoveWhitelist(w.email)}
-                            className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                            title="Remove from Whitelist"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        ) : (
-                          <span className="text-[11px] text-emerald-600 font-bold">Protected</span>
-                        )}
+                  {loadingRoles ? (
+                    <tr>
+                      <td colSpan={5} className="py-12 text-center text-slate-400">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                          <span>Querying Supabase database (role_whitelist)...</span>
+                        </div>
                       </td>
                     </tr>
-                  ))}
+                  ) : whitelist.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-12 text-center text-slate-400">
+                        <p className="font-bold text-slate-700 text-sm">No whitelisted accounts found in Supabase.</p>
+                        <p className="text-[11px] text-slate-400 mt-1">
+                          The database table is empty. Add an email in the form above to insert a new live entry.
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    whitelist.map((w, idx) => {
+                      const email = w.email;
+                      const name = w.full_name || w.name || email.split('@')[0];
+                      const role = w.target_role || w.role || 'member';
+                      const team = w.team_tag || w.team || 'general';
+                      const notes = w.notes || '—';
+
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="py-3 px-6">
+                            <p className="font-bold text-slate-900">{name}</p>
+                            <p className="font-mono text-slate-500 text-[11px]">{email}</p>
+                          </td>
+                          <td>
+                            <span className={`px-2.5 py-0.5 rounded-full font-bold uppercase text-[10px] ${
+                              role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800'
+                            }`}>
+                              {role}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="capitalize px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
+                              {team}
+                            </span>
+                          </td>
+                          <td className="text-slate-500 text-[11px] max-w-xs truncate">
+                            {notes}
+                          </td>
+                          <td className="text-right px-6">
+                            {email !== 'ai.bridge.iiui.fms@gmail.com' ? (
+                              <button
+                                onClick={() => handleRemoveWhitelist(email)}
+                                className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                title="Delete from Supabase"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            ) : (
+                              <span className="text-[11px] text-emerald-600 font-bold">Protected</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -492,11 +545,13 @@ export default function AdminDashboard() {
 
           {/* Granular Ambassador Permissions Matrix */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
-            <div>
-              <h3 className="font-bold text-slate-900 text-sm">Ambassador Granular Permissions Matrix</h3>
-              <p className="text-xs text-slate-500">
-                Admins can toggle individual functional capabilities per ambassador. Changes persist in the <code className="bg-slate-100 px-1 py-0.5 rounded">member_permissions</code> database table.
-              </p>
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Ambassador Granular Permissions Matrix</h3>
+                <p className="text-xs text-slate-500">
+                  Live toggles saved in <code className="bg-slate-100 px-1 py-0.5 rounded">member_permissions</code> in Supabase.
+                </p>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -512,69 +567,85 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {whitelist.filter(w => w.role === 'member' || w.email.includes('tayyab')).map((w, idx) => {
-                    const perms = permissionsMap[w.email] || {
-                      can_manage_events: false,
-                      can_view_surveys: true,
-                      can_verify_attendance: false,
-                      can_manage_mcqs: false,
-                      can_export_reports: true,
-                    };
+                  {loadingRoles ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-slate-400">
+                        Loading live permissions from Supabase...
+                      </td>
+                    </tr>
+                  ) : whitelist.filter(w => (w.target_role || w.role) === 'member' || w.email.includes('tayyab')).length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-slate-400">
+                        No ambassador members currently in Supabase. Add a member above to configure permissions.
+                      </td>
+                    </tr>
+                  ) : (
+                    whitelist.filter(w => (w.target_role || w.role) === 'member' || w.email.includes('tayyab')).map((w, idx) => {
+                      const email = w.email;
+                      const name = w.full_name || w.name || email.split('@')[0];
+                      const perms = permissionsMap[email] || {
+                        can_manage_events: false,
+                        can_view_surveys: true,
+                        can_verify_attendance: false,
+                        can_manage_mcqs: false,
+                        can_export_reports: true,
+                      };
 
-                    return (
-                      <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
-                        <td className="py-3 font-medium text-slate-800">
-                          <div>{w.name}</div>
-                          <div className="text-[10px] text-slate-400 font-mono">{w.email}</div>
-                        </td>
+                      return (
+                        <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
+                          <td className="py-3 font-medium text-slate-800">
+                            <div>{name}</div>
+                            <div className="text-[10px] text-slate-400 font-mono">{email}</div>
+                          </td>
 
-                        <td className="text-center">
-                          <input
-                            type="checkbox"
-                            checked={perms.can_manage_events}
-                            onChange={() => togglePermission(w.email, 'can_manage_events')}
-                            className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
-                          />
-                        </td>
+                          <td className="text-center">
+                            <input
+                              type="checkbox"
+                              checked={perms.can_manage_events}
+                              onChange={() => togglePermission(email, 'can_manage_events')}
+                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                            />
+                          </td>
 
-                        <td className="text-center">
-                          <input
-                            type="checkbox"
-                            checked={perms.can_view_surveys}
-                            onChange={() => togglePermission(w.email, 'can_view_surveys')}
-                            className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
-                          />
-                        </td>
+                          <td className="text-center">
+                            <input
+                              type="checkbox"
+                              checked={perms.can_view_surveys}
+                              onChange={() => togglePermission(email, 'can_view_surveys')}
+                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                            />
+                          </td>
 
-                        <td className="text-center">
-                          <input
-                            type="checkbox"
-                            checked={perms.can_verify_attendance}
-                            onChange={() => togglePermission(w.email, 'can_verify_attendance')}
-                            className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
-                          />
-                        </td>
+                          <td className="text-center">
+                            <input
+                              type="checkbox"
+                              checked={perms.can_verify_attendance}
+                              onChange={() => togglePermission(email, 'can_verify_attendance')}
+                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                            />
+                          </td>
 
-                        <td className="text-center">
-                          <input
-                            type="checkbox"
-                            checked={perms.can_manage_mcqs}
-                            onChange={() => togglePermission(w.email, 'can_manage_mcqs')}
-                            className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
-                          />
-                        </td>
+                          <td className="text-center">
+                            <input
+                              type="checkbox"
+                              checked={perms.can_manage_mcqs}
+                              onChange={() => togglePermission(email, 'can_manage_mcqs')}
+                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                            />
+                          </td>
 
-                        <td className="text-center">
-                          <input
-                            type="checkbox"
-                            checked={perms.can_export_reports}
-                            onChange={() => togglePermission(w.email, 'can_export_reports')}
-                            className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
-                          />
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          <td className="text-center">
+                            <input
+                              type="checkbox"
+                              checked={perms.can_export_reports}
+                              onChange={() => togglePermission(email, 'can_export_reports')}
+                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
