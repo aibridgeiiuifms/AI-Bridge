@@ -1,5 +1,7 @@
 import Link from 'next/link';
-import { Sparkles, HeartHandshake, ShieldCheck, ExternalLink } from 'lucide-react';
+import Image from 'next/image';
+import bridgeLogo from '../../Assets/logo.jpg';
+import { HeartHandshake, ShieldCheck, ExternalLink } from 'lucide-react';
 
 export default function Footer() {
   return (
@@ -10,7 +12,13 @@ export default function Footer() {
           <div className="md:col-span-1 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <Sparkles className="w-5 h-5 text-amber-300" />
+                <Image
+                  src={bridgeLogo}
+                  alt="The AI Bridge logo"
+                  width={32}
+                  height={32}
+                  className="h-8 w-8 rounded-full bg-white object-contain"
+                />
               </div>
               <span className="font-bold text-lg text-white">The AI Bridge</span>
             </div>
