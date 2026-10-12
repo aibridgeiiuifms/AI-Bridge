@@ -9,7 +9,6 @@ import {
   LayoutDashboard, 
   GraduationCap, 
   Calendar, 
-  ShieldCheck, 
   Menu, 
   X, 
   LogOut, 
@@ -23,6 +22,7 @@ export default function Navbar() {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [isPrivileged, setIsPrivileged] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,6 +31,23 @@ export default function Navbar() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         setUser(user);
+
+        if (user?.email) {
+          // Check if user has admin or team-management access
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role, can_manage_team')
+            .eq('email', user.email)
+            .maybeSingle();
+
+          if (profile) {
+            const hasAccess =
+              profile.role === 'admin' ||
+              profile.role === 'super_admin' ||
+              profile.can_manage_team === true;
+            setIsPrivileged(hasAccess);
+          }
+        }
       } catch (err) {
         // Suppress placeholder supabase url errors during development
       } finally {
@@ -45,6 +62,7 @@ export default function Navbar() {
     try {
       await supabase.auth.signOut();
       setUser(null);
+      setIsPrivileged(false);
       router.push('/');
       router.refresh();
     } catch (err) {
@@ -52,14 +70,18 @@ export default function Navbar() {
     }
   };
 
-  const navLinks = [
+  // Base public links — no Verify Certificate (removed until real certs are ready)
+  const publicLinks = [
     { name: 'Home', href: '/', icon: Sparkles },
     { name: 'Team & Leadership', href: '/team', icon: Users },
     { name: 'Events & Gallery', href: '/events', icon: Calendar },
     { name: 'Student Portal', href: '/portal', icon: GraduationCap },
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Verify Certificate', href: '/verify/AIB-2025-0001', icon: ShieldCheck },
   ];
+
+  // Dashboard is only shown to admins / team managers
+  const navLinks = isPrivileged
+    ? [...publicLinks, { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }]
+    : publicLinks;
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-2xs">
