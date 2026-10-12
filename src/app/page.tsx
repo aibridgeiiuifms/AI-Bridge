@@ -1,4 +1,7 @@
+import Image from 'next/image';
 import Link from 'next/link';
+import humHainPakistanLogo from '../../Assets/hum hain pak logo.jpg';
+import sdgLogo from '../../Assets/SDG Logo.png';
 import { 
   Sparkles, 
   ArrowRight, 
@@ -18,61 +21,85 @@ export default function HomePage() {
   return (
     <div className="space-y-20 pb-20">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-emerald-900 via-emerald-950 to-slate-900 text-white pt-20 pb-28 px-4 sm:px-6 lg:px-8">
+      <section className="relative overflow-hidden bg-gradient-to-br from-emerald-900 via-emerald-950 to-slate-900 px-4 py-4 text-white sm:px-6 sm:py-6 md:py-8 lg:px-8 lg:py-10">
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#34d399_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none"></div>
-        <div className="max-w-5xl mx-auto text-center space-y-6 relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-semibold uppercase tracking-wider backdrop-blur-md">
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-            <span>Hum Hain Pakistan • SDG Youth Campaign Pilot</span>
+        <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-4 md:grid-cols-[0.8fr_1.2fr] md:gap-6 lg:gap-10">
+          <div className="flex flex-col items-start gap-1">
+            <div className="w-[min(76vw,280px)] rounded-xl border border-white/70 bg-white p-1.5 shadow-[0_12px_30px_-18px_rgba(0,0,0,0.7)] md:w-full md:max-w-[320px] md:p-2 xl:max-w-[380px]">
+              <Image
+                src={humHainPakistanLogo}
+                alt="Hum Hain Pakistan — United for a Brighter Tomorrow"
+                width={2752}
+                height={1536}
+                priority
+                className="h-auto w-full object-contain"
+              />
+            </div>
+            <div className="w-[min(76vw,280px)] px-1.5 md:w-full md:max-w-[320px] md:px-2 xl:max-w-[380px]">
+              <Image
+                src={sdgLogo}
+                alt="Sustainable Development Goals emblem"
+                width={2000}
+                height={280}
+                priority
+                className="h-auto w-full object-contain"
+              />
+            </div>
           </div>
 
-          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white leading-tight">
-            The AI Bridge: <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-teal-200 to-amber-200">
-              Empowering Non-IT Educators & Learners
-            </span>
-          </h1>
+          <div className="space-y-3 text-center md:space-y-2 md:text-left lg:space-y-3">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-emerald-200 sm:text-xs">
+              <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+              <span>Hum Hain Pakistan • SDG Youth Campaign Pilot</span>
+            </div>
 
-          <p className="text-base sm:text-lg text-slate-300 max-w-3xl mx-auto leading-relaxed">
-            Pioneered at the Faculty of Management Sciences (FMS), International Islamic University Islamabad under the leadership of Dr. Abdul Zahid Khan. Transforming dense classical curricula into interactive, multi-modal study guides and podcasts with source-grounded AI.
-          </p>
+            <h1 className="text-3xl font-extrabold leading-tight tracking-tight text-white sm:text-4xl md:text-3xl lg:text-4xl xl:text-5xl">
+              The AI Bridge:
+              <span className="block bg-gradient-to-r from-emerald-300 via-teal-200 to-amber-200 bg-clip-text text-transparent">
+                Empowering Non-IT Educators & Learners
+              </span>
+            </h1>
 
-          <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
-            <Link
-              href="/portal"
-              className="flex items-center gap-2 px-6 py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg shadow-emerald-500/25 transition-all transform hover:-translate-y-0.5"
-            >
-              <GraduationCap className="w-5 h-5" />
-              <span>Enter Student & Educator Portal</span>
-              <ArrowRight className="w-4 h-4 ml-1" />
-            </Link>
+            <p className="mx-auto max-w-2xl text-sm leading-relaxed text-slate-300 sm:text-base md:mx-0 md:text-sm lg:text-base">
+              Pioneered at the Faculty of Management Sciences (FMS), International Islamic University Islamabad under the leadership of Dr. Abdul Zahid Khan. Transforming dense classical curricula into interactive, multi-modal study guides and podcasts with source-grounded AI.
+            </p>
 
-            <Link
-              href="/events"
-              className="flex items-center gap-2 px-6 py-3.5 rounded-xl font-semibold text-sm bg-white/10 hover:bg-white/15 text-white border border-white/15 backdrop-blur-md transition-all"
-            >
-              <CalendarDays className="w-4 h-4 text-emerald-300" />
-              <span>Explore Campaign Events</span>
-            </Link>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-1 lg:justify-start">
+              <Link
+                href="/portal"
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:from-emerald-600 hover:to-teal-600"
+              >
+                <GraduationCap className="h-5 w-5" />
+                <span>Enter Student & Educator Portal</span>
+                <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
+
+              <Link
+                href="/events"
+                className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur-md transition-all hover:bg-white/15"
+              >
+                <CalendarDays className="h-4 w-4 text-emerald-300" />
+                <span>Explore Campaign Events</span>
+              </Link>
+            </div>
           </div>
 
-          {/* Quick Stats Banner */}
-          <div className="pt-12 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto text-left">
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4 backdrop-blur-sm">
-              <div className="text-2xl font-black text-amber-300">3–5 hrs</div>
-              <div className="text-xs text-slate-300 font-medium">Weekly Prep Time Saved</div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:col-span-2 lg:gap-3">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-2.5 backdrop-blur-sm sm:p-3">
+              <div className="text-xl font-black text-amber-300 sm:text-2xl">3–5 hrs</div>
+              <div className="text-[11px] font-medium text-slate-300 sm:text-xs">Weekly Prep Time Saved</div>
             </div>
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4 backdrop-blur-sm">
-              <div className="text-2xl font-black text-emerald-300">3+ Courses</div>
-              <div className="text-xs text-slate-300 font-medium">Non-IT Curricula Augmented</div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-2.5 backdrop-blur-sm sm:p-3">
+              <div className="text-xl font-black text-emerald-300 sm:text-2xl">3+ Courses</div>
+              <div className="text-[11px] font-medium text-slate-300 sm:text-xs">Non-IT Curricula Augmented</div>
             </div>
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4 backdrop-blur-sm">
-              <div className="text-2xl font-black text-teal-300">10 Ambassadors</div>
-              <div className="text-xs text-slate-300 font-medium">FMS SDG Core Volunteer Team</div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-2.5 backdrop-blur-sm sm:p-3">
+              <div className="text-xl font-black text-teal-300 sm:text-2xl">10 Ambassadors</div>
+              <div className="text-[11px] font-medium text-slate-300 sm:text-xs">FMS SDG Core Volunteer Team</div>
             </div>
-            <div className="bg-white/5 border border-white/10 rounded-xl p-4 backdrop-blur-sm">
-              <div className="text-2xl font-black text-purple-300">100% Free</div>
-              <div className="text-xs text-slate-300 font-medium">Zero-Cost Scaling (No Licenses)</div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-2.5 backdrop-blur-sm sm:p-3">
+              <div className="text-xl font-black text-purple-300 sm:text-2xl">100% Free</div>
+              <div className="text-[11px] font-medium text-slate-300 sm:text-xs">Zero-Cost Scaling (No Licenses)</div>
             </div>
           </div>
         </div>

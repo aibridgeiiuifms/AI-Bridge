@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import bridgeLogo from '../../../Assets/logo.jpg';
-import hhpLogo from '../../../Assets/hum hain pak logo.jpeg';
+import hhpLogo from '../../../Assets/hum hain pak logo.jpg';
 import iiuiLogo from '../../../Assets/IIUI Logo.jpg';
+import sdgLogo from '../../../Assets/SDG Logo.png';
 import { ShieldCheck, AlertCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
 
 export default function LoginPage() {
@@ -37,6 +38,17 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-[58vh] items-center justify-center bg-[linear-gradient(135deg,#fbfcf8_0%,#e9f4ec_48%,#f7f1dc_100%)] px-4 py-8">
       <section className="group w-full max-w-md rounded-2xl border border-[#d8e7dc] border-t-4 border-t-[#36b879] bg-[#fffefa] px-6 py-6 shadow-[0_16px_48px_-28px_rgba(21,61,49,0.35)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_56px_-28px_rgba(21,61,49,0.48)] sm:px-8">
+        <div className="mb-5 flex justify-center overflow-hidden rounded-2xl border border-[#d8e7dc] bg-[#02080d] p-3 shadow-inner shadow-cyan-500/10">
+          <Image
+            src={sdgLogo}
+            alt="Sustainable Development Goals emblem"
+            width={180}
+            height={180}
+            priority
+            className="h-auto w-[150px] object-contain sm:w-[170px]"
+          />
+        </div>
+
         <div className="mb-5 grid grid-cols-2 gap-3 border-b border-[#e2ece4] pb-4">
           <div className="flex min-w-0 items-center gap-2 border-r border-[#e2ece4] pr-3">
             <Image
