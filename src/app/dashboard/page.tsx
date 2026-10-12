@@ -45,7 +45,11 @@ import {
 import { compressImageToMaxKB, uploadTeamAvatar } from '@/lib/imageCompression';
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'metrics' | 'participants' | 'mcqs' | 'team' | 'team_profiles' | 'audit'>('metrics');
+  const [activeTab, setActiveTab] = useState<'team' | 'team_profiles'>('team');
+  // Inline-edit state for whitelist rows
+  const [editingWhitelistEmail, setEditingWhitelistEmail] = useState<string | null>(null);
+  const [editWhitelistDraft, setEditWhitelistDraft] = useState<{ full_name: string; target_role: 'admin' | 'member'; assigned_tasks: string[]; notes: string }>({ full_name: '', target_role: 'member', assigned_tasks: [], notes: '' });
+  const [isSavingWhitelist, setIsSavingWhitelist] = useState(false);
 
   // Whitelist Form State
   const [newEmail, setNewEmail] = useState('');
@@ -735,7 +739,48 @@ export default function AdminDashboard() {
     }
   };
 
+  // ── Inline-edit helpers for whitelist rows ──────────────────────────────
+  const startEditWhitelist = (w: any) => {
+    setEditingWhitelistEmail(w.email);
+    setEditWhitelistDraft({
+      full_name: w.full_name || w.name || '',
+      target_role: w.target_role || w.role || 'member',
+      assigned_tasks: Array.isArray(w.assigned_tasks) ? w.assigned_tasks : [],
+      notes: w.notes || '',
+    });
+  };
+
+  const handleSaveWhitelistEdit = async () => {
+    if (!editingWhitelistEmail) return;
+    setIsSavingWhitelist(true);
+    try {
+      const res = await fetch('/api/admin/roles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: editingWhitelistEmail,
+          target_role: editWhitelistDraft.target_role,
+          full_name: editWhitelistDraft.full_name,
+          assigned_tasks: editWhitelistDraft.assigned_tasks,
+          notes: editWhitelistDraft.notes,
+          isRequesterAdmin: isSuperAdmin,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      await fetchRolesData();
+      setEditingWhitelistEmail(null);
+      setFeedbackMsg({ text: `✅ Updated ${editingWhitelistEmail} successfully.`, type: 'success' });
+    } catch (err: any) {
+      setFeedbackMsg({ text: `❌ Save failed: ${err.message}`, type: 'error' });
+    } finally {
+      setIsSavingWhitelist(false);
+      setTimeout(() => setFeedbackMsg(null), 3000);
+    }
+  };
+
   return (
+
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
       {/* Top Banner */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
@@ -771,48 +816,18 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 border-b border-slate-200 pb-2">
-        <button
-          onClick={() => setActiveTab('metrics')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors ${
-            activeTab === 'metrics'
-              ? 'bg-emerald-700 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          QIP Metrics & KPIs
-        </button>
-        <button
-          onClick={() => setActiveTab('participants')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors ${
-            activeTab === 'participants'
-              ? 'bg-emerald-700 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          Participant Tracking (48)
-        </button>
-        <button
-          onClick={() => setActiveTab('mcqs')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors ${
-            activeTab === 'mcqs'
-              ? 'bg-emerald-700 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          50-MCQ Question Pool
-        </button>
+      {/* Tabs - two functional tabs only */}
+      <div className="flex gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
         <button
           onClick={() => setActiveTab('team')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
             activeTab === 'team'
               ? 'bg-emerald-700 text-white shadow-sm'
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           <ShieldCheck className="w-3.5 h-3.5" />
-          <span>Roles & Whitelist</span>
+          <span>Roles &amp; Whitelist</span>
           {canManageTeam && !isSuperAdmin && (
             <span className="ml-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-300">
               Manager Access
@@ -821,7 +836,7 @@ export default function AdminDashboard() {
         </button>
         <button
           onClick={() => setActiveTab('team_profiles')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
             activeTab === 'team_profiles'
               ? 'bg-emerald-700 text-white shadow-sm'
               : 'text-slate-600 hover:bg-slate-100'
@@ -834,17 +849,6 @@ export default function AdminDashboard() {
           }`}>
             {teamMembers.length}
           </span>
-        </button>
-        <button
-          onClick={() => setActiveTab('audit')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer ${
-            activeTab === 'audit'
-              ? 'bg-emerald-700 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <History className="w-3.5 h-3.5" />
-          <span>Audit & Sync Trail (Sheets)</span>
         </button>
       </div>
 
@@ -880,78 +884,6 @@ export default function AdminDashboard() {
       )}
 
       {/* Tab Content: Metrics */}
-      {activeTab === 'metrics' && (
-        <div className="space-y-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {stats.map((stat, i) => {
-              const Icon = stat.icon;
-              return (
-                <div key={i} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-medium text-slate-500">{stat.label}</span>
-                    <div className={`p-2 rounded-xl ${stat.color}`}>
-                      <Icon className="w-4 h-4" />
-                    </div>
-                  </div>
-                  <div className="text-2xl font-black text-slate-900">{stat.value}</div>
-                  <div className="text-[11px] text-emerald-700 font-semibold">{stat.change}</div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-              <h3 className="font-bold text-slate-900 text-sm">Target vs Achieved Indicators (QIP Section H)</h3>
-              <div className="space-y-3 text-xs">
-                <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                  <span className="text-slate-600">Awareness Sessions & Events</span>
-                  <span className="font-bold text-slate-900">3 / 8 planned</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                  <span className="text-slate-600">Faculty Training Workshops</span>
-                  <span className="font-bold text-slate-900">2 / 4 planned</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                  <span className="text-slate-600">Augmented Non-IT Courses</span>
-                  <span className="font-bold text-slate-900">3 / 3 planned (100%)</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b border-slate-100">
-                  <span className="text-slate-600">Weekly Educator Time Saved</span>
-                  <span className="font-bold text-emerald-700">4.2 hrs (Target: 3–5 hrs)</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-              <h3 className="font-bold text-slate-900 text-sm">Target Disciplines & Faculties</h3>
-              <div className="space-y-2 text-xs">
-                <div className="p-3 bg-slate-50 rounded-xl flex justify-between">
-                  <div>
-                    <p className="font-bold text-slate-800">Faculty of Sharia & Law</p>
-                    <p className="text-[11px] text-slate-500">Course: Islamic Jurisprudence & Classical Fiqh</p>
-                  </div>
-                  <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold text-[10px] h-fit">Active</span>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-xl flex justify-between">
-                  <div>
-                    <p className="font-bold text-slate-800">Faculty of Usuluddin (Islamic Studies)</p>
-                    <p className="text-[11px] text-slate-500">Course: Comparative Religion & Hadith Studies</p>
-                  </div>
-                  <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold text-[10px] h-fit">Active</span>
-                </div>
-                <div className="p-3 bg-slate-50 rounded-xl flex justify-between">
-                  <div>
-                    <p className="font-bold text-slate-800">Faculty of Arabic & Languages</p>
-                    <p className="text-[11px] text-slate-500">Course: Classical Arabic Syntax & Literature</p>
-                  </div>
-                  <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold text-[10px] h-fit">Active</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Tab Content: Dynamic Tasks & Delegated Team Management */}
       {activeTab === 'team' && (
@@ -1239,8 +1171,96 @@ export default function AdminDashboard() {
                       const role = w.target_role || w.role || 'member';
                       const assignedList: string[] = Array.isArray(w.assigned_tasks) ? w.assigned_tasks : [];
                       const canManage = permissionsMap[email]?.can_manage_team || false;
+                      const isEditing = editingWhitelistEmail === email;
+                      const isProtected = email === 'ai-bridge-iiui-fms@gmail.com' || email === 'ai.bridge.iiui.fms@gmail.com';
 
-                      return (
+                      return isEditing ? (
+                        /* ── EDIT ROW ── */
+                        <tr key={idx} className="bg-emerald-50/60 border-l-4 border-emerald-500">
+                          <td className="py-3 px-4" colSpan={5}>
+                            <div className="space-y-3">
+                              {/* Row 1: name + role + notes */}
+                              <div className="flex flex-col sm:flex-row gap-2">
+                                <input
+                                  type="text"
+                                  value={editWhitelistDraft.full_name}
+                                  onChange={e => setEditWhitelistDraft(d => ({ ...d, full_name: e.target.value }))}
+                                  placeholder="Full Name"
+                                  className="flex-1 px-3 py-1.5 rounded-lg border border-emerald-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+                                />
+                                {isSuperAdmin && (
+                                  <select
+                                    value={editWhitelistDraft.target_role}
+                                    onChange={e => setEditWhitelistDraft(d => ({ ...d, target_role: e.target.value as 'admin' | 'member' }))}
+                                    className="w-36 px-3 py-1.5 rounded-lg border border-emerald-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white font-semibold"
+                                  >
+                                    <option value="member">Member</option>
+                                    <option value="admin">Admin</option>
+                                  </select>
+                                )}
+                                <input
+                                  type="text"
+                                  value={editWhitelistDraft.notes}
+                                  onChange={e => setEditWhitelistDraft(d => ({ ...d, notes: e.target.value }))}
+                                  placeholder="Notes (optional)"
+                                  className="flex-1 px-3 py-1.5 rounded-lg border border-emerald-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+                                />
+                              </div>
+                              {/* Row 2: task assignment pills */}
+                              {tasks.length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Assigned Tasks:</p>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {tasks.map((t: any) => {
+                                      const sel = editWhitelistDraft.assigned_tasks.includes(t.title);
+                                      return (
+                                        <button
+                                          key={t.id}
+                                          type="button"
+                                          onClick={() =>
+                                            setEditWhitelistDraft(d => ({
+                                              ...d,
+                                              assigned_tasks: sel
+                                                ? d.assigned_tasks.filter(x => x !== t.title)
+                                                : [...d.assigned_tasks, t.title],
+                                            }))
+                                          }
+                                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                                            sel
+                                              ? 'bg-emerald-700 text-white shadow-sm'
+                                              : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+                                          }`}
+                                        >
+                                          {sel ? '✓ ' : ''}{t.title}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                              {/* Row 3: actions */}
+                              <div className="flex items-center gap-2 pt-1">
+                                <button
+                                  onClick={handleSaveWhitelistEdit}
+                                  disabled={isSavingWhitelist}
+                                  className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg transition-all disabled:opacity-60 cursor-pointer flex items-center gap-1.5"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  {isSavingWhitelist ? 'Saving...' : 'Save Changes'}
+                                </button>
+                                <button
+                                  onClick={() => setEditingWhitelistEmail(null)}
+                                  className="px-3 py-1.5 border border-slate-300 text-slate-600 hover:bg-slate-100 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1"
+                                >
+                                  <X className="w-3.5 h-3.5" /> Cancel
+                                </button>
+                                <span className="text-[10px] text-slate-400 font-mono ml-2">{email}</span>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : (
+                        /* ── VIEW ROW ── */
                         <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
                           <td className="py-3 px-6">
                             <p className="font-bold text-slate-900">{name}</p>
@@ -1272,7 +1292,7 @@ export default function AdminDashboard() {
 
                           {/* Can Manage Team Delegation Toggle */}
                           <td className="text-center">
-                            {isSuperAdmin && email !== 'ai.bridge.iiui.fms@gmail.com' ? (
+                            {isSuperAdmin && !isProtected ? (
                               <label className="inline-flex items-center gap-1.5 cursor-pointer">
                                 <input
                                   type="checkbox"
@@ -1286,27 +1306,40 @@ export default function AdminDashboard() {
                               </label>
                             ) : (
                               <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
-                                email === 'ai.bridge.iiui.fms@gmail.com' || canManage
+                                isProtected || canManage
                                   ? 'bg-emerald-100 text-emerald-800'
                                   : 'text-slate-400'
                               }`}>
-                                {email === 'ai.bridge.iiui.fms@gmail.com' ? 'Super Admin' : canManage ? 'Yes (Delegated)' : 'No'}
+                                {isProtected ? 'Super Admin' : canManage ? 'Yes (Delegated)' : 'No'}
                               </span>
                             )}
                           </td>
 
-                          <td className="text-right px-6">
-                            {(isSuperAdmin || canManageTeam) && email !== 'ai.bridge.iiui.fms@gmail.com' ? (
-                              <button
-                                onClick={() => handleRemoveWhitelist(email)}
-                                className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                                title="Delete from Supabase"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            ) : (
-                              <span className="text-[11px] text-emerald-600 font-bold">Protected</span>
-                            )}
+                          <td className="text-right px-4">
+                            <div className="flex items-center justify-end gap-1">
+                              {/* Edit button */}
+                              {(isSuperAdmin || canManageTeam) && !isProtected && (
+                                <button
+                                  onClick={() => startEditWhitelist(w)}
+                                  className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
+                                  title="Edit member"
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </button>
+                              )}
+                              {/* Delete button */}
+                              {(isSuperAdmin || canManageTeam) && !isProtected ? (
+                                <button
+                                  onClick={() => handleRemoveWhitelist(email)}
+                                  className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                  title="Delete from Supabase"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              ) : (
+                                <span className="text-[11px] text-emerald-600 font-bold pr-2">Protected</span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1925,262 +1958,10 @@ export default function AdminDashboard() {
       )}
 
       {/* Tab Content: MCQs Pool Placeholder */}
-      {activeTab === 'mcqs' && (
-        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h3 className="font-bold text-slate-900 text-sm">50-Question Certified Assessment Bank</h3>
-              <p className="text-xs text-slate-500">Evaluates NotebookLM, source grounding, multi-modal synthesis, and AI ethics.</p>
-            </div>
-            <span className="px-3 py-1 bg-emerald-100 text-emerald-800 font-bold text-xs rounded-full">
-              50 Loaded in Seed
-            </span>
-          </div>
-          <p className="text-xs text-slate-600 leading-relaxed">
-            The full 50-MCQ question pool has been defined in <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-800">supabase/seed.sql</code>. Each student taking the course assessment is automatically served 30 randomly sampled questions, requiring 21/30 (70%) to unlock Stage 3.
-          </p>
-        </div>
-      )}
 
       {/* Tab Content: Participants */}
-      {activeTab === 'participants' && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="font-bold text-slate-900 text-sm">Participant Progression Table</h3>
-            <span className="text-xs text-slate-500">Auto-synced with Supabase</span>
-          </div>
-          <div className="overflow-x-auto text-xs">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-slate-200 text-slate-500 font-semibold">
-                  <th className="py-2.5">Name</th>
-                  <th>Student / Faculty ID</th>
-                  <th>Department</th>
-                  <th>Pre-Survey</th>
-                  <th>Quiz (30 MCQs)</th>
-                  <th>Post-Survey</th>
-                  <th>Certificate</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                <tr>
-                  <td className="py-3 font-medium text-slate-900">Dr. M. Farooq</td>
-                  <td>FAC-LAW-002</td>
-                  <td>Sharia & Law</td>
-                  <td><span className="text-emerald-700 font-bold">✓ Done</span></td>
-                  <td><span className="text-emerald-700 font-bold">28/30 (Passed)</span></td>
-                  <td><span className="text-emerald-700 font-bold">✓ Done</span></td>
-                  <td><span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">Unlocked</span></td>
-                </tr>
-                <tr>
-                  <td className="py-3 font-medium text-slate-900">Khadija Bano</td>
-                  <td>004122bsus24</td>
-                  <td>Usuluddin</td>
-                  <td><span className="text-emerald-700 font-bold">✓ Done</span></td>
-                  <td><span className="text-amber-700 font-bold">In Progress</span></td>
-                  <td><span className="text-slate-400">Locked</span></td>
-                  <td><span className="px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">Pending</span></td>
-                </tr>
-                <tr>
-                  <td className="py-3 font-medium text-slate-900">Tariq Mehmood</td>
-                  <td>003912bsar24</td>
-                  <td>Arabic</td>
-                  <td><span className="text-emerald-700 font-bold">✓ Done</span></td>
-                  <td><span className="text-emerald-700 font-bold">26/30 (Passed)</span></td>
-                  <td><span className="text-emerald-700 font-bold">✓ Done</span></td>
-                  <td><span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-semibold">Unlocked</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* Tab Content: Audit & Sync Trail */}
-      {activeTab === 'audit' && (
-        <div className="space-y-6">
-          {/* Top Audit Overview Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-              <div>
-                <p className="text-xs text-slate-500 font-medium">Inserts Synced</p>
-                <p className="text-2xl font-extrabold text-slate-900 mt-1">45</p>
-                <p className="text-[11px] text-emerald-600 font-medium mt-0.5">Google Form submissions</p>
-              </div>
-              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600">
-                <PlusCircle className="w-5 h-5" />
-              </div>
-            </div>
-
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-              <div>
-                <p className="text-xs text-slate-500 font-medium">Edits Captured</p>
-                <p className="text-2xl font-extrabold text-slate-900 mt-1">12</p>
-                <p className="text-[11px] text-amber-600 font-medium mt-0.5">Direct spreadsheet edits</p>
-              </div>
-              <div className="p-3 rounded-xl bg-amber-50 text-amber-600">
-                <Edit3 className="w-5 h-5" />
-              </div>
-            </div>
-
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-              <div>
-                <p className="text-xs text-slate-500 font-medium">Deletions Logged</p>
-                <p className="text-2xl font-extrabold text-slate-900 mt-1">3</p>
-                <p className="text-[11px] text-rose-600 font-medium mt-0.5">Reset & audit archived</p>
-              </div>
-              <div className="p-3 rounded-xl bg-rose-50 text-rose-600">
-                <Trash2 className="w-5 h-5" />
-              </div>
-            </div>
-
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
-              <div>
-                <p className="text-xs text-slate-500 font-medium">Webhook Health</p>
-                <p className="text-sm font-extrabold text-emerald-700 mt-1">Ready & Listening</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">/api/webhooks/google-sheets</p>
-              </div>
-              <div className="p-3 rounded-xl bg-teal-50 text-teal-600">
-                <FileSpreadsheet className="w-5 h-5" />
-              </div>
-            </div>
-          </div>
-
-          {/* Real-time Audit Trail Log Table */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-              <div>
-                <h2 className="text-base font-bold text-slate-900">Survey Database Audit Trail</h2>
-                <p className="text-xs text-slate-500">
-                  Full history of inserts, updates, and deletes triggered from Google Forms, Google Sheets, or the Web Portal.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={async () => {
-                    try {
-                      const res = await fetch('/api/webhooks/google-sheets');
-                      const data = await res.json();
-                      alert(`Webhook Health Status: ${data.status.toUpperCase()}\n${data.message}`);
-                    } catch (e: any) {
-                      alert('Webhook ping error: ' + e.message);
-                    }
-                  }}
-                  className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 transition-colors"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Test Webhook Ping</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-400 font-semibold uppercase tracking-wider pb-2">
-                    <th className="py-2.5">Action</th>
-                    <th>Survey</th>
-                    <th>Respondent Email</th>
-                    <th>Source & Location</th>
-                    <th>Changed Fields / Notes</th>
-                    <th>Performed By</th>
-                    <th>Timestamp</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  <tr className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-3">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
-                        UPDATE
-                      </span>
-                    </td>
-                    <td><span className="font-semibold text-slate-800">Pre-Survey</span></td>
-                    <td className="font-mono text-slate-700">003912bsar24@student.iiu.edu.pk</td>
-                    <td>
-                      <span className="inline-flex items-center gap-1 text-slate-600">
-                        <FileSpreadsheet className="w-3 h-3 text-emerald-600" />
-                        Google Sheet (Row 8)
-                      </span>
-                    </td>
-                    <td>
-                      <span className="text-slate-600 font-mono text-[11px]">
-                        hours_saved: 2.5 → 4.5 hrs
-                      </span>
-                    </td>
-                    <td className="text-slate-500">ibrahim.faisal@student.iiu.edu.pk</td>
-                    <td className="text-slate-400">Just now</td>
-                  </tr>
-
-                  <tr className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-3">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                        INSERT
-                      </span>
-                    </td>
-                    <td><span className="font-semibold text-slate-800">Pre-Survey</span></td>
-                    <td className="font-mono text-slate-700">004122bsus24@student.iiu.edu.pk</td>
-                    <td>
-                      <span className="inline-flex items-center gap-1 text-slate-600">
-                        <FileSpreadsheet className="w-3 h-3 text-emerald-600" />
-                        Google Form Submit (Row 9)
-                      </span>
-                    </td>
-                    <td>
-                      <span className="text-emerald-700 font-medium">New initial submission</span>
-                    </td>
-                    <td className="text-slate-500">004122bsus24@student.iiu.edu.pk</td>
-                    <td className="text-slate-400">12 mins ago</td>
-                  </tr>
-
-                  <tr className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-3">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
-                        UPDATE
-                      </span>
-                    </td>
-                    <td><span className="font-semibold text-slate-800">Post-Survey</span></td>
-                    <td className="font-mono text-slate-700">dr.farooq@iiu.edu.pk</td>
-                    <td>
-                      <span className="inline-flex items-center gap-1 text-slate-600">
-                        <FileSpreadsheet className="w-3 h-3 text-emerald-600" />
-                        Google Sheet (Row 4)
-                      </span>
-                    </td>
-                    <td>
-                      <span className="text-slate-600 font-mono text-[11px]">
-                        comprehension_rating: 3 → 5
-                      </span>
-                    </td>
-                    <td className="text-slate-500">003822bsbaf24@student.iiu.edu.pk</td>
-                    <td className="text-slate-400">45 mins ago</td>
-                  </tr>
-
-                  <tr className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-3">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">
-                        DELETE
-                      </span>
-                    </td>
-                    <td><span className="font-semibold text-slate-800">Pre-Survey</span></td>
-                    <td className="font-mono text-slate-700">test.duplicate@student.iiu.edu.pk</td>
-                    <td>
-                      <span className="inline-flex items-center gap-1 text-slate-600">
-                        <FileSpreadsheet className="w-3 h-3 text-rose-600" />
-                        Sheet Action Menu
-                      </span>
-                    </td>
-                    <td>
-                      <span className="text-rose-700 font-medium">Removed duplicate entry</span>
-                    </td>
-                    <td className="text-slate-500">003822bsbaf24@student.iiu.edu.pk</td>
-                    <td className="text-slate-400">2 hours ago</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ============================================================== */}
       {/* ADD / EDIT TEAM MEMBER MODAL WITH AUTO-COMPRESSION & LIVE PREVIEW */}
