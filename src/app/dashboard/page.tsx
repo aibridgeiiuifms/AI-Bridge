@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { 
   Users, 
@@ -30,8 +31,15 @@ import {
   UserPlus,
   Briefcase,
   Tag,
-  ListPlus
+  ListPlus,
+  Upload,
+  Linkedin,
+  ExternalLink,
+  Image as ImageIcon,
+  ArrowUpDown,
+  Sliders
 } from 'lucide-react';
+import { compressImageToMaxKB, uploadTeamAvatar } from '@/lib/imageCompression';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'metrics' | 'participants' | 'mcqs' | 'team' | 'audit'>('metrics');
@@ -48,6 +56,7 @@ export default function AdminDashboard() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDesc, setNewTaskDesc] = useState('');
+  const [newTaskTag, setNewTaskTag] = useState('');
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
 
@@ -68,6 +77,46 @@ export default function AdminDashboard() {
     certificatesCount: 0,
     avgHoursSaved: '0.0 hrs'
   });
+
+  // Public Team Profiles & Positioning State
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [loadingTeam, setLoadingTeam] = useState(false);
+  const [isSyncingTeam, setIsSyncingTeam] = useState(false);
+  const [isSavingTeamMember, setIsSavingTeamMember] = useState(false);
+  const [showMemberModal, setShowMemberModal] = useState(false);
+  const [editingMember, setEditingMember] = useState<any | null>(null);
+  const [avatarUploadFile, setAvatarUploadFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [compressedSizeInfo, setCompressedSizeInfo] = useState<string | null>(null);
+
+  const [memberForm, setMemberForm] = useState({
+    id: '',
+    email: '',
+    full_name: '',
+    designation: '',
+    bio: '',
+    position_order: 99,
+    team_tag: 'general',
+    assigned_tasks: [] as string[],
+    linkedin_url: '',
+    avatar_url: '',
+    is_published: true
+  });
+
+  const fetchTeamData = async () => {
+    setLoadingTeam(true);
+    try {
+      const res = await fetch('/api/team?all=true');
+      const data = await res.json();
+      if (data.success) {
+        setTeamMembers(data.team || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch team members:', e);
+    } finally {
+      setLoadingTeam(false);
+    }
+  };
 
   // Fetch Live Data Directly from Supabase
   const fetchRolesData = async () => {
@@ -217,6 +266,7 @@ export default function AdminDashboard() {
     }
     checkUser();
     fetchRolesData();
+    fetchTeamData();
   }, []);
 
   // Live Metric Cards derived from Supabase
@@ -229,6 +279,173 @@ export default function AdminDashboard() {
   ];
 
   const isSuperAdmin = currentUserEmail === 'ai.bridge.iiui.fms@gmail.com' || currentUserRole === 'admin';
+
+  // Team Profiles & Positioning Handlers
+  const handleSyncWhitelistToTeam = async () => {
+    setIsSyncingTeam(true);
+    setFeedbackMsg(null);
+    try {
+      const res = await fetch('/api/team', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync_from_whitelist' })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setFeedbackMsg({ text: `✅ ${data.message}`, type: 'success' });
+      await fetchTeamData();
+    } catch (err: any) {
+      setFeedbackMsg({ text: `❌ ${err.message}`, type: 'error' });
+    } finally {
+      setIsSyncingTeam(false);
+      setTimeout(() => setFeedbackMsg(null), 4000);
+    }
+  };
+
+  const handleOpenAddMember = () => {
+    const nextPos = teamMembers.length > 0 
+      ? Math.max(...teamMembers.map(m => m.position_order || 0)) + 1 
+      : 1;
+
+    setEditingMember(null);
+    setMemberForm({
+      id: '',
+      email: '',
+      full_name: '',
+      designation: '',
+      bio: '',
+      position_order: nextPos,
+      team_tag: 'general',
+      assigned_tasks: [],
+      linkedin_url: '',
+      avatar_url: '',
+      is_published: true
+    });
+    setAvatarUploadFile(null);
+    setAvatarPreview(null);
+    setCompressedSizeInfo(null);
+    setShowMemberModal(true);
+  };
+
+  const handleOpenEditMember = (member: any) => {
+    setEditingMember(member);
+    setMemberForm({
+      id: member.id,
+      email: member.email || '',
+      full_name: member.full_name || '',
+      designation: member.designation || '',
+      bio: member.bio || '',
+      position_order: member.position_order ?? 99,
+      team_tag: member.team_tag || 'general',
+      assigned_tasks: member.assigned_tasks || [],
+      linkedin_url: member.linkedin_url || '',
+      avatar_url: member.avatar_url || '',
+      is_published: member.is_published ?? true
+    });
+    setAvatarUploadFile(null);
+    setAvatarPreview(member.avatar_url || null);
+    setCompressedSizeInfo(null);
+    setShowMemberModal(true);
+  };
+
+  const handleAvatarFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      // Auto compress to under 350 KB
+      const compressed = await compressImageToMaxKB(file, 350);
+      setAvatarUploadFile(compressed);
+      setAvatarPreview(URL.createObjectURL(compressed));
+      setCompressedSizeInfo(`Optimized: ${(compressed.size / 1024).toFixed(1)} KB (Target < 350 KB)`);
+    } catch (err: any) {
+      alert(`Image processing error: ${err.message}`);
+    }
+  };
+
+  const handleSaveTeamMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!memberForm.full_name.trim() || !memberForm.designation.trim()) {
+      alert('Full Name and Designation are required.');
+      return;
+    }
+
+    setIsSavingTeamMember(true);
+    setFeedbackMsg(null);
+
+    try {
+      let finalAvatarUrl = memberForm.avatar_url;
+
+      // Direct upload to Supabase storage 'team-avatars' if file selected
+      if (avatarUploadFile) {
+        finalAvatarUrl = await uploadTeamAvatar(
+          avatarUploadFile, 
+          memberForm.email || memberForm.full_name
+        );
+      }
+
+      const payload = {
+        ...memberForm,
+        avatar_url: finalAvatarUrl,
+        position_order: Number(memberForm.position_order) || 99
+      };
+
+      const res = await fetch('/api/team', {
+        method: memberForm.id ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      setFeedbackMsg({
+        text: `✅ Saved profile for "${memberForm.full_name}" (Position #${payload.position_order})`,
+        type: 'success'
+      });
+      setShowMemberModal(false);
+      setAvatarUploadFile(null);
+      setAvatarPreview(null);
+      setCompressedSizeInfo(null);
+      await fetchTeamData();
+    } catch (err: any) {
+      setFeedbackMsg({ text: `❌ ${err.message}`, type: 'error' });
+    } finally {
+      setIsSavingTeamMember(false);
+      setTimeout(() => setFeedbackMsg(null), 4000);
+    }
+  };
+
+  const handleQuickUpdatePosition = async (id: string, newPosition: number) => {
+    try {
+      const res = await fetch('/api/team', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, position_order: newPosition })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      await fetchTeamData();
+      setFeedbackMsg({ text: `Updated position to #${newPosition}`, type: 'success' });
+      setTimeout(() => setFeedbackMsg(null), 2000);
+    } catch (err: any) {
+      setFeedbackMsg({ text: `Failed to update position: ${err.message}`, type: 'error' });
+    }
+  };
+
+  const handleDeleteTeamMember = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to remove "${name}" from the public team page?`)) return;
+    try {
+      const res = await fetch(`/api/team?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      await fetchTeamData();
+      setFeedbackMsg({ text: `Removed "${name}" from public team page.`, type: 'success' });
+      setTimeout(() => setFeedbackMsg(null), 3000);
+    } catch (err: any) {
+      setFeedbackMsg({ text: `❌ ${err.message}`, type: 'error' });
+    }
+  };
 
   // Toggle dynamic task selection for new member
   const toggleTaskSelection = (taskTitle: string) => {
@@ -251,7 +468,8 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           type: 'create_task',
           title: newTaskTitle.trim(),
-          description: newTaskDesc.trim()
+          description: newTaskDesc.trim(),
+          tag: newTaskTag.trim() || 'General'
         })
       });
       const data = await res.json();
@@ -259,6 +477,7 @@ export default function AdminDashboard() {
 
       setNewTaskTitle('');
       setNewTaskDesc('');
+      setNewTaskTag('');
       await fetchRolesData();
       setFeedbackMsg({ text: `✅ Added task "${data.task.title}" to master campaign pool!`, type: 'success' });
     } catch (err: any) {
@@ -636,10 +855,15 @@ export default function AdminDashboard() {
                   >
                     <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                     <span className="font-semibold">{t.title}</span>
-                    {isSuperAdmin && (
+                    {t.tag && (
+                      <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded font-bold">
+                        {t.tag}
+                      </span>
+                    )}
+                    {(isSuperAdmin || canManageTeam) && (
                       <button
                         onClick={() => handleDeleteTask(t.id, t.title)}
-                        className="text-slate-400 hover:text-rose-600 transition-colors ml-1 p-0.5"
+                        className="text-slate-400 hover:text-rose-600 transition-colors ml-1 p-0.5 cursor-pointer"
                         title="Delete Task from Pool"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -649,8 +873,8 @@ export default function AdminDashboard() {
                 ))}
               </div>
 
-              {/* Add New Task Form (Admin Only) */}
-              {isSuperAdmin && (
+              {/* Add New Task Form (Admin or Delegated Manager) */}
+              {(isSuperAdmin || canManageTeam) && (
                 <form onSubmit={handleCreateTask} className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-slate-100">
                   <input
                     type="text"
@@ -659,6 +883,13 @@ export default function AdminDashboard() {
                     value={newTaskTitle}
                     onChange={(e) => setNewTaskTitle(e.target.value)}
                     className="flex-1 px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Tag / Dept (e.g. Workshops, Awareness, Tech)"
+                    value={newTaskTag}
+                    onChange={(e) => setNewTaskTag(e.target.value)}
+                    className="w-full sm:w-56 px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
                   <input
                     type="text"
@@ -1042,6 +1273,465 @@ export default function AdminDashboard() {
               </table>
             </div>
           </div>
+
+          {/* ============================================================== */}
+          {/* PUBLIC TEAM PROFILES & POSITIONING HIERARCHY CONSOLE            */}
+          {/* ============================================================== */}
+          {(isSuperAdmin || canManageTeam) && (
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-5">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <h3 className="font-extrabold text-slate-900 text-base">
+                      Public Team Profiles & Positioning Hierarchy ({teamMembers.length})
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
+                    Dynamically controls the public <strong className="text-slate-800">/team</strong> page. Position 1 is reserved for the Project Mentor (Sir Zahid Khan) in the top hero row, followed by Team Leads (Positions 2-4), and SDG Ambassadors (Positions 5+).
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={handleSyncWhitelistToTeam}
+                    disabled={isSyncingTeam}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 transition-colors cursor-pointer disabled:opacity-50"
+                    title="Import any existing ambassadors from role_whitelist into team_members to prevent duplicate typing"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncingTeam ? 'animate-spin' : ''}`} />
+                    <span>{isSyncingTeam ? 'Syncing...' : '1-Click Sync from Whitelist'}</span>
+                  </button>
+
+                  <button
+                    onClick={handleOpenAddMember}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm transition-colors cursor-pointer"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>+ Add Team Member</span>
+                  </button>
+
+                  <Link
+                    href="/team"
+                    target="_blank"
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition-colors"
+                  >
+                    <span>View Public Page</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+
+              {/* Profiles Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider text-[11px] pb-2">
+                      <th className="py-2.5 w-24">Position</th>
+                      <th>Member</th>
+                      <th>Designation</th>
+                      <th>Team Group</th>
+                      <th className="text-center">Status</th>
+                      <th className="text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {loadingTeam ? (
+                      <tr>
+                        <td colSpan={6} className="py-10 text-center text-slate-400 font-medium">
+                          Loading team profiles from Supabase...
+                        </td>
+                      </tr>
+                    ) : teamMembers.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-10 text-center text-slate-400 space-y-2">
+                          <p>No team members added yet.</p>
+                          <p className="text-[11px] text-slate-500">
+                            Click <strong className="text-emerald-700">&ldquo;1-Click Sync from Whitelist&rdquo;</strong> to auto-import existing members, or click <strong className="text-emerald-700">&ldquo;+ Add Team Member&rdquo;</strong>.
+                          </p>
+                        </td>
+                      </tr>
+                    ) : (
+                      teamMembers.map((member) => {
+                        const isPosition1 = member.position_order === 1;
+                        const isLead = member.position_order > 1 && member.position_order <= 4;
+
+                        return (
+                          <tr key={member.id} className="hover:bg-slate-50/70 transition-colors">
+                            {/* Position Order with Quick Edit Input */}
+                            <td className="py-3">
+                              <div className="flex items-center gap-1.5">
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={99}
+                                  defaultValue={member.position_order}
+                                  onBlur={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    if (!isNaN(val) && val !== member.position_order) {
+                                      handleQuickUpdatePosition(member.id, val);
+                                    }
+                                  }}
+                                  className="w-12 px-2 py-1 border border-slate-300 rounded-lg text-center font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                                />
+                                {isPosition1 ? (
+                                  <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-bold" title="Row 1 Solo Leader">
+                                    👑 Hero
+                                  </span>
+                                ) : isLead ? (
+                                  <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 text-[9px] font-bold" title="Row 2 Leads">
+                                    ⭐ Lead
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400 text-[10px]">#</span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Member Avatar & Name */}
+                            <td className="py-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-slate-200">
+                                  {member.avatar_url ? (
+                                    <img
+                                      src={member.avatar_url}
+                                      alt={member.full_name}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-white font-bold text-xs">
+                                      {member.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="font-bold text-slate-900 truncate">
+                                    {member.full_name}
+                                  </div>
+                                  <div className="text-[11px] text-slate-400 font-mono truncate">
+                                    {member.email || 'No email attached'}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Designation */}
+                            <td className="py-3 text-slate-700 font-medium max-w-xs truncate">
+                              {member.designation}
+                            </td>
+
+                            {/* Team Group */}
+                            <td className="py-3">
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                member.team_tag === 'workshops' ? 'bg-blue-50 text-blue-700' :
+                                member.team_tag === 'awareness' ? 'bg-purple-50 text-purple-700' :
+                                member.team_tag === 'analyzing' ? 'bg-emerald-50 text-emerald-800' :
+                                'bg-amber-50 text-amber-800'
+                              }`}>
+                                {member.team_tag}
+                              </span>
+                            </td>
+
+                            {/* Status */}
+                            <td className="py-3 text-center">
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                member.is_published ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                              }`}>
+                                {member.is_published ? 'Published' : 'Draft'}
+                              </span>
+                            </td>
+
+                            {/* Actions */}
+                            <td className="py-3 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => handleOpenEditMember(member)}
+                                  className="p-1.5 rounded-lg text-emerald-700 hover:bg-emerald-50 transition-colors"
+                                  title="Edit Profile & Photo"
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </button>
+
+                                <button
+                                  onClick={() => handleDeleteTeamMember(member.id, member.full_name)}
+                                  className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors"
+                                  title="Remove from Team"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ============================================================== */}
+          {/* ADD / EDIT TEAM MEMBER MODAL WITH AUTO-COMPRESSION UPLOAD       */}
+          {/* ============================================================== */}
+          {showMemberModal && (
+            <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-xl w-full p-6 sm:p-8 space-y-6 my-8 animate-fade-in">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                  <div>
+                    <h3 className="font-extrabold text-slate-900 text-lg">
+                      {editingMember ? 'Edit Team Member Profile' : 'Add Team Member Profile'}
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Configure profile positioning, biography, and upload photos to Supabase Storage.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowMemberModal(false)}
+                    className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveTeamMember} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Full Name */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">Full Name *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Dr. Abdul Zahid Khan"
+                        value={memberForm.full_name}
+                        onChange={(e) => setMemberForm({ ...memberForm, full_name: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Email */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">Email Address</label>
+                      <input
+                        type="email"
+                        placeholder="e.g. zahid.khan@iiu.edu.pk"
+                        value={memberForm.email}
+                        onChange={(e) => setMemberForm({ ...memberForm, email: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Position Number */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">
+                        Position Rank (1 = Solo Hero Row) *
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={99}
+                        required
+                        value={memberForm.position_order}
+                        onChange={(e) => setMemberForm({ ...memberForm, position_order: parseInt(e.target.value) || 1 })}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none font-bold"
+                      />
+                      <span className="text-[10px] text-slate-400 block">
+                        Position 1 = Sir Zahid Khan alone, 2-4 = Team Leads, 5+ = Ambassadors
+                      </span>
+                    </div>
+
+                    {/* Variable Team Tag & Category */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">
+                        Team Group / Category Tag *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        list="dynamic-team-tag-options"
+                        placeholder="e.g. Executive Governance, Workshops, Awareness"
+                        value={memberForm.team_tag}
+                        onChange={(e) => setMemberForm({ ...memberForm, team_tag: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                      <datalist id="dynamic-team-tag-options">
+                        <option value="Executive Governance" />
+                        <option value="Workshops & Trainings" />
+                        <option value="Awareness Campaign" />
+                        <option value="Analyzing & Reporting" />
+                        <option value="Technical & App Development" />
+                        {tasks.map((t) => (
+                          <option key={t.id} value={t.tag || t.title} />
+                        ))}
+                      </datalist>
+                      <span className="text-[10px] text-slate-400 block">
+                        Fully dynamic. Type any custom tag or pick from task options.
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Designation */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">Designation / Institutional Title *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Project Lead & Principal Mentor (Chairperson, Dept. of Technology & PM)"
+                      value={memberForm.designation}
+                      onChange={(e) => setMemberForm({ ...memberForm, designation: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Bio */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">Biography / Contributions</label>
+                    <textarea
+                      rows={3}
+                      placeholder="Summary of responsibilities and academic focus..."
+                      value={memberForm.bio}
+                      onChange={(e) => setMemberForm({ ...memberForm, bio: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none resize-none"
+                    />
+                  </div>
+
+                  {/* LinkedIn URL */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">LinkedIn Profile URL</label>
+                    <input
+                      type="url"
+                      placeholder="https://www.linkedin.com/in/username"
+                      value={memberForm.linkedin_url}
+                      onChange={(e) => setMemberForm({ ...memberForm, linkedin_url: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Dynamic Campaign Tasks Selection from Master Pool */}
+                  <div className="space-y-1.5 pt-2 border-t border-slate-100">
+                    <label className="text-xs font-bold text-slate-700 block">
+                      Assigned Campaign Tasks (from Master Task Pool)
+                    </label>
+                    {tasks.length === 0 ? (
+                      <p className="text-[11px] text-slate-400">
+                        No tasks in pool yet. Add tasks in Master Campaign Tasks above.
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-2 bg-slate-50 rounded-xl border border-slate-200">
+                        {tasks.map((t) => {
+                          const isAssigned = memberForm.assigned_tasks.includes(t.title);
+                          return (
+                            <button
+                              type="button"
+                              key={t.id}
+                              onClick={() => {
+                                setMemberForm({
+                                  ...memberForm,
+                                  assigned_tasks: isAssigned
+                                    ? memberForm.assigned_tasks.filter((x) => x !== t.title)
+                                    : [...memberForm.assigned_tasks, t.title],
+                                });
+                              }}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+                                isAssigned
+                                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs font-semibold'
+                                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              {isAssigned ? '✓ ' : '+ '} {t.title}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Photo Upload to Supabase Storage (< 350 KB) */}
+                  <div className="space-y-2 pt-2 border-t border-slate-100">
+                    <label className="text-xs font-bold text-slate-700 block">
+                      Profile Photo (Direct to Supabase Storage)
+                    </label>
+
+                    <div className="flex items-center gap-4">
+                      {/* Thumbnail Preview */}
+                      <div className="w-16 h-16 rounded-2xl overflow-hidden bg-slate-900 flex-shrink-0 border border-slate-300 shadow-inner">
+                        {avatarPreview ? (
+                          <img
+                            src={avatarPreview}
+                            alt="Preview"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-white font-bold text-base">
+                            <ImageIcon className="w-6 h-6 text-slate-400" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* File Input */}
+                      <div className="flex-1 space-y-1">
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={handleAvatarFileSelected}
+                          className="text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer"
+                        />
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-slate-400">
+                            Maximum 350 KB. Images are automatically scaled and compressed on selection.
+                          </span>
+                        </div>
+                        {compressedSizeInfo && (
+                          <span className="inline-block px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                            ✓ {compressedSizeInfo}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Published Checkbox */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="is_published_chk"
+                      checked={memberForm.is_published}
+                      onChange={(e) => setMemberForm({ ...memberForm, is_published: e.target.checked })}
+                      className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                    />
+                    <label htmlFor="is_published_chk" className="text-xs text-slate-700 font-medium cursor-pointer">
+                      Published on public /team page
+                    </label>
+                  </div>
+
+                  {/* Modal Footer */}
+                  <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowMemberModal(false)}
+                      className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSavingTeamMember}
+                      className="px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-2 disabled:opacity-60 cursor-pointer"
+                    >
+                      {isSavingTeamMember ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          <span>Saving to Supabase...</span>
+                        </>
+                      ) : (
+                        <span>Save Profile & Publish</span>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

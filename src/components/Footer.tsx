@@ -80,6 +80,11 @@ export default function Footer() {
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-100">Quick Portals</h4>
             <ul className="space-y-2 text-xs">
               <li>
+                <Link href="/team" className="text-slate-400 hover:text-emerald-400 transition-colors flex items-center gap-1">
+                  <span>Team & Leadership Profiles</span>
+                </Link>
+              </li>
+              <li>
                 <Link href="/portal" className="text-slate-400 hover:text-emerald-400 transition-colors flex items-center gap-1">
                   <span>Student 3-Step Portal</span>
                 </Link>

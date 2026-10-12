@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
 
     // Action A: Create New Campaign Task
     if (body.type === 'create_task') {
-      const { title, description = '' } = body;
+      const { title, description = '', tag = 'General' } = body;
       if (!title || !title.trim()) {
         return NextResponse.json({ success: false, error: 'Task title is required' }, { status: 400 });
       }
@@ -95,6 +95,7 @@ export async function POST(req: NextRequest) {
         .insert({
           title: title.trim(),
           description: description.trim() || null,
+          tag: (tag || 'General').trim()
         })
         .select()
         .single();

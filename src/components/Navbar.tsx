@@ -14,7 +14,8 @@ import {
   X, 
   LogOut, 
   LogIn, 
-  User as UserIcon 
+  User as UserIcon,
+  Users
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -53,6 +54,7 @@ export default function Navbar() {
 
   const navLinks = [
     { name: 'Home', href: '/' },
+    { name: 'Team & Leadership', href: '/team', icon: Users },
     { name: 'Events & Gallery', href: '/events', icon: Calendar },
     { name: 'Student Portal', href: '/portal', icon: GraduationCap },
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
