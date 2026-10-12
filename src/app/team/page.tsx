@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import sdgWheel from '../../../Assets/SDG Wheel.png';
 import { 
   ShieldCheck, 
   Linkedin, 
@@ -157,7 +159,11 @@ export default function TeamPage() {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 space-y-12">
         {loading ? (
           <div className="text-center py-20 space-y-3">
-            <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <Image
+              src={sdgWheel}
+              alt="Sustainable Development Goals wheel"
+              className="w-16 h-16 mx-auto animate-[spin_4s_linear_infinite]"
+            />
             <p className="text-xs text-slate-500 font-medium">Loading team profiles from Supabase...</p>
           </div>
         ) : (
@@ -194,11 +200,6 @@ export default function TeamPage() {
                         </div>
                       </div>
 
-                      <div className="mt-3 text-center">
-                        <span className="inline-block px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 text-[11px] font-extrabold uppercase tracking-wider">
-                          Position #1 • Executive Head
-                        </span>
-                      </div>
                     </div>
 
                     {/* Content & Bio */}
@@ -310,9 +311,6 @@ export default function TeamPage() {
                             </div>
 
                             <div className="flex-1 min-w-0">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                                Position #{member.position_order}
-                              </span>
                               <h4 className="font-extrabold text-slate-900 text-base truncate">
                                 {member.full_name}
                               </h4>
@@ -390,18 +388,18 @@ export default function TeamPage() {
                   <span className="text-xs text-slate-400 font-medium">({tier3Members.length})</span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {tier3Members.map((member) => {
                     const tagStyle = getTagBadge(member.team_tag);
                     return (
                       <div
                         key={member.id}
-                        className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-3"
+                        className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4"
                       >
-                        <div className="space-y-2.5">
-                          <div className="flex items-center gap-3">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-4">
                             {/* Avatar */}
-                            <div className="w-12 h-12 rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-slate-200">
+                            <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-slate-200">
                               {member.avatar_url ? (
                                 <img
                                   src={member.avatar_url}
@@ -409,33 +407,30 @@ export default function TeamPage() {
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
-                                <div className="w-full h-full bg-slate-900 flex items-center justify-center text-white font-bold text-sm">
+                                <div className="w-full h-full bg-slate-900 flex items-center justify-center text-white font-bold text-base">
                                   {member.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                                 </div>
                               )}
                             </div>
 
                             <div className="min-w-0 flex-1">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                                Pos #{member.position_order}
-                              </span>
-                              <h4 className="font-bold text-slate-900 text-sm truncate">
+                              <h4 className="font-bold text-slate-900 text-base truncate">
                                 {member.full_name}
                               </h4>
-                              <p className="text-[11px] text-slate-500 truncate">
+                              <p className="text-xs text-slate-500 truncate">
                                 {member.designation}
                               </p>
                             </div>
                           </div>
 
                           <div className="pt-1">
-                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${tagStyle.bg}`}>
+                            <span className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold border ${tagStyle.bg}`}>
                               {tagStyle.label}
                             </span>
                           </div>
 
                           {member.bio && (
-                            <p className="text-[11px] text-slate-600 line-clamp-2 leading-relaxed">
+                            <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
                               {member.bio}
                             </p>
                           )}
@@ -445,7 +440,7 @@ export default function TeamPage() {
                               {member.assigned_tasks.slice(0, 2).map((task, idx) => (
                                 <span
                                   key={idx}
-                                  className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[9px] font-medium"
+                                  className="px-2 py-1 rounded bg-slate-100 text-slate-600 text-[10px] font-medium"
                                 >
                                   {task}
                                 </span>
@@ -455,11 +450,11 @@ export default function TeamPage() {
                         </div>
 
                         {/* Footer info */}
-                        <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
                           {member.email ? (
                             <a
                               href={`mailto:${member.email}`}
-                              className="text-slate-400 hover:text-emerald-700 text-[10px] font-mono truncate"
+                              className="text-slate-400 hover:text-emerald-700 text-[11px] font-mono truncate"
                               title={member.email}
                             >
                               {member.email.split('@')[0]}
