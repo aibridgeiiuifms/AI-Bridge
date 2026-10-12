@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Trash2,
   Edit3,
+  Pencil,
   PlusCircle,
   Eye,
   UserCheck,
@@ -827,7 +828,7 @@ export default function AdminDashboard() {
           }`}
         >
           <ShieldCheck className="w-3.5 h-3.5" />
-          <span>Roles &amp; Whitelist</span>
+          <span>Role and Whitelist</span>
           {canManageTeam && !isSuperAdmin && (
             <span className="ml-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-300">
               Manager Access
@@ -843,7 +844,7 @@ export default function AdminDashboard() {
           }`}
         >
           <Users className="w-3.5 h-3.5" />
-          <span>Public Team Profiles</span>
+          <span>Public Team Profile</span>
           <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
             activeTab === 'team_profiles' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
           }`}>
@@ -1176,40 +1177,66 @@ export default function AdminDashboard() {
 
                       return isEditing ? (
                         /* ── EDIT ROW ── */
-                        <tr key={idx} className="bg-emerald-50/60 border-l-4 border-emerald-500">
-                          <td className="py-3 px-4" colSpan={5}>
-                            <div className="space-y-3">
-                              {/* Row 1: name + role + notes */}
-                              <div className="flex flex-col sm:flex-row gap-2">
-                                <input
-                                  type="text"
-                                  value={editWhitelistDraft.full_name}
-                                  onChange={e => setEditWhitelistDraft(d => ({ ...d, full_name: e.target.value }))}
-                                  placeholder="Full Name"
-                                  className="flex-1 px-3 py-1.5 rounded-lg border border-emerald-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
-                                />
-                                {isSuperAdmin && (
-                                  <select
-                                    value={editWhitelistDraft.target_role}
-                                    onChange={e => setEditWhitelistDraft(d => ({ ...d, target_role: e.target.value as 'admin' | 'member' }))}
-                                    className="w-36 px-3 py-1.5 rounded-lg border border-emerald-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white font-semibold"
-                                  >
-                                    <option value="member">Member</option>
-                                    <option value="admin">Admin</option>
-                                  </select>
-                                )}
-                                <input
-                                  type="text"
-                                  value={editWhitelistDraft.notes}
-                                  onChange={e => setEditWhitelistDraft(d => ({ ...d, notes: e.target.value }))}
-                                  placeholder="Notes (optional)"
-                                  className="flex-1 px-3 py-1.5 rounded-lg border border-emerald-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
-                                />
+                        <tr key={idx} className="bg-emerald-50/70 border-l-4 border-emerald-600">
+                          <td className="py-4 px-5" colSpan={5}>
+                            <div className="space-y-3.5">
+                              {/* Header info */}
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs font-bold text-slate-800">Editing Whitelist Entry:</span>
+                                  <span className="font-mono text-xs text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded font-semibold">{email}</span>
+                                </div>
+                                <span className="text-[11px] text-slate-500">Live sync to database on save</span>
                               </div>
+
+                              {/* Row 1: name + role + notes */}
+                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                                <div className="sm:col-span-5">
+                                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">Full Name</label>
+                                  <input
+                                    type="text"
+                                    value={editWhitelistDraft.full_name}
+                                    onChange={e => setEditWhitelistDraft(d => ({ ...d, full_name: e.target.value }))}
+                                    placeholder="Full Name (e.g. Asad Naveed)"
+                                    className="w-full px-3 py-1.5 rounded-xl border border-emerald-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white font-medium"
+                                  />
+                                </div>
+                                <div className="sm:col-span-3">
+                                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">Role</label>
+                                  {isSuperAdmin && !isProtected ? (
+                                    <select
+                                      value={editWhitelistDraft.target_role}
+                                      onChange={e => setEditWhitelistDraft(d => ({ ...d, target_role: e.target.value as 'admin' | 'member' }))}
+                                      className="w-full px-3 py-1.5 rounded-xl border border-emerald-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white font-semibold"
+                                    >
+                                      <option value="member">Member</option>
+                                      <option value="admin">Admin</option>
+                                    </select>
+                                  ) : (
+                                    <input
+                                      type="text"
+                                      disabled
+                                      value={isProtected ? 'Admin (Super)' : editWhitelistDraft.target_role}
+                                      className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-slate-100 font-semibold text-slate-600 capitalize"
+                                    />
+                                  )}
+                                </div>
+                                <div className="sm:col-span-4">
+                                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">Notes (Optional)</label>
+                                  <input
+                                    type="text"
+                                    value={editWhitelistDraft.notes}
+                                    onChange={e => setEditWhitelistDraft(d => ({ ...d, notes: e.target.value }))}
+                                    placeholder="Notes or designation"
+                                    className="w-full px-3 py-1.5 rounded-xl border border-emerald-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+                                  />
+                                </div>
+                              </div>
+
                               {/* Row 2: task assignment pills */}
                               {tasks.length > 0 && (
-                                <div className="space-y-1">
-                                  <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Assigned Tasks:</p>
+                                <div className="space-y-1.5 pt-1">
+                                  <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Assigned Campaign Tasks (Click to toggle):</p>
                                   <div className="flex flex-wrap gap-1.5">
                                     {tasks.map((t: any) => {
                                       const sel = editWhitelistDraft.assigned_tasks.includes(t.title);
@@ -1225,36 +1252,37 @@ export default function AdminDashboard() {
                                                 : [...d.assigned_tasks, t.title],
                                             }))
                                           }
-                                          className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+                                          className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1 ${
                                             sel
-                                              ? 'bg-emerald-700 text-white shadow-sm'
-                                              : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50'
+                                              ? 'bg-emerald-700 text-white shadow-sm ring-1 ring-emerald-800'
+                                              : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-100'
                                           }`}
                                         >
-                                          {sel ? '✓ ' : ''}{t.title}
+                                          <span>{sel ? '✓' : '+'}</span>
+                                          <span>{t.title}</span>
                                         </button>
                                       );
                                     })}
                                   </div>
                                 </div>
                               )}
+
                               {/* Row 3: actions */}
-                              <div className="flex items-center gap-2 pt-1">
+                              <div className="flex items-center gap-2 pt-2 border-t border-emerald-100">
                                 <button
                                   onClick={handleSaveWhitelistEdit}
                                   disabled={isSavingWhitelist}
-                                  className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg transition-all disabled:opacity-60 cursor-pointer flex items-center gap-1.5"
+                                  className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-60 cursor-pointer flex items-center gap-1.5 shadow-sm"
                                 >
                                   <Check className="w-3.5 h-3.5" />
                                   {isSavingWhitelist ? 'Saving...' : 'Save Changes'}
                                 </button>
                                 <button
                                   onClick={() => setEditingWhitelistEmail(null)}
-                                  className="px-3 py-1.5 border border-slate-300 text-slate-600 hover:bg-slate-100 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1"
+                                  className="px-3.5 py-1.5 border border-slate-300 text-slate-600 hover:bg-slate-100 text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-1"
                                 >
                                   <X className="w-3.5 h-3.5" /> Cancel
                                 </button>
-                                <span className="text-[10px] text-slate-400 font-mono ml-2">{email}</span>
                               </div>
                             </div>
                           </td>
@@ -1318,7 +1346,7 @@ export default function AdminDashboard() {
                           <td className="text-right px-4">
                             <div className="flex items-center justify-end gap-1">
                               {/* Edit button */}
-                              {(isSuperAdmin || canManageTeam) && !isProtected && (
+                              {(isSuperAdmin || canManageTeam) && (
                                 <button
                                   onClick={() => startEditWhitelist(w)}
                                   className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
