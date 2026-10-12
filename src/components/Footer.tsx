@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import bridgeLogo from '../../Assets/logo.jpg';
 import { HeartHandshake, ShieldCheck, ExternalLink } from 'lucide-react';
 
 export default function Footer() {
@@ -11,25 +10,36 @@ export default function Footer() {
           {/* Col 1: Initiative Info */}
           <div className="md:col-span-1 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <Image
-                  src={bridgeLogo}
+              <div className="w-10 h-10 rounded-xl bg-white border border-slate-700/80 p-0.5 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-sm">
+                <img
+                  src="/logo.jpg"
                   alt="The AI Bridge logo"
-                  width={32}
-                  height={32}
-                  className="h-8 w-8 rounded-full bg-white object-contain"
+                  className="w-full h-full object-contain rounded-lg"
                 />
               </div>
-              <span className="font-bold text-lg text-white">The AI Bridge</span>
+              <div>
+                <span className="font-extrabold text-base text-white tracking-tight">The AI Bridge</span>
+                <p className="text-[10px] text-emerald-400 font-medium">Empowering Non-IT Academia</p>
+              </div>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed">
               Empowering and bridging the gap for non-IT educators and learners in humanities and social sciences through source-grounded AI architectures.
             </p>
-            <div className="pt-2">
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800/40">
+            <div className="pt-2 flex flex-col gap-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-emerald-950/80 text-emerald-400 border border-emerald-800/40 w-fit">
                 <HeartHandshake className="w-3.5 h-3.5" />
                 Hum Hain Pakistan (HHP) Campaign
               </span>
+              <div className="flex items-center gap-2 pt-1">
+                <div className="flex items-center gap-1.5 bg-slate-800/80 px-2 py-1 rounded border border-slate-700/60 text-[10px] text-slate-300">
+                  <img src="/iiui-logo.jpg" alt="IIUI Logo" className="w-4 h-4 object-contain rounded-full bg-white" />
+                  <span>IIUI FMS</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-slate-800/80 px-2 py-1 rounded border border-slate-700/60 text-[10px] text-slate-300">
+                  <img src="/hhp-logo.jpeg" alt="HHP Logo" className="w-4 h-4 object-contain rounded-full bg-white" />
+                  <span>HHP Youth</span>
+                </div>
+              </div>
             </div>
           </div>
 
