@@ -126,13 +126,16 @@ export default function HomePage() {
               <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-800 font-black text-base flex items-center justify-center mb-3 sm:mb-5 sm:h-12 sm:w-12 sm:rounded-xl sm:text-lg">
                 01
               </div>
-              <h3 className="text-base font-bold text-slate-900 mb-1.5 sm:mb-2 sm:text-lg">Step 1: Baseline Pre-Survey</h3>
+              <h3 className="text-base font-bold text-slate-900 mb-1.5 sm:mb-2 sm:text-lg">Step 1: Pre-Training Assessment Survey</h3>
               <p className="text-xs text-slate-600 leading-relaxed mb-3 sm:mb-4 sm:text-sm">
-                Establishes your baseline curriculum bottlenecks, text-heavy preparation hours, and AI familiarity. Records foundational data for the QIP impact evaluation.
+                Establishes your baseline curriculum bottlenecks, text-heavy preparation hours, and AI familiarity. Student & Teacher forms available for pre-training evaluation.
               </p>
             </div>
             <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-[10px] font-semibold text-emerald-700 sm:pt-4 sm:text-xs">
-              <span>Unlocks Stage 2 (MCQ Exam)</span>
+              <Link href="/portal/pre-survey" className="hover:underline flex items-center gap-1">
+                <span>Open Pre-Survey Form</span>
+                <span>→</span>
+              </Link>
               <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600" />
             </div>
           </div>
@@ -163,13 +166,16 @@ export default function HomePage() {
               <div className="w-10 h-10 rounded-lg bg-teal-100 text-teal-800 font-black text-base flex items-center justify-center mb-3 sm:mb-5 sm:h-12 sm:w-12 sm:rounded-xl sm:text-lg">
                 03
               </div>
-              <h3 className="text-base font-bold text-slate-900 mb-1.5 sm:mb-2 sm:text-lg">Step 3: Post-Survey & Download</h3>
+              <h3 className="text-base font-bold text-slate-900 mb-1.5 sm:mb-2 sm:text-lg">Step 3: Post-Training Assessment Survey</h3>
               <p className="text-xs text-slate-600 leading-relaxed mb-3 sm:mb-4 sm:text-sm">
-                Quantifies actual hours saved and comprehension boost. Unlocks an official PDF certificate with embedded QR verification, signed by Dr. Abdul Zahid Khan.
+                Quantifies actual hours saved and comprehension boost after training. Unlocks an official PDF certificate with embedded QR verification.
               </p>
             </div>
             <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-[10px] font-semibold text-teal-700 sm:pt-4 sm:text-xs">
-              <span>Instant Portal PDF Download</span>
+              <Link href="/portal/post-survey" className="hover:underline flex items-center gap-1">
+                <span>Open Post-Survey Form</span>
+                <span>→</span>
+              </Link>
               <Award className="w-4 h-4 flex-shrink-0 text-teal-600" />
             </div>
           </div>

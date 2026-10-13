@@ -18,6 +18,7 @@ import {
   ShieldAlert
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import SurveySelectionModal from '@/components/SurveySelectionModal';
 
 export default function StudentPortal() {
   const [user, setUser] = useState<any>(null);
@@ -25,6 +26,10 @@ export default function StudentPortal() {
   const [loading, setLoading] = useState(true);
   const [isSimulating, setIsSimulating] = useState(false);
   const [accessRestricted, setAccessRestricted] = useState(false);
+
+  // Survey Selection Modal State
+  const [surveyModalOpen, setSurveyModalOpen] = useState(false);
+  const [activeSurveyType, setActiveSurveyType] = useState<'pre' | 'post'>('pre');
 
   // 3-Step Progress State
   const [preSurveyCompleted, setPreSurveyCompleted] = useState(false);
@@ -197,9 +202,9 @@ export default function StudentPortal() {
                 <Circle className="w-5 h-5 text-slate-300" />
               )}
             </div>
-            <h3 className="font-bold text-slate-900 text-sm mb-1">Baseline Pre-Survey</h3>
+            <h3 className="font-bold text-slate-900 text-sm mb-1">Pre-Training Assessment Survey</h3>
             <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-              Assessment of teaching bottlenecks, text volume, and baseline AI literacy.
+              Assessment of study & teaching bottlenecks, text volume, and baseline AI literacy before training.
             </p>
             <div className="pt-3 border-t border-slate-100">
               {preSurveyCompleted ? (
@@ -207,12 +212,16 @@ export default function StudentPortal() {
                   <CheckCircle2 className="w-3.5 h-3.5" /> Completed
                 </span>
               ) : (
-                <Link
-                  href="/portal/pre-survey"
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-900"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveSurveyType('pre');
+                    setSurveyModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
                 >
-                  Complete Pre-Survey →
-                </Link>
+                  Complete Pre-Training Survey →
+                </button>
               )}
             </div>
           </div>
@@ -281,9 +290,9 @@ export default function StudentPortal() {
                 <Lock className="w-5 h-5 text-slate-400" />
               )}
             </div>
-            <h3 className="font-bold text-slate-900 text-sm mb-1">Post-Survey & Feedback</h3>
+            <h3 className="font-bold text-slate-900 text-sm mb-1">Post-Training Assessment Survey</h3>
             <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-              Efficiency gains reporting (hours saved/week) and workshop evaluation.
+              Efficiency gains reporting (hours saved/week) and workshop evaluation after training.
             </p>
             <div className="pt-3 border-t border-slate-100">
               {postSurveyCompleted ? (
@@ -291,12 +300,16 @@ export default function StudentPortal() {
                   <CheckCircle2 className="w-3.5 h-3.5" /> Completed
                 </span>
               ) : quizPassed ? (
-                <Link
-                  href="/portal/post-survey"
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-800 hover:text-teal-950"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveSurveyType('post');
+                    setSurveyModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-800 hover:text-teal-950 cursor-pointer"
                 >
-                  Submit Post-Survey →
-                </Link>
+                  Submit Post-Training Survey →
+                </button>
               ) : (
                 <span className="text-xs text-slate-400 flex items-center gap-1">
                   <Lock className="w-3.5 h-3.5" /> Locked (Pass Step 2)
@@ -356,6 +369,14 @@ export default function StudentPortal() {
           </div>
         </div>
       </div>
+
+      {/* Survey Role Selection Modal (Student vs Teacher) */}
+      <SurveySelectionModal
+        isOpen={surveyModalOpen}
+        onClose={() => setSurveyModalOpen(false)}
+        surveyType={activeSurveyType}
+        userEmail={user?.email}
+      />
     </div>
   );
 }
