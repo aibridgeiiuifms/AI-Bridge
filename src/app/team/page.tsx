@@ -180,15 +180,15 @@ export default function TeamPage() {
                     {/* Photo with Institutional Aura */}
                     <div className="flex-shrink-0 flex flex-col items-center">
                       <div className="relative">
-                        <div className="w-36 h-36 sm:w-44 sm:h-44 rounded-2xl overflow-hidden bg-gradient-to-br from-emerald-700 to-slate-900 p-1 shadow-lg shadow-emerald-900/20">
+                        <div className="relative w-[11.5rem] h-[11.5rem] sm:w-[13.5rem] sm:h-[13.5rem] aspect-square rounded-full overflow-hidden bg-slate-900 p-1 shadow-lg shadow-emerald-900/20">
                           {tier1Leader.avatar_url ? (
                             <img
                               src={tier1Leader.avatar_url}
                               alt={tier1Leader.full_name}
-                              className="w-full h-full object-cover rounded-xl"
+                              className="block h-full w-full object-cover object-[center_30%] rounded-full"
                             />
                           ) : (
-                            <div className="w-full h-full bg-slate-900 rounded-xl flex items-center justify-center text-white">
+                            <div className="w-full h-full bg-slate-900 rounded-full flex items-center justify-center text-white">
                               <span className="text-3xl font-extrabold tracking-wider text-emerald-400">
                                 {tier1Leader.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                               </span>
@@ -296,15 +296,15 @@ export default function TeamPage() {
                         <div className="space-y-3">
                           <div className="flex items-start gap-4">
                             {/* Avatar */}
-                            <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl overflow-hidden bg-slate-900 flex-shrink-0 border border-slate-200 shadow-inner">
+                            <div className="relative w-[6.5rem] h-[6.5rem] aspect-square rounded-full overflow-hidden bg-slate-900 flex-shrink-0 border border-slate-200 shadow-inner">
                               {member.avatar_url ? (
                                 <img
                                   src={member.avatar_url}
                                   alt={member.full_name}
-                                  className="w-full h-full object-cover"
+                                  className="block h-full w-full object-cover object-[center_30%] rounded-full"
                                 />
                               ) : (
-                                <div className="w-full h-full bg-slate-900 flex items-center justify-center text-white font-bold text-lg">
+                                <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-white font-bold text-lg">
                                   {member.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                                 </div>
                               )}
@@ -399,15 +399,15 @@ export default function TeamPage() {
                         <div className="space-y-3">
                           <div className="flex items-center gap-4">
                             {/* Avatar */}
-                            <div className="w-20 h-20 rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-slate-200">
+                            <div className="relative w-[7.5rem] h-[7.5rem] aspect-square rounded-full overflow-hidden bg-slate-900 flex-shrink-0 border border-slate-200">
                               {member.avatar_url ? (
                                 <img
                                   src={member.avatar_url}
                                   alt={member.full_name}
-                                  className="w-full h-full object-cover"
+                                  className="block h-full w-full object-cover object-[center_30%] rounded-full"
                                 />
                               ) : (
-                                <div className="w-full h-full bg-slate-900 flex items-center justify-center text-white font-bold text-base">
+                                <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center text-white font-bold text-base">
                                   {member.full_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                                 </div>
                               )}
