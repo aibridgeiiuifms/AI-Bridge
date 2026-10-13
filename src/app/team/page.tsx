@@ -285,13 +285,16 @@ export default function TeamPage() {
                   <span className="text-xs text-slate-400 font-medium">({tier2Leads.length})</span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div
+                  className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${tier2Leads.length === 2 ? 'lg:grid-cols-2 lg:justify-items-center' : 'lg:grid-cols-3'}`}
+                >
                   {tier2Leads.map((member) => {
                     const tagStyle = getTagBadge(member.team_tag);
+                    const isCenteredPair = tier2Leads.length === 2;
                     return (
                       <div
                         key={member.id}
-                        className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4 relative group"
+                        className={`bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4 relative group ${isCenteredPair ? 'w-full max-w-md' : ''}`}
                       >
                         <div className="space-y-3">
                           <div className="flex items-start gap-4">
