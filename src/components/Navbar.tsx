@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { AMBASSADOR_PORTAL_EMAIL } from '@/lib/access';
+import { hasAmbassadorPortalRole } from '@/lib/access';
 import { 
   Sparkles, 
   LayoutDashboard, 
@@ -57,18 +57,18 @@ export default function Navbar() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         setUser(user);
-        setIsPrivileged(user?.email?.trim().toLowerCase() === AMBASSADOR_PORTAL_EMAIL);
 
         if (user?.email) {
           // Check if user has admin or team-management access and retrieve profile info
           const { data: prof } = await supabase
             .from('profiles')
-            .select('role, can_manage_team, full_name, avatar_url')
+            .select('role, full_name, avatar_url')
             .eq('email', user.email)
             .maybeSingle();
 
           if (prof) {
             setProfile(prof);
+            setIsPrivileged(hasAmbassadorPortalRole(prof.role));
           }
         }
       } catch (err) {

@@ -9,8 +9,8 @@ import { requireAmbassadorPortalAccess } from '@/lib/ambassador-access';
  * the Standard Department Name and Faculty Name.
  */
 export async function GET() {
-  const accessDenied = await requireAmbassadorPortalAccess();
-  if (accessDenied) return accessDenied;
+  const access = await requireAmbassadorPortalAccess();
+  if (access instanceof NextResponse) return access;
 
   try {
     const supabase = createAdminClient();
@@ -79,8 +79,11 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const accessDenied = await requireAmbassadorPortalAccess();
-  if (accessDenied) return accessDenied;
+  const access = await requireAmbassadorPortalAccess();
+  if (access instanceof NextResponse) return access;
+  if (access.role !== 'admin') {
+    return NextResponse.json({ success: false, error: 'Admin access is required.' }, { status: 403 });
+  }
 
   try {
     const body = await req.json();
@@ -140,8 +143,11 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const accessDenied = await requireAmbassadorPortalAccess();
-  if (accessDenied) return accessDenied;
+  const access = await requireAmbassadorPortalAccess();
+  if (access instanceof NextResponse) return access;
+  if (access.role !== 'admin') {
+    return NextResponse.json({ success: false, error: 'Admin access is required.' }, { status: 403 });
+  }
 
   try {
     const { searchParams } = new URL(req.url);

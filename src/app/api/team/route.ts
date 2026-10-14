@@ -40,8 +40,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const accessDenied = await requireAmbassadorPortalAccess();
-  if (accessDenied) return accessDenied;
+  const access = await requireAmbassadorPortalAccess();
+  if (access instanceof NextResponse) return access;
+  if (access.role !== 'admin' && !access.canManageTeam) {
+    return NextResponse.json({ success: false, error: 'Team management access is required.' }, { status: 403 });
+  }
 
   try {
     const supabase = createAdminClient();
@@ -161,8 +164,11 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const accessDenied = await requireAmbassadorPortalAccess();
-  if (accessDenied) return accessDenied;
+  const access = await requireAmbassadorPortalAccess();
+  if (access instanceof NextResponse) return access;
+  if (access.role !== 'admin' && !access.canManageTeam) {
+    return NextResponse.json({ success: false, error: 'Team management access is required.' }, { status: 403 });
+  }
 
   try {
     const supabase = createAdminClient();
@@ -209,8 +215,11 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const accessDenied = await requireAmbassadorPortalAccess();
-  if (accessDenied) return accessDenied;
+  const access = await requireAmbassadorPortalAccess();
+  if (access instanceof NextResponse) return access;
+  if (access.role !== 'admin' && !access.canManageTeam) {
+    return NextResponse.json({ success: false, error: 'Team management access is required.' }, { status: 403 });
+  }
 
   try {
     const supabase = createAdminClient();
