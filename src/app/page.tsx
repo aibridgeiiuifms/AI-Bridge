@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
-import { AMBASSADOR_PORTAL_EMAIL } from '@/lib/access';
+import { hasAmbassadorPortalRole } from '@/lib/access';
 import humHainPakistanLogo from '../../Assets/hum hain pak logo.jpg';
 import sdgLogo from '../../Assets/SDG Logo.png';
 import { 
@@ -22,8 +22,10 @@ import {
 export default async function HomePage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const canAccessAmbassadorPortal =
-    user?.email?.trim().toLowerCase() === AMBASSADOR_PORTAL_EMAIL;
+  const { data: profile } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    : { data: null };
+  const canAccessAmbassadorPortal = hasAmbassadorPortalRole(profile?.role);
 
   return (
     <div className="space-y-8 pb-8 sm:space-y-16 sm:pb-16 lg:space-y-20 lg:pb-20">

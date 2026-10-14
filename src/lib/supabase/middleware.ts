@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-import { AMBASSADOR_PORTAL_EMAIL } from '@/lib/access';
+import { hasAmbassadorPortalRole } from '@/lib/access';
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -32,7 +32,7 @@ export async function updateSession(request: NextRequest) {
 
     const { data: { user } } = await supabase.auth.getUser();
 
-    // 1. Restrict the ambassador portal to the designated account.
+    // 1. Restrict the ambassador portal to admins and whitelisted members.
     if (pathname.startsWith('/dashboard')) {
       if (!user) {
         const url = request.nextUrl.clone();
@@ -41,7 +41,13 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url);
       }
 
-      if (user.email?.trim().toLowerCase() !== AMBASSADOR_PORTAL_EMAIL) {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (error || !hasAmbassadorPortalRole(profile?.role)) {
         const url = request.nextUrl.clone();
         url.pathname = '/portal';
         url.searchParams.set('access_denied', 'restricted_dashboard');
@@ -61,8 +67,14 @@ export async function updateSession(request: NextRequest) {
 
     // 3. Convenience: If logged-in user visits /login, redirect to their home portal
     if (pathname === '/login' && user) {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+
       const url = request.nextUrl.clone();
-      url.pathname = user.email?.trim().toLowerCase() === AMBASSADOR_PORTAL_EMAIL
+      url.pathname = !error && hasAmbassadorPortalRole(profile?.role)
         ? '/dashboard'
         : '/portal';
       return NextResponse.redirect(url);

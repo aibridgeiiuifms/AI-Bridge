@@ -95,7 +95,7 @@ export default function LoginPage() {
           </span>
           <h2 className="mt-3 text-2xl font-bold leading-tight text-[#173d31]">Welcome back</h2>
           <p className="mt-1.5 text-xs leading-5 text-[#65776c]">
-            Sign in with your Google account to access your certification dashboard and verified certificates. Ambassador access is limited to approved IIUI email accounts.
+            Sign in with your Google account to access your certification dashboard and verified certificates. Ambassador access is available to whitelisted members.
           </p>
         </div>
 

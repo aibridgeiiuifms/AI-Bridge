@@ -7,8 +7,8 @@ import { requireAmbassadorPortalAccess } from '@/lib/ambassador-access';
  * Superadmin: ai.bridge.iiui.fms@gmail.com (M. Tayyab, App Development Team Lead)
  */
 export async function GET(req: NextRequest) {
-  const accessDenied = await requireAmbassadorPortalAccess();
-  if (accessDenied) return accessDenied;
+  const access = await requireAmbassadorPortalAccess();
+  if (access instanceof NextResponse) return access;
 
   try {
     const supabase = createAdminClient();
@@ -83,8 +83,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const accessDenied = await requireAmbassadorPortalAccess();
-  if (accessDenied) return accessDenied;
+  const access = await requireAmbassadorPortalAccess();
+  if (access instanceof NextResponse) return access;
 
   try {
     const body = await req.json();
@@ -92,6 +92,10 @@ export async function POST(req: NextRequest) {
 
     // Action A: Create New Campaign Task
     if (body.type === 'create_task') {
+      if (access.role !== 'admin') {
+        return NextResponse.json({ success: false, error: 'Admin access is required.' }, { status: 403 });
+      }
+
       const { title, description = '', tag = 'General' } = body;
       if (!title || !title.trim()) {
         return NextResponse.json({ success: false, error: 'Task title is required' }, { status: 400 });
@@ -115,13 +119,12 @@ export async function POST(req: NextRequest) {
     }
 
     // Action B: Add/Whitelist Team Member
-    const { 
+    const {
       email, 
       target_role = 'member', 
       assigned_tasks = [], 
       full_name = '', 
-      notes = '',
-      isRequesterAdmin = false
+      notes = ''
     } = body;
 
     if (!email) {
@@ -130,14 +133,10 @@ export async function POST(req: NextRequest) {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Security Rule: If requester is NOT admin (e.g. delegated member), enforce role = 'member'
-    const finalRole = isRequesterAdmin ? target_role : 'member';
-
-    if (finalRole === 'member' && /@(gmail\.com|googlemail\.com)$/i.test(normalizedEmail)) {
-      return NextResponse.json(
-        { success: false, error: 'Ambassador access requires an approved IIUI email account.' },
-        { status: 400 }
-      );
+    // Only admins may grant admin roles; member invitations always remain members.
+    const finalRole = access.role === 'admin' ? target_role : 'member';
+    if (access.role !== 'admin' && !access.canManageTeam) {
+      return NextResponse.json({ success: false, error: 'Team management access is required.' }, { status: 403 });
     }
 
     // Upsert in role_whitelist
@@ -185,16 +184,20 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const accessDenied = await requireAmbassadorPortalAccess();
-  if (accessDenied) return accessDenied;
+  const access = await requireAmbassadorPortalAccess();
+  if (access instanceof NextResponse) return access;
 
   try {
     const body = await req.json();
-    const { email, userId, newRole, assigned_tasks, permissions, isRequesterAdmin = false } = body;
+    const { email, userId, newRole, assigned_tasks, permissions } = body;
     const supabase = createAdminClient();
 
     // 1. Update Assigned Tasks for a Member
     if (email && assigned_tasks !== undefined) {
+      if (access.role !== 'admin' && !access.canManageTeam) {
+        return NextResponse.json({ success: false, error: 'Team management access is required.' }, { status: 403 });
+      }
+
       const normalizedEmail = email.trim().toLowerCase();
       await supabase
         .from('role_whitelist')
@@ -214,7 +217,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     // 2. Update Role if provided (Only allowed by Admin)
-    if (userId && newRole && isRequesterAdmin) {
+    if (userId && newRole && access.role === 'admin') {
       const { error: roleError } = await supabase
         .from('profiles')
         .update({ role: newRole, updated_at: new Date().toISOString() })
@@ -227,6 +230,10 @@ export async function PATCH(req: NextRequest) {
 
     // 3. Update Member Permissions if provided
     if (permissions && (userId || email)) {
+      if (access.role !== 'admin' && !access.canManageTeam) {
+        return NextResponse.json({ success: false, error: 'Team management access is required.' }, { status: 403 });
+      }
+
       let targetId = userId;
       if (!targetId && email) {
         const { data: prof } = await supabase
@@ -276,8 +283,8 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const accessDenied = await requireAmbassadorPortalAccess();
-  if (accessDenied) return accessDenied;
+  const access = await requireAmbassadorPortalAccess();
+  if (access instanceof NextResponse) return access;
 
   try {
     const { searchParams } = new URL(req.url);
@@ -286,6 +293,10 @@ export async function DELETE(req: NextRequest) {
 
     // Action A: Delete Task from Master Task Pool
     if (action === 'delete_task') {
+      if (access.role !== 'admin' && !access.canManageTeam) {
+        return NextResponse.json({ success: false, error: 'Team management access is required.' }, { status: 403 });
+      }
+
       const taskId = searchParams.get('taskId');
       if (!taskId) {
         return NextResponse.json({ success: false, error: 'Task ID required' }, { status: 400 });
@@ -307,6 +318,10 @@ export async function DELETE(req: NextRequest) {
     const email = searchParams.get('email');
     if (!email) {
       return NextResponse.json({ success: false, error: 'Email parameter is required' }, { status: 400 });
+    }
+
+    if (access.role !== 'admin' && !access.canManageTeam) {
+      return NextResponse.json({ success: false, error: 'Team management access is required.' }, { status: 403 });
     }
 
     const normalizedEmail = email.trim().toLowerCase();

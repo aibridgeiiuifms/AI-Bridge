@@ -9,9 +9,20 @@ export async function GET(request: Request) {
   if (code) {
     try {
       const supabase = await createClient();
-      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
       if (error) {
         console.error('exchangeCodeForSession error:', error);
+      } else if (data.user) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .maybeSingle();
+        if (profileError) {
+          console.error('Failed to load profile after sign in:', profileError);
+        } else if (profile?.role === 'admin' || profile?.role === 'member') {
+          return NextResponse.redirect(`${origin}/dashboard`);
+        }
       }
     } catch (err) {
       console.error('Error during auth exchange:', err);

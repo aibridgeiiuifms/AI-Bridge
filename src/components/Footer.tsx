@@ -2,13 +2,15 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { HeartHandshake, ShieldCheck, ExternalLink } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
-import { AMBASSADOR_PORTAL_EMAIL } from '@/lib/access';
+import { hasAmbassadorPortalRole } from '@/lib/access';
 
 export default async function Footer() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const canAccessAmbassadorPortal =
-    user?.email?.trim().toLowerCase() === AMBASSADOR_PORTAL_EMAIL;
+  const { data: profile } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
+    : { data: null };
+  const canAccessAmbassadorPortal = hasAmbassadorPortalRole(profile?.role);
 
   return (
     <footer className="bg-slate-900 text-slate-300 pt-16 pb-12 border-t border-slate-800">
