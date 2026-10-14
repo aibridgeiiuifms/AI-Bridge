@@ -25,16 +25,6 @@ export default function HomePage() {
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#34d399_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none"></div>
         <div className="relative z-10 mx-auto grid min-w-0 max-w-6xl grid-cols-1 items-center gap-4 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] md:gap-6 lg:gap-10">
           <div className="flex min-w-0 flex-col items-center gap-1 sm:gap-2 md:items-start">
-            <div className="w-3/4 max-w-full rounded-lg border border-white/70 bg-white p-1 shadow-[0_12px_30px_-18px_rgba(0,0,0,0.7)] sm:w-4/5 sm:rounded-xl sm:p-1.5 md:w-full md:p-2">
-              <Image
-                src={humHainPakistanLogo}
-                alt="Hum Hain Pakistan — United for a Brighter Tomorrow"
-                width={2752}
-                height={1536}
-                priority
-                className="h-auto w-full object-contain"
-              />
-            </div>
             <div className="w-3/4 max-w-full px-1 sm:w-4/5 sm:px-1.5 md:w-full md:px-2">
               <Image
                 src={sdgLogo}
@@ -45,14 +35,19 @@ export default function HomePage() {
                 className="h-auto w-full object-contain"
               />
             </div>
+            <div className="w-3/4 max-w-full rounded-lg border border-white/70 bg-white p-1 shadow-[0_12px_30px_-18px_rgba(0,0,0,0.7)] sm:w-4/5 sm:rounded-xl sm:p-1.5 md:w-full md:p-2">
+              <Image
+                src={humHainPakistanLogo}
+                alt="Hum Hain Pakistan — United for a Brighter Tomorrow"
+                width={2752}
+                height={1536}
+                priority
+                className="h-auto w-full object-contain"
+              />
+            </div>
           </div>
 
           <div className="min-w-0 space-y-2 text-center sm:space-y-3 md:col-start-2 md:row-start-1 md:space-y-2 md:text-left lg:space-y-3">
-            <div className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-emerald-200 sm:gap-2 sm:px-3 sm:text-xs sm:tracking-wider">
-              <Sparkles className="h-3 w-3 flex-shrink-0 text-amber-300 sm:h-3.5 sm:w-3.5" />
-              <span className="min-w-0 break-words">Hum Hain Pakistan • SDG Youth Campaign Pilot</span>
-            </div>
-
             <h1 className="text-balance text-2xl font-extrabold leading-tight tracking-tight text-white sm:text-4xl md:text-3xl lg:text-4xl xl:text-5xl">
               The AI Bridge:
               <span className="block bg-gradient-to-r from-emerald-300 via-teal-200 to-amber-200 bg-clip-text text-transparent">
@@ -201,7 +196,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:gap-6 lg:grid-cols-4">
             <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:space-y-3 sm:rounded-xl sm:p-6">
               <div className="w-7 h-7 rounded-lg bg-red-100 text-red-700 font-bold flex items-center justify-center text-xs sm:h-8 sm:w-8 sm:text-sm">
                 4

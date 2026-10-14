@@ -126,6 +126,13 @@ export async function POST(req: NextRequest) {
     // Security Rule: If requester is NOT admin (e.g. delegated member), enforce role = 'member'
     const finalRole = isRequesterAdmin ? target_role : 'member';
 
+    if (finalRole === 'member' && /@(gmail\.com|googlemail\.com)$/i.test(normalizedEmail)) {
+      return NextResponse.json(
+        { success: false, error: 'Ambassador access requires an approved IIUI email account.' },
+        { status: 400 }
+      );
+    }
+
     // Upsert in role_whitelist
     const { data, error } = await supabase
       .from('role_whitelist')

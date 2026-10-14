@@ -148,7 +148,7 @@ export default function Navbar() {
               </div>
               <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-slate-500 font-medium leading-none mt-0.5">
                 <img src="/iiui-logo.jpg" alt="IIUI" className="w-3 h-3 object-contain rounded-full inline-block" />
-                <span>IIUI FMS • Dept. of Tech & PM</span>
+                <span>Dept. of Tech & PM • FMS IIUI</span>
               </div>
             </div>
           </Link>
