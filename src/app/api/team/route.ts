@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAmbassadorPortalAccess } from '@/lib/ambassador-access';
 
 /**
  * Team Management API
@@ -39,6 +40,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const accessDenied = await requireAmbassadorPortalAccess();
+  if (accessDenied) return accessDenied;
+
   try {
     const supabase = createAdminClient();
     const body = await req.json();
@@ -157,6 +161,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const accessDenied = await requireAmbassadorPortalAccess();
+  if (accessDenied) return accessDenied;
+
   try {
     const supabase = createAdminClient();
     const body = await req.json();
@@ -202,6 +209,9 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const accessDenied = await requireAmbassadorPortalAccess();
+  if (accessDenied) return accessDenied;
+
   try {
     const supabase = createAdminClient();
     const { searchParams } = new URL(req.url);

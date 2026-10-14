@@ -1,8 +1,15 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { HeartHandshake, ShieldCheck, ExternalLink } from 'lucide-react';
+import { createClient } from '@/lib/supabase/server';
+import { AMBASSADOR_PORTAL_EMAIL } from '@/lib/access';
 
-export default function Footer() {
+export default async function Footer() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const canAccessAmbassadorPortal =
+    user?.email?.trim().toLowerCase() === AMBASSADOR_PORTAL_EMAIL;
+
   return (
     <footer className="bg-slate-900 text-slate-300 pt-16 pb-12 border-t border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -99,11 +106,13 @@ export default function Footer() {
                   <span>Student 3-Step Portal</span>
                 </Link>
               </li>
-              <li>
-                <Link href="/dashboard" className="text-slate-400 hover:text-emerald-400 transition-colors flex items-center gap-1">
-                  <span>Ambassador Dashboard</span>
-                </Link>
-              </li>
+              {canAccessAmbassadorPortal && (
+                <li>
+                  <Link href="/dashboard" className="text-slate-400 hover:text-emerald-400 transition-colors flex items-center gap-1">
+                    <span>Ambassador Dashboard</span>
+                  </Link>
+                </li>
+              )}
               <li>
                 <Link href="/events" className="text-slate-400 hover:text-emerald-400 transition-colors flex items-center gap-1">
                   <span>Event Documentation & Gallery</span>

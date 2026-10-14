@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+import { AMBASSADOR_PORTAL_EMAIL } from '@/lib/access';
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -31,7 +32,7 @@ export async function updateSession(request: NextRequest) {
 
     const { data: { user } } = await supabase.auth.getUser();
 
-    // 1. Security Guard for /dashboard: Strictly Admin and Ambassador Members
+    // 1. Restrict the ambassador portal to the designated account.
     if (pathname.startsWith('/dashboard')) {
       if (!user) {
         const url = request.nextUrl.clone();
@@ -40,15 +41,7 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url);
       }
 
-      // Check role in profiles
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      // Zero-tolerance guard: If role is student or profile missing, block and redirect
-      if (!profile || profile.role === 'student') {
+      if (user.email?.trim().toLowerCase() !== AMBASSADOR_PORTAL_EMAIL) {
         const url = request.nextUrl.clone();
         url.pathname = '/portal';
         url.searchParams.set('access_denied', 'restricted_dashboard');
@@ -68,14 +61,10 @@ export async function updateSession(request: NextRequest) {
 
     // 3. Convenience: If logged-in user visits /login, redirect to their home portal
     if (pathname === '/login' && user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
-
       const url = request.nextUrl.clone();
-      url.pathname = (profile?.role === 'admin' || profile?.role === 'member') ? '/dashboard' : '/portal';
+      url.pathname = user.email?.trim().toLowerCase() === AMBASSADOR_PORTAL_EMAIL
+        ? '/dashboard'
+        : '/portal';
       return NextResponse.redirect(url);
     }
   }

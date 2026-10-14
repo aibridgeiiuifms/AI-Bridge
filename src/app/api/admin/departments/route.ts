@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAmbassadorPortalAccess } from '@/lib/ambassador-access';
 
 /**
  * Department & Faculty Mappings Management API
@@ -8,6 +9,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
  * the Standard Department Name and Faculty Name.
  */
 export async function GET() {
+  const accessDenied = await requireAmbassadorPortalAccess();
+  if (accessDenied) return accessDenied;
+
   try {
     const supabase = createAdminClient();
 
@@ -75,6 +79,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const accessDenied = await requireAmbassadorPortalAccess();
+  if (accessDenied) return accessDenied;
+
   try {
     const body = await req.json();
     const { code, standard_dept_name, faculty_name, faculty_code = '' } = body;
@@ -133,6 +140,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const accessDenied = await requireAmbassadorPortalAccess();
+  if (accessDenied) return accessDenied;
+
   try {
     const { searchParams } = new URL(req.url);
     const code = searchParams.get('code');

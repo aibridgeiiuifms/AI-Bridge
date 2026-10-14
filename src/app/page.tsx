@@ -1,5 +1,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/server';
+import { AMBASSADOR_PORTAL_EMAIL } from '@/lib/access';
 import humHainPakistanLogo from '../../Assets/hum hain pak logo.jpg';
 import sdgLogo from '../../Assets/SDG Logo.png';
 import { 
@@ -17,7 +19,12 @@ import {
   CalendarDays
 } from 'lucide-react';
 
-export default function HomePage() {
+export default async function HomePage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const canAccessAmbassadorPortal =
+    user?.email?.trim().toLowerCase() === AMBASSADOR_PORTAL_EMAIL;
+
   return (
     <div className="space-y-8 pb-8 sm:space-y-16 sm:pb-16 lg:space-y-20 lg:pb-20">
       {/* Hero Section */}
@@ -240,8 +247,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Leadership & Ambassadors */}
-      <section className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      {canAccessAmbassadorPortal && (
+        <section className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 items-center gap-4 rounded-2xl bg-emerald-900 p-4 text-white shadow-xl sm:gap-8 sm:rounded-3xl sm:p-8 lg:grid-cols-3 lg:p-12">
           <div className="space-y-3 sm:space-y-4 lg:col-span-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300 sm:text-xs">
@@ -277,7 +284,8 @@ export default function HomePage() {
             </Link>
           </div>
         </div>
-      </section>
+        </section>
+      )}
     </div>
   );
 }

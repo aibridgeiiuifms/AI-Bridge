@@ -36,7 +36,6 @@ interface TeamMember {
 export default function TeamPage() {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<string>('all');
 
   useEffect(() => {
     async function fetchTeam() {
@@ -55,26 +54,10 @@ export default function TeamPage() {
     fetchTeam();
   }, []);
 
-  // Extract all unique dynamic team tags from real data
-  const dynamicTags = Array.from(
-    new Set(
-      team
-        .map((m) => m.team_tag?.trim())
-        .filter((t): t is string => Boolean(t && t !== ''))
-    )
-  );
-
-  // Filter members based on category
-  const filteredTeam = team.filter((m) => {
-    if (activeFilter === 'all') return true;
-    if (activeFilter === 'lead') return m.position_order <= 4;
-    return m.team_tag?.trim().toLowerCase() === activeFilter.trim().toLowerCase();
-  });
-
   // Split into 3 distinct visual tiers based on position_order
-  const tier1Leader = filteredTeam.find((m) => m.position_order === 1);
-  const tier2Leads = filteredTeam.filter((m) => m.position_order > 1 && m.position_order <= 4);
-  const tier3Members = filteredTeam.filter((m) => m.position_order > 4);
+  const tier1Leader = team.find((m) => m.position_order === 1);
+  const tier2Leads = team.filter((m) => m.position_order > 1 && m.position_order <= 4);
+  const tier3Members = team.filter((m) => m.position_order > 4);
 
   // Helper for dynamic team tag styling
   const getTagBadge = (tag: string) => {
@@ -112,46 +95,6 @@ export default function TeamPage() {
             The dedicated academic governance, technical architects, and student ambassadors championing source-grounded AI tools across non-IT faculties at International Islamic University Islamabad.
           </p>
 
-          {/* Quick Dynamic Filter Bar */}
-          <div className="pt-6 flex flex-wrap items-center justify-center gap-2">
-            <button
-              onClick={() => setActiveFilter('all')}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-                activeFilter === 'all'
-                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/30 font-bold'
-                  : 'bg-white/10 hover:bg-white/15 text-slate-200 border border-white/10'
-              }`}
-            >
-              All Members ({team.length})
-            </button>
-
-            {team.some((m) => m.position_order <= 4) && (
-              <button
-                onClick={() => setActiveFilter('lead')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-                  activeFilter === 'lead'
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/30 font-bold'
-                    : 'bg-white/10 hover:bg-white/15 text-slate-200 border border-white/10'
-                }`}
-              >
-                Leadership
-              </button>
-            )}
-
-            {dynamicTags.map((tag) => (
-              <button
-                key={tag}
-                onClick={() => setActiveFilter(tag)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-                  activeFilter.toLowerCase() === tag.toLowerCase()
-                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-900/30 font-bold'
-                    : 'bg-white/10 hover:bg-white/15 text-slate-200 border border-white/10'
-                }`}
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
         </div>
       </section>
 
@@ -482,7 +425,7 @@ export default function TeamPage() {
               </div>
             )}
 
-            {filteredTeam.length === 0 && (
+            {team.length === 0 && (
               <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 p-8 space-y-3">
                 <Users className="w-10 h-10 text-slate-300 mx-auto" />
                 <h4 className="font-bold text-slate-800 text-sm">

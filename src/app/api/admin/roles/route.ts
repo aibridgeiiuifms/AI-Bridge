@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { requireAmbassadorPortalAccess } from '@/lib/ambassador-access';
 
 /**
  * Administrative API endpoint for Dynamic Task Assignment & Delegated Team Management
  * Superadmin: ai.bridge.iiui.fms@gmail.com (M. Tayyab, App Development Team Lead)
  */
 export async function GET(req: NextRequest) {
+  const accessDenied = await requireAmbassadorPortalAccess();
+  if (accessDenied) return accessDenied;
+
   try {
     const supabase = createAdminClient();
 
@@ -79,6 +83,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const accessDenied = await requireAmbassadorPortalAccess();
+  if (accessDenied) return accessDenied;
+
   try {
     const body = await req.json();
     const supabase = createAdminClient();
@@ -178,6 +185,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
+  const accessDenied = await requireAmbassadorPortalAccess();
+  if (accessDenied) return accessDenied;
+
   try {
     const body = await req.json();
     const { email, userId, newRole, assigned_tasks, permissions, isRequesterAdmin = false } = body;
@@ -266,6 +276,9 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const accessDenied = await requireAmbassadorPortalAccess();
+  if (accessDenied) return accessDenied;
+
   try {
     const { searchParams } = new URL(req.url);
     const action = searchParams.get('action');
