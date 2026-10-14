@@ -46,11 +46,33 @@ import {
 import { compressImageToMaxKB, uploadTeamAvatar } from '@/lib/imageCompression';
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'team' | 'team_profiles'>('team');
+  const [activeTab, setActiveTab] = useState<'team' | 'team_profiles' | 'departments'>('team');
   // Inline-edit state for whitelist rows
   const [editingWhitelistEmail, setEditingWhitelistEmail] = useState<string | null>(null);
   const [editWhitelistDraft, setEditWhitelistDraft] = useState<{ full_name: string; target_role: 'admin' | 'member'; assigned_tasks: string[]; notes: string }>({ full_name: '', target_role: 'member', assigned_tasks: [], notes: '' });
   const [isSavingWhitelist, setIsSavingWhitelist] = useState(false);
+
+  // Department & Faculty Mappings State
+  const [departmentMappings, setDepartmentMappings] = useState<any[]>([]);
+  const [loadingDepts, setLoadingDepts] = useState(false);
+  const [deptSearchQuery, setDeptSearchQuery] = useState('');
+  const [deptFacultyFilter, setDeptFacultyFilter] = useState('all');
+  const [editingDeptCode, setEditingDeptCode] = useState<string | null>(null);
+  const [deptEditForm, setDeptEditForm] = useState({
+    code: '',
+    standard_dept_name: '',
+    faculty_name: '',
+    faculty_code: ''
+  });
+  const [isSavingDept, setIsSavingDept] = useState(false);
+  const [deptFeedbackMsg, setDeptFeedbackMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [showAddDeptModal, setShowAddDeptModal] = useState(false);
+  const [newDeptForm, setNewDeptForm] = useState({
+    code: '',
+    standard_dept_name: '',
+    faculty_name: '',
+    faculty_code: ''
+  });
 
   // Whitelist Form State
   const [newEmail, setNewEmail] = useState('');
@@ -129,6 +151,92 @@ export default function AdminDashboard() {
       console.error('Failed to fetch team members:', e);
     } finally {
       setLoadingTeam(false);
+    }
+  };
+
+  const fetchDepartmentMappings = async () => {
+    setLoadingDepts(true);
+    try {
+      const res = await fetch('/api/admin/departments');
+      const data = await res.json();
+      if (data.success && data.departments) {
+        setDepartmentMappings(data.departments);
+      }
+    } catch (e) {
+      console.error('Failed to fetch department mappings:', e);
+    } finally {
+      setLoadingDepts(false);
+    }
+  };
+
+  const handleSaveDept = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setIsSavingDept(true);
+    try {
+      const res = await fetch('/api/admin/departments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(deptEditForm)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDeptFeedbackMsg({ text: `Updated ${deptEditForm.code} successfully!`, type: 'success' });
+        setEditingDeptCode(null);
+        await fetchDepartmentMappings();
+      } else {
+        setDeptFeedbackMsg({ text: data.error || 'Failed to update department', type: 'error' });
+      }
+    } catch (err: any) {
+      setDeptFeedbackMsg({ text: err.message || 'Error updating department', type: 'error' });
+    } finally {
+      setIsSavingDept(false);
+      setTimeout(() => setDeptFeedbackMsg(null), 4000);
+    }
+  };
+
+  const handleCreateDept = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingDept(true);
+    try {
+      const res = await fetch('/api/admin/departments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newDeptForm)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDeptFeedbackMsg({ text: `Program code ${newDeptForm.code.toUpperCase()} added successfully!`, type: 'success' });
+        setShowAddDeptModal(false);
+        setNewDeptForm({ code: '', standard_dept_name: '', faculty_name: '', faculty_code: '' });
+        await fetchDepartmentMappings();
+      } else {
+        setDeptFeedbackMsg({ text: data.error || 'Failed to add department', type: 'error' });
+      }
+    } catch (err: any) {
+      setDeptFeedbackMsg({ text: err.message || 'Error adding department', type: 'error' });
+    } finally {
+      setIsSavingDept(false);
+      setTimeout(() => setDeptFeedbackMsg(null), 4000);
+    }
+  };
+
+  const handleDeleteDept = async (code: string) => {
+    if (!confirm(`Are you sure you want to remove mapping for ${code}?`)) return;
+    try {
+      const res = await fetch(`/api/admin/departments?code=${encodeURIComponent(code)}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDeptFeedbackMsg({ text: `Removed mapping for ${code}`, type: 'success' });
+        await fetchDepartmentMappings();
+      } else {
+        setDeptFeedbackMsg({ text: data.error || 'Failed to delete', type: 'error' });
+      }
+    } catch (err: any) {
+      setDeptFeedbackMsg({ text: err.message || 'Error deleting department', type: 'error' });
+    } finally {
+      setTimeout(() => setDeptFeedbackMsg(null), 4000);
     }
   };
 
@@ -328,6 +436,7 @@ export default function AdminDashboard() {
     checkUser();
     fetchRolesData();
     fetchTeamData();
+    fetchDepartmentMappings();
   }, []);
 
   // Live Metric Cards derived from Supabase
@@ -849,6 +958,25 @@ export default function AdminDashboard() {
             activeTab === 'team_profiles' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
           }`}>
             {teamMembers.length}
+          </span>
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('departments');
+            fetchDepartmentMappings();
+          }}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+            activeTab === 'departments'
+              ? 'bg-emerald-700 text-white shadow-sm'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Layers className="w-3.5 h-3.5" />
+          <span>Departments & Faculties</span>
+          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+            activeTab === 'departments' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+          }`}>
+            {departmentMappings.length}
           </span>
         </button>
       </div>
@@ -1981,6 +2109,397 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* TAB CONTENT: DEPARTMENTS & FACULTIES MAPPINGS */}
+      {/* ============================================================== */}
+      {activeTab === 'departments' && (
+        <div className="space-y-6">
+          {/* Feedback Toast */}
+          {deptFeedbackMsg && (
+            <div className={`p-4 rounded-2xl text-xs font-bold border flex items-center justify-between shadow-sm animate-fade-in ${
+              deptFeedbackMsg.type === 'success' 
+                ? 'bg-emerald-50 text-emerald-900 border-emerald-200' 
+                : 'bg-rose-50 text-rose-900 border-rose-200'
+            }`}>
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span>{deptFeedbackMsg.text}</span>
+              </div>
+              <button 
+                onClick={() => setDeptFeedbackMsg(null)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Header Card */}
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-6">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    Academic Degree Directory & Mapping Engine
+                  </span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-1.5">
+                  Student Email Code Mapping & Faculty Association
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
+                  Map extracted student email program abbreviations (e.g. <strong className="text-slate-800">BSBA</strong>, <strong className="text-slate-800">BSIR</strong>, <strong className="text-slate-800">BSFTE</strong>) to official degree titles and faculties. 
+                  Any change here instantly updates across all student analytics and reports via relational database JOIN.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5 flex-shrink-0">
+                <button
+                  onClick={() => setShowAddDeptModal(true)}
+                  className="px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl cursor-pointer transition-all shadow-sm flex items-center gap-1.5"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Add Program Code</span>
+                </button>
+                <button
+                  onClick={fetchDepartmentMappings}
+                  disabled={loadingDepts}
+                  className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+                  title="Refresh Mappings"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loadingDepts ? 'animate-spin text-emerald-600' : ''}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Metrics Bar */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
+                <p className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">Configured Programs</p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl font-black text-slate-900">{departmentMappings.length}</span>
+                  <span className="text-xs font-semibold text-slate-500">Degree Codes</span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200/60">
+                <p className="text-emerald-700 text-[11px] font-bold uppercase tracking-wider">Faculties Represented</p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl font-black text-emerald-950">
+                    {new Set(departmentMappings.map(d => d.faculty_name).filter(Boolean)).size}
+                  </span>
+                  <span className="text-xs font-semibold text-emerald-700">Academic Faculties</span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200/60">
+                <p className="text-blue-700 text-[11px] font-bold uppercase tracking-wider">Total Survey Entries Classified</p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-2xl font-black text-blue-950">
+                    {departmentMappings.reduce((sum, d) => sum + (Number(d.student_count) || 0), 0)}
+                  </span>
+                  <span className="text-xs font-semibold text-blue-700">Submissions Covered</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Filters & Search */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search by code (e.g. BSBA), department name, or faculty..."
+                  value={deptSearchQuery}
+                  onChange={(e) => setDeptSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                <select
+                  value={deptFacultyFilter}
+                  onChange={(e) => setDeptFacultyFilter(e.target.value)}
+                  className="px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="all">All Faculties</option>
+                  <option value="Faculty of Management Sciences">FMS (Management Sciences)</option>
+                  <option value="Faculty of Social Sciences">FSS (Social Sciences)</option>
+                  <option value="Faculty of Basic & Applied Sciences">FBAS (Basic & Applied)</option>
+                  <option value="Faculty of Computing & IT">FCIT (Computing & IT)</option>
+                  <option value="Faculty of Languages & Literature">FLL (Languages & Literature)</option>
+                  <option value="Faculty of Shariah & Law">FSL (Shariah & Law)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Mappings Table */}
+            <div className="overflow-x-auto border border-slate-200 rounded-2xl">
+              <table className="w-full text-left text-xs text-slate-600">
+                <thead className="bg-slate-50 border-b border-slate-200 font-bold text-slate-700">
+                  <tr>
+                    <th className="py-3 px-4">Extracted Code</th>
+                    <th className="py-3 px-4">Survey Entries</th>
+                    <th className="py-3 px-4">Standard Department Name</th>
+                    <th className="py-3 px-4">Faculty Name & Code</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {loadingDepts ? (
+                    <tr>
+                      <td colSpan={5} className="py-12 text-center text-slate-400">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                          <span>Loading department mappings...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : departmentMappings.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-12 text-center text-slate-400">
+                        No department mappings found. Please apply migration 008_department_mappings.sql in Supabase.
+                      </td>
+                    </tr>
+                  ) : (
+                    departmentMappings
+                      .filter((d) => {
+                        const q = deptSearchQuery.toLowerCase();
+                        const matchesSearch = !q ||
+                          d.code.toLowerCase().includes(q) ||
+                          d.standard_dept_name.toLowerCase().includes(q) ||
+                          d.faculty_name.toLowerCase().includes(q) ||
+                          (d.faculty_code && d.faculty_code.toLowerCase().includes(q));
+                        const matchesFaculty = deptFacultyFilter === 'all' || 
+                          d.faculty_name === deptFacultyFilter || 
+                          d.faculty_code === deptFacultyFilter;
+                        return matchesSearch && matchesFaculty;
+                      })
+                      .map((dept) => {
+                        const isEditing = editingDeptCode === dept.code;
+
+                        return (
+                          <tr key={dept.code} className="hover:bg-slate-50/80 transition-colors">
+                            {/* Extracted Code */}
+                            <td className="py-3.5 px-4 font-mono">
+                              <span className="px-2.5 py-1 rounded-lg bg-slate-900 text-white font-extrabold text-xs tracking-wider shadow-sm">
+                                {dept.code}
+                              </span>
+                            </td>
+
+                            {/* Live Survey Entries Count */}
+                            <td className="py-3.5 px-4">
+                              {Number(dept.student_count) > 0 ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
+                                  {dept.student_count} entries
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-500">
+                                  0 entries
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Standard Department Name */}
+                            <td className="py-3.5 px-4">
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  value={deptEditForm.standard_dept_name}
+                                  onChange={(e) => setDeptEditForm({ ...deptEditForm, standard_dept_name: e.target.value })}
+                                  className="w-full px-3 py-1.5 rounded-lg border border-emerald-500 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                  placeholder="e.g. Business Analytics"
+                                  autoFocus
+                                />
+                              ) : (
+                                <span className="font-bold text-slate-900 text-xs">
+                                  {dept.standard_dept_name}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Faculty Name & Code */}
+                            <td className="py-3.5 px-4">
+                              {isEditing ? (
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={deptEditForm.faculty_name}
+                                    onChange={(e) => setDeptEditForm({ ...deptEditForm, faculty_name: e.target.value })}
+                                    className="flex-1 px-3 py-1.5 rounded-lg border border-emerald-500 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                    placeholder="Faculty Name"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={deptEditForm.faculty_code}
+                                    onChange={(e) => setDeptEditForm({ ...deptEditForm, faculty_code: e.target.value })}
+                                    className="w-20 px-2 py-1.5 rounded-lg border border-emerald-500 text-xs font-bold uppercase focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                    placeholder="Code"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-slate-700 font-medium">
+                                    {dept.faculty_name}
+                                  </span>
+                                  {dept.faculty_code && (
+                                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                                      {dept.faculty_code}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Actions */}
+                            <td className="py-3.5 px-4 text-right">
+                              {isEditing ? (
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    onClick={() => handleSaveDept()}
+                                    disabled={isSavingDept}
+                                    className="p-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm cursor-pointer"
+                                    title="Save Changes"
+                                  >
+                                    <Check className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingDeptCode(null)}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                                    title="Cancel"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    onClick={() => {
+                                      setEditingDeptCode(dept.code);
+                                      setDeptEditForm({
+                                        code: dept.code,
+                                        standard_dept_name: dept.standard_dept_name,
+                                        faculty_name: dept.faculty_name,
+                                        faculty_code: dept.faculty_code || ''
+                                      });
+                                    }}
+                                    className="p-1.5 rounded-lg text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
+                                    title="Edit Mapping"
+                                  >
+                                    <Edit3 className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteDept(dept.code)}
+                                    className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
+                                    title="Remove Mapping"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* ADD NEW PROGRAM CODE MODAL */}
+      {/* ============================================================== */}
+      {showAddDeptModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-5 animate-fade-in">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="font-black text-slate-900 text-lg">Add New Program Code</h3>
+                <p className="text-xs text-slate-500">Register a new student email degree abbreviation.</p>
+              </div>
+              <button 
+                onClick={() => setShowAddDeptModal(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateDept} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Program Abbreviation Code *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. BSAI or BSCY"
+                  value={newDeptForm.code}
+                  onChange={(e) => setNewDeptForm({ ...newDeptForm, code: e.target.value.toUpperCase() })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold uppercase focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700">Standard Department Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Artificial Intelligence or Business Analytics"
+                  value={newDeptForm.standard_dept_name}
+                  onChange={(e) => setNewDeptForm({ ...newDeptForm, standard_dept_name: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="col-span-2 space-y-1">
+                  <label className="text-xs font-bold text-slate-700">Faculty Name *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Faculty of Computing & IT"
+                    value={newDeptForm.faculty_name}
+                    onChange={(e) => setNewDeptForm({ ...newDeptForm, faculty_name: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700">Acronym</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. FCIT"
+                    value={newDeptForm.faculty_code}
+                    onChange={(e) => setNewDeptForm({ ...newDeptForm, faculty_code: e.target.value.toUpperCase() })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs font-bold uppercase focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddDeptModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingDept}
+                  className="px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-2 disabled:opacity-60"
+                >
+                  {isSavingDept ? 'Saving...' : 'Add Mapping'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

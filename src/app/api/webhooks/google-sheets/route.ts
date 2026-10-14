@@ -9,6 +9,101 @@ export async function GET() {
   });
 }
 
+/**
+ * Extracts student semester, department code, and registration number from institutional email.
+ * - Type 1: [Reg][Dept][Semester]@student.iiu.edu.pk (e.g. 025580bsirf26)
+ * - Type 2: [Name].[Dept][Reg]@student.iiu.edu.pk (e.g. zain.bsba126)
+ * - Fallback: For Type 2, searches the form roll number answer for season+year (e.g. F23, S24).
+ */
+function parseStudentEmail(rawEmail: string, fallbackRoll?: string): {
+  regNo: string;
+  deptCode: string;
+  semester: string;
+} {
+  if (!rawEmail) return { regNo: '', deptCode: '', semester: '' };
+
+  const clean = rawEmail.replace(/\s+/g, '').toLowerCase();
+  const userPart = clean.split('@')[0];
+
+  // Type 1: Modern Format [Reg][Dept][Semester] e.g. 025580bsirf26
+  const matchStd = userPart.match(/^(\d+)[/_]?([a-z]+?)([fs]\d{2})$/);
+  if (matchStd) {
+    return {
+      regNo: matchStd[1],
+      deptCode: matchStd[2].toUpperCase(),
+      semester: matchStd[3].toUpperCase() // e.g. F26
+    };
+  }
+
+  // Type 2: Older / Senior Format [Name].[Dept][Reg] e.g. zain.bsba126
+  const matchName = userPart.match(/^[a-z]+\.([a-z]+?)(\d+)$/);
+  if (matchName) {
+    const deptCode = matchName[1].toUpperCase();
+    const regNo = matchName[2];
+    let semester = '';
+
+    // "Via Fallback": Check messy roll number from form answers for season+year
+    if (fallbackRoll) {
+      const matchRollSem = fallbackRoll.match(/([fsFS][-_\s]?\d{2})/);
+      if (matchRollSem) {
+        semester = matchRollSem[1].replace(/[-_\s]/g, '').toUpperCase();
+      }
+    }
+
+    return {
+      regNo,
+      deptCode,
+      semester: semester || 'UNKNOWN'
+    };
+  }
+
+  // Type 1 Fallback search across string (e.g. if extra text typed around it)
+  const matchSearch = clean.match(/(\d{4,6})[/\-_]?([a-z]+?)([fs]\d{2})/);
+  if (matchSearch) {
+    return {
+      regNo: matchSearch[1],
+      deptCode: matchSearch[2].toUpperCase(),
+      semester: matchSearch[3].toUpperCase()
+    };
+  }
+
+  return { regNo: '', deptCode: '', semester: '' };
+}
+
+function extractFallbackRoll(answers: Record<string, any>): string {
+  if (!answers || typeof answers !== 'object') return '';
+  for (const [key, val] of Object.entries(answers)) {
+    const k = key.toLowerCase();
+    if (k.includes('roll') || k.includes('reg') || k.includes('registration')) {
+      return String(val || '');
+    }
+  }
+  return '';
+}
+
+/**
+ * Ensures the extracted department code exists in department_mappings so foreign key constraints hold.
+ * If new, creates it with "Pending Review" status for the Admin to configure in the Dashboard.
+ */
+async function ensureDepartmentMappingExists(supabase: any, deptCode: string) {
+  if (!deptCode) return;
+  try {
+    const cleanCode = deptCode.toUpperCase();
+    await supabase.from('department_mappings').upsert(
+      {
+        code: cleanCode,
+        standard_dept_name: cleanCode,
+        faculty_name: 'Pending Assignment',
+        updated_at: new Date().toISOString()
+      },
+      { onConflict: 'code', ignoreDuplicates: true }
+    );
+  } catch (err) {
+    // Non-fatal, continue sync even if mapping table is pending migration
+    console.error(`ensureDepartmentMappingExists error for ${deptCode}:`, err);
+  }
+}
+
 export async function POST(req: NextRequest) {
   try {
     // 1. Verify Secret Token (if configured in environment)
@@ -49,6 +144,14 @@ export async function POST(req: NextRequest) {
         if (!row.email) continue;
         const normalizedEmail = row.email.trim().toLowerCase();
         
+        // Parse email to derive 3 distinct columns
+        const fallbackRoll = extractFallbackRoll(row.answers || {});
+        const { regNo, deptCode, semester } = parseStudentEmail(normalizedEmail, fallbackRoll);
+        
+        if (deptCode) {
+          await ensureDepartmentMappingExists(supabase, deptCode);
+        }
+
         // Find existing profile
         const { data: profile } = await supabase
           .from('profiles')
@@ -56,7 +159,7 @@ export async function POST(req: NextRequest) {
           .eq('email', normalizedEmail)
           .maybeSingle();
 
-        const payload = {
+        const payload: Record<string, any> = {
           user_id: profile?.id || null,
           respondent_email: normalizedEmail,
           survey_type: row.survey_type || survey_type,
@@ -65,6 +168,9 @@ export async function POST(req: NextRequest) {
           comprehension_self_rating: Number(row.comprehension_self_rating) || 3,
           feedback_notes: row.feedback_notes || null,
           sheet_row_number: row.sheet_row_number || null,
+          extracted_reg_no: regNo || null,
+          extracted_dept_code: deptCode || null,
+          extracted_semester: semester || null,
           updated_at: new Date().toISOString(),
         };
 
@@ -80,7 +186,7 @@ export async function POST(req: NextRequest) {
         action: 'SYNC_ALL',
         rows_processed: rows.length,
         synced_count: syncedCount,
-        message: `Successfully synchronized ${syncedCount} rows to Supabase with audit logging.`
+        message: `Successfully synchronized ${syncedCount} rows to Supabase with automatic email-to-department parsing.`
       });
     }
 
@@ -93,7 +199,12 @@ export async function POST(req: NextRequest) {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const performer = performed_by || normalizedEmail;
+    const fallbackRoll = extractFallbackRoll(answers || {});
+    const { regNo, deptCode, semester } = parseStudentEmail(normalizedEmail, fallbackRoll);
+
+    if (deptCode) {
+      await ensureDepartmentMappingExists(supabase, deptCode);
+    }
 
     // 3. Resolve user_id if already registered in profiles
     const { data: profile } = await supabase
@@ -106,7 +217,7 @@ export async function POST(req: NextRequest) {
 
     // 4. Execute Action
     if (action === 'INSERT') {
-      const payload = {
+      const payload: Record<string, any> = {
         user_id: userId,
         respondent_email: normalizedEmail,
         survey_type,
@@ -115,6 +226,9 @@ export async function POST(req: NextRequest) {
         comprehension_self_rating: Number(comprehension_self_rating) || 3,
         feedback_notes: feedback_notes || null,
         sheet_row_number: sheet_row_number || null,
+        extracted_reg_no: regNo || null,
+        extracted_dept_code: deptCode || null,
+        extracted_semester: semester || null,
         submitted_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -133,9 +247,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({
         success: true,
         action: 'INSERT',
-        message: `Survey registered for ${normalizedEmail}. Step assessment is now unlocked.`,
+        message: `Survey registered for ${normalizedEmail}. Extracted: Dept ${deptCode || 'N/A'}, Sem ${semester || 'N/A'}, Reg ${regNo || 'N/A'}.`,
         survey_id: data?.id,
-        user_id: userId
+        user_id: userId,
+        extracted: { regNo, deptCode, semester }
       });
     }
 
@@ -150,6 +265,9 @@ export async function POST(req: NextRequest) {
 
       const updateData: Record<string, any> = {
         updated_at: new Date().toISOString(),
+        extracted_reg_no: regNo || null,
+        extracted_dept_code: deptCode || null,
+        extracted_semester: semester || null,
       };
 
       if (hours_saved_estimate !== undefined) updateData.hours_saved_estimate = Number(hours_saved_estimate);
@@ -183,6 +301,9 @@ export async function POST(req: NextRequest) {
             comprehension_self_rating: Number(comprehension_self_rating) || 3,
             feedback_notes: feedback_notes || null,
             sheet_row_number: sheet_row_number || null,
+            extracted_reg_no: regNo || null,
+            extracted_dept_code: deptCode || null,
+            extracted_semester: semester || null,
           })
           .select()
           .single();
@@ -197,7 +318,8 @@ export async function POST(req: NextRequest) {
         success: true,
         action: 'UPDATE',
         message: `Survey updated for ${normalizedEmail}. Audit log recorded.`,
-        survey_id: resultSurveyId
+        survey_id: resultSurveyId,
+        extracted: { regNo, deptCode, semester }
       });
     }
 
