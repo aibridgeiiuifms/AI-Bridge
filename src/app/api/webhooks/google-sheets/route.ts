@@ -168,9 +168,9 @@ export async function POST(req: NextRequest) {
           comprehension_self_rating: Number(row.comprehension_self_rating) || 3,
           feedback_notes: row.feedback_notes || null,
           sheet_row_number: row.sheet_row_number || null,
-          extracted_reg_no: regNo || null,
-          extracted_dept_code: deptCode || null,
-          extracted_semester: semester || null,
+          extracted_reg_no: row.extracted_reg_no || regNo || null,
+          extracted_dept_code: row.extracted_dept_code || deptCode || null,
+          extracted_semester: row.extracted_semester || semester || null,
           updated_at: new Date().toISOString(),
         };
 
@@ -226,9 +226,9 @@ export async function POST(req: NextRequest) {
         comprehension_self_rating: Number(comprehension_self_rating) || 3,
         feedback_notes: feedback_notes || null,
         sheet_row_number: sheet_row_number || null,
-        extracted_reg_no: regNo || null,
-        extracted_dept_code: deptCode || null,
-        extracted_semester: semester || null,
+        extracted_reg_no: body.extracted_reg_no || regNo || null,
+        extracted_dept_code: body.extracted_dept_code || deptCode || null,
+        extracted_semester: body.extracted_semester || semester || null,
         submitted_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -265,9 +265,9 @@ export async function POST(req: NextRequest) {
 
       const updateData: Record<string, any> = {
         updated_at: new Date().toISOString(),
-        extracted_reg_no: regNo || null,
-        extracted_dept_code: deptCode || null,
-        extracted_semester: semester || null,
+        extracted_reg_no: body.extracted_reg_no || regNo || null,
+        extracted_dept_code: body.extracted_dept_code || deptCode || null,
+        extracted_semester: body.extracted_semester || semester || null,
       };
 
       if (hours_saved_estimate !== undefined) updateData.hours_saved_estimate = Number(hours_saved_estimate);
