@@ -31,48 +31,48 @@ export default async function HomePage() {
   return (
     <div className="space-y-8 pb-8 sm:space-y-16 sm:pb-16 lg:space-y-20 lg:pb-20">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-emerald-900 via-emerald-950 to-slate-900 px-3 py-4 text-white sm:px-6 sm:py-6 md:py-8 lg:px-8 lg:py-10">
+      <section className="relative overflow-hidden bg-gradient-to-br from-emerald-900 via-emerald-950 to-slate-900 px-3 py-3 text-white sm:px-6 sm:py-6 md:py-8 lg:px-8 lg:py-10">
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#34d399_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none"></div>
-        <div className="relative z-10 mx-auto grid min-w-0 max-w-6xl grid-cols-1 items-center gap-6 md:grid-cols-2 md:gap-8 lg:gap-10">
+        <div className="relative z-10 mx-auto grid min-w-0 max-w-6xl grid-cols-1 items-center gap-3.5 sm:gap-6 md:grid-cols-2 md:gap-8 lg:gap-10">
           {/* Left Column: Logos, Content, CTAs, Metrics */}
-          <div className="flex min-w-0 flex-col space-y-3 sm:space-y-4 text-center md:text-left">
+          <div className="flex min-w-0 flex-col space-y-2 sm:space-y-4 text-center md:text-left">
             {/* Logos: SDG Logo & Hum Hain Pak Logo */}
-            <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3.5 md:justify-start">
-              <div className="flex h-8 sm:h-9 md:h-10 lg:h-11 items-center">
+            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3.5 md:justify-start">
+              <div className="flex h-7 sm:h-9 md:h-10 lg:h-11 items-center">
                 <Image
                   src={sdgLogo}
                   alt="Sustainable Development Goals emblem"
                   height={44}
                   priority
-                  className="h-7 sm:h-8 md:h-9 lg:h-10 w-auto object-contain"
+                  className="h-6 sm:h-8 md:h-9 lg:h-10 w-auto object-contain"
                 />
               </div>
-              <div className="flex h-10 sm:h-11 md:h-12 lg:h-13 items-center rounded-xl border border-white/80 bg-white px-2.5 py-1 shadow-md">
+              <div className="flex h-8 sm:h-11 md:h-12 lg:h-13 items-center rounded-lg sm:rounded-xl border border-white/80 bg-white px-2 py-0.5 sm:px-2.5 sm:py-1 shadow-md">
                 <Image
                   src={humHainPakistanLogo}
                   alt="Hum Hain Pakistan — United for a Brighter Tomorrow"
                   height={48}
                   priority
-                  className="h-8 sm:h-9 md:h-10 lg:h-11 w-auto object-contain"
+                  className="h-6 sm:h-9 md:h-10 lg:h-11 w-auto object-contain"
                 />
               </div>
             </div>
 
-            <h1 className="text-balance text-2xl font-extrabold leading-tight tracking-tight text-white sm:text-3xl md:text-3xl lg:text-4xl xl:text-5xl">
+            <h1 className="text-balance text-lg font-extrabold leading-snug tracking-tight text-white sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl">
               The AI Bridge:
               <span className="block bg-gradient-to-r from-emerald-300 via-teal-200 to-amber-200 bg-clip-text text-transparent">
                 Empowering Non-IT Educators & Learners
               </span>
             </h1>
 
-            <p className="mx-auto max-w-2xl text-xs leading-relaxed text-slate-300 sm:text-sm md:mx-0 lg:text-base">
+            <p className="mx-auto max-w-2xl text-[11px] leading-relaxed text-slate-300 sm:text-sm md:mx-0 lg:text-base">
               Pioneered at the Faculty of Management Sciences (FMS), International Islamic University Islamabad under the leadership of Dr. Abdul Zahid Khan. Transforming dense classical curricula into interactive, multi-modal study guides and podcasts with source-grounded AI.
             </p>
 
-            <div className="flex flex-col items-stretch justify-center gap-2 pt-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 md:justify-start">
+            <div className="flex flex-col items-stretch justify-center gap-2 pt-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 sm:pt-1 md:justify-start">
               <Link
                 href="/portal"
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-2.5 text-xs font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:from-emerald-600 hover:to-teal-600 sm:w-auto sm:gap-2 sm:rounded-xl sm:px-5 sm:py-3 sm:text-sm"
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 px-3 py-2 text-xs font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:-translate-y-0.5 hover:from-emerald-600 hover:to-teal-600 sm:w-auto sm:gap-2 sm:rounded-xl sm:px-5 sm:py-3 sm:text-sm"
               >
                 <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5" />
                 <span className="min-w-0">Enter Student & Educator Portal</span>
@@ -81,7 +81,7 @@ export default async function HomePage() {
 
               <Link
                 href="/events"
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-3 py-2.5 text-xs font-semibold text-white backdrop-blur-md transition-all hover:bg-white/15 sm:w-auto sm:gap-2 sm:rounded-xl sm:px-5 sm:py-3 sm:text-sm"
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold text-white backdrop-blur-md transition-all hover:bg-white/15 sm:w-auto sm:gap-2 sm:rounded-xl sm:px-5 sm:py-3 sm:text-sm"
               >
                 <CalendarDays className="h-3.5 w-3.5 text-emerald-300 sm:h-4 sm:w-4" />
                 <span className="min-w-0">Explore Campaign Events</span>
@@ -89,14 +89,14 @@ export default async function HomePage() {
             </div>
 
             {/* Quick Metrics (Remaining Cards) */}
-            <div className="grid min-w-0 grid-cols-2 gap-2 pt-1 sm:gap-3">
-              <div className="min-w-0 rounded-lg border border-white/10 bg-white/5 p-2 backdrop-blur-sm sm:rounded-xl sm:p-2.5">
-                <div className="break-words text-sm font-black leading-tight text-teal-300 sm:text-xl">11 Ambassadors</div>
-                <div className="text-[9px] font-medium leading-tight text-slate-300 sm:text-xs">FMS SDG Core Volunteer Team</div>
+            <div className="grid min-w-0 grid-cols-2 gap-2 pt-0.5 sm:gap-3 sm:pt-1">
+              <div className="min-w-0 rounded-lg border border-white/10 bg-white/5 p-1.5 backdrop-blur-sm sm:rounded-xl sm:p-2.5">
+                <div className="break-words text-xs font-black leading-tight text-teal-300 sm:text-xl">10 Ambassadors</div>
+                <div className="text-[8.5px] font-medium leading-tight text-slate-300 sm:text-xs">FMS SDG Core Volunteer Team</div>
               </div>
-              <div className="min-w-0 rounded-lg border border-white/10 bg-white/5 p-2 backdrop-blur-sm sm:rounded-xl sm:p-2.5">
-                <div className="text-sm font-black text-purple-300 sm:text-xl">100% Free</div>
-                <div className="text-[9px] font-medium leading-tight text-slate-300 sm:text-xs">Zero-Cost Scaling (No Licenses)</div>
+              <div className="min-w-0 rounded-lg border border-white/10 bg-white/5 p-1.5 backdrop-blur-sm sm:rounded-xl sm:p-2.5">
+                <div className="text-xs font-black text-purple-300 sm:text-xl">100% Free</div>
+                <div className="text-[8.5px] font-medium leading-tight text-slate-300 sm:text-xs">Zero-Cost Scaling (No Licenses)</div>
               </div>
             </div>
           </div>

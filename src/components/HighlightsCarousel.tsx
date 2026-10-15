@@ -97,7 +97,7 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
           {slides.map((slide, index) => (
             <article
               key={slide.src}
-              className="relative aspect-[16/10] sm:aspect-[16/10] md:aspect-[4/3] lg:aspect-[16/11] w-full shrink-0 overflow-hidden bg-slate-950 flex items-center justify-center"
+              className="relative aspect-[16/9] sm:aspect-[16/10] md:aspect-[4/3] lg:aspect-[16/11] w-full shrink-0 overflow-hidden bg-slate-950 flex items-center justify-center"
               aria-label={`Highlight ${index + 1} of ${slides.length}`}
             >
               {/* Blurred ambient background to fill borders cleanly */}
