@@ -65,10 +65,13 @@ function doPost(e) {
  */
 function onFormSubmit(e) {
   try {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-    const row = e.range ? e.range.getRow() : sheet.getLastRow();
-    const rowValues = sheet.getRange(row, 1, 1, sheet.getLastColumn()).getValues()[0];
+    const sheet = (e && e.range) ? e.range.getSheet() : SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+    const lastCol = sheet.getLastColumn();
+    if (lastCol < 1) return;
+
+    const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    const row = (e && e.range) ? e.range.getRow() : sheet.getLastRow();
+    const rowValues = sheet.getRange(row, 1, 1, lastCol).getValues()[0];
 
     const parsed = parseRowData(headers, rowValues);
     if (!parsed.email) {
