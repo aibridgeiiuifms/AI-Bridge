@@ -135,7 +135,7 @@ export default async function Footer() {
           <div className="flex items-center gap-4">
             <span className="text-slate-400">Quick Impact Project (QIP) Framework</span>
             <span className="text-slate-600">•</span>
-            <span className="text-emerald-400 font-medium">10 FMS SDG Ambassadors</span>
+            <span className="text-emerald-400 font-medium">11 FMS SDG Ambassadors</span>
           </div>
         </div>
       </div>

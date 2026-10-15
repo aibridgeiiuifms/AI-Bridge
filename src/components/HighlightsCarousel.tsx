@@ -1,0 +1,165 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
+import { Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const slides = [
+  { src: '/highlights/p1.webp', alt: 'AI Bridge Campaign Highlight 1' },
+  { src: '/highlights/p2.webp', alt: 'AI Bridge Campaign Highlight 2' },
+  { src: '/highlights/p3.webp', alt: 'AI Bridge Campaign Highlight 3' },
+  { src: '/highlights/p4.webp', alt: 'AI Bridge Campaign Highlight 4' },
+  { src: '/highlights/p5.webp', alt: 'AI Bridge Campaign Highlight 5' },
+  { src: '/highlights/p6.webp', alt: 'AI Bridge Campaign Highlight 6' },
+  { src: '/highlights/p7.webp', alt: 'AI Bridge Campaign Highlight 7' },
+  { src: '/highlights/p8.webp', alt: 'AI Bridge Campaign Highlight 8' },
+  { src: '/highlights/p9.webp', alt: 'AI Bridge Campaign Highlight 9' },
+  { src: '/highlights/p10.webp', alt: 'AI Bridge Campaign Highlight 10' },
+  { src: '/highlights/p11.webp', alt: 'AI Bridge Campaign Highlight 11' },
+];
+
+interface HighlightsCarouselProps {
+  className?: string;
+}
+
+export default function HighlightsCarousel({ className = '' }: HighlightsCarouselProps) {
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+
+  const goToSlide = useCallback((index: number) => {
+    setActiveSlide((index + slides.length) % slides.length);
+  }, []);
+
+  const handlePrev = useCallback(() => {
+    goToSlide(activeSlide - 1);
+  }, [activeSlide, goToSlide]);
+
+  const handleNext = useCallback(() => {
+    goToSlide(activeSlide + 1);
+  }, [activeSlide, goToSlide]);
+
+  // Faster transition interval: 3200ms
+  useEffect(() => {
+    if (isPaused) return;
+    const interval = setInterval(() => {
+      goToSlide(activeSlide + 1);
+    }, 3200);
+    return () => clearInterval(interval);
+  }, [activeSlide, isPaused, goToSlide]);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setIsPaused(true);
+    setTouchStartX(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    setIsPaused(false);
+    if (touchStartX === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchStartX - touchEndX;
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) {
+        handleNext();
+      } else {
+        handlePrev();
+      }
+    }
+    setTouchStartX(null);
+  };
+
+  return (
+    <div
+      className={`flex flex-col w-full ${className}`}
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-200 sm:text-xs">
+          <Sparkles className="h-3 w-3 text-amber-300" />
+          <span>Week 2 Highlights</span>
+        </span>
+        <div className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-200/80 sm:text-xs">
+          <span className="font-bold text-white">{activeSlide + 1}</span>
+          <span>/</span>
+          <span>{slides.length}</span>
+        </div>
+      </div>
+
+      <div className="relative group overflow-hidden rounded-2xl border border-white/20 bg-slate-950/80 shadow-2xl backdrop-blur-md">
+        {/* Slides Track */}
+        <div
+          className="flex transition-transform duration-500 ease-out will-change-transform"
+          style={{ transform: `translateX(-${activeSlide * 100}%)` }}
+        >
+          {slides.map((slide, index) => (
+            <article
+              key={slide.src}
+              className="relative aspect-[16/9] sm:aspect-[16/10] md:aspect-[4/3] lg:aspect-[16/11] w-full shrink-0 overflow-hidden bg-slate-950 flex items-center justify-center"
+              aria-label={`Highlight ${index + 1} of ${slides.length}`}
+            >
+              {/* Blurred ambient background to fill borders cleanly */}
+              <Image
+                src={slide.src}
+                alt=""
+                fill
+                aria-hidden="true"
+                sizes="(max-width: 768px) 100vw, 40vw"
+                className="object-cover blur-2xl scale-110 opacity-30 pointer-events-none"
+              />
+
+              {/* Main image fitted accurately without cropping */}
+              <Image
+                src={slide.src}
+                alt={slide.alt}
+                fill
+                priority={index === 0}
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 40vw"
+                className="object-contain z-10"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-black/20 pointer-events-none z-10" />
+            </article>
+          ))}
+        </div>
+
+        {/* Previous & Next Arrows */}
+        <button
+          type="button"
+          onClick={handlePrev}
+          aria-label="Previous highlight"
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-20 flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-slate-950/70 text-white border border-white/20 backdrop-blur-sm opacity-80 hover:opacity-100 hover:bg-slate-900 transition-all shadow-md active:scale-95"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={handleNext}
+          aria-label="Next highlight"
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-20 flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-slate-950/70 text-white border border-white/20 backdrop-blur-sm opacity-80 hover:opacity-100 hover:bg-slate-900 transition-all shadow-md active:scale-95"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+
+        {/* Indicator Dots */}
+        <div className="absolute inset-x-0 bottom-2.5 z-20 flex items-center justify-center gap-1 sm:gap-1.5 pointer-events-auto px-4">
+          {slides.map((_, dotIndex) => (
+            <button
+              key={dotIndex}
+              type="button"
+              aria-label={`Go to highlight ${dotIndex + 1}`}
+              aria-current={activeSlide === dotIndex ? 'true' : undefined}
+              onClick={() => goToSlide(dotIndex)}
+              className={`h-1.5 rounded-full transition-all duration-300 ${
+                activeSlide === dotIndex
+                  ? 'w-5 sm:w-6 bg-white shadow-sm'
+                  : 'w-1.5 bg-white/45 hover:bg-white/75'
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
