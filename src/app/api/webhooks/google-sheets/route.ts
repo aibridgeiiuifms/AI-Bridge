@@ -25,8 +25,8 @@ function parseStudentEmail(rawEmail: string, fallbackRoll?: string): {
   const clean = rawEmail.replace(/\s+/g, '').toLowerCase();
   const userPart = clean.split('@')[0];
 
-  // Type 1: Modern Format [Reg][Dept][Semester] e.g. 025580bsirf26
-  const matchStd = userPart.match(/^(\d+)[/_]?([a-z]+?)([fs]\d{2})$/);
+  // Type 1: Modern Format [Reg][Dept][Semester] e.g. 025580bsirf26, 025580_bsir_f26
+  const matchStd = userPart.match(/^(\d+)[/_.-]?([a-z]+?)[/_.-]?([fs]\d{2})$/);
   if (matchStd) {
     return {
       regNo: matchStd[1],
@@ -36,7 +36,7 @@ function parseStudentEmail(rawEmail: string, fallbackRoll?: string): {
   }
 
   // Type 2: Older / Senior Format [Name].[Dept][Reg] e.g. zain.bsba126
-  const matchName = userPart.match(/^[a-z]+\.([a-z]+?)(\d+)$/);
+  const matchName = userPart.match(/^[a-z]+[._-]([a-z]+?)(\d+)$/);
   if (matchName) {
     const deptCode = matchName[1].toUpperCase();
     const regNo = matchName[2];
@@ -58,7 +58,7 @@ function parseStudentEmail(rawEmail: string, fallbackRoll?: string): {
   }
 
   // Type 1 Fallback search across string (e.g. if extra text typed around it)
-  const matchSearch = clean.match(/(\d{4,6})[/\-_]?([a-z]+?)([fs]\d{2})/);
+  const matchSearch = clean.match(/(\d{4,6})[/\-_.]?([a-z]+?)[/\-_.]?([fs]\d{2})/);
   if (matchSearch) {
     return {
       regNo: matchSearch[1],
@@ -154,7 +154,7 @@ async function ensureDepartmentMappingExists(supabase: any, deptCode: string) {
  * preserves raw clean hours_saved_category, and mirrors to legacy surveys.
  */
 async function syncSurveyRow(supabase: any, rowData: any) {
-  const email = (rowData.email || rowData.student_email || rowData.teacher_email || '').trim().toLowerCase();
+  const email = (rowData.email || rowData.student_email || rowData.teacher_email || '').replace(/\s+/g, '').toLowerCase();
   if (!email) return null;
 
   const answers = rowData.answers || {};
@@ -168,7 +168,8 @@ async function syncSurveyRow(supabase: any, rowData: any) {
   const fallbackRoll = extractFallbackRoll(answers);
   const parsed = parseStudentEmail(email, fallbackRoll);
   const regNo = rowData.extracted_reg_no || rowData.reg_no || parsed.regNo || null;
-  const deptCode = rowData.extracted_dept_code || rowData.dept_code || parsed.deptCode || null;
+  const rawDept = rowData.extracted_dept_code || rowData.dept_code || parsed.deptCode || null;
+  const deptCode = rawDept ? rawDept.trim().toUpperCase() : null;
   const semester = rowData.extracted_semester || rowData.semester || parsed.semester || null;
 
   if (deptCode) {
@@ -307,7 +308,7 @@ export async function POST(req: NextRequest) {
       const legacyBatch: any[] = [];
 
       for (const rowData of validRows) {
-        const email = (rowData.email || rowData.student_email || rowData.teacher_email || '').trim().toLowerCase();
+        const email = (rowData.email || rowData.student_email || rowData.teacher_email || '').replace(/\s+/g, '').toLowerCase();
         const answers = rowData.answers || {};
         const fullName = rowData.full_name || extractFullName(answers, email);
         const hoursCategory = rowData.hours_saved_category || extractHoursCategory(answers);
@@ -318,12 +319,13 @@ export async function POST(req: NextRequest) {
         const fallbackRoll = extractFallbackRoll(answers);
         const parsed = parseStudentEmail(email, fallbackRoll);
         const regNo = rowData.extracted_reg_no || rowData.reg_no || parsed.regNo || null;
-        const deptCode = rowData.extracted_dept_code || rowData.dept_code || parsed.deptCode || null;
+        const rawDept = rowData.extracted_dept_code || rowData.dept_code || parsed.deptCode || null;
+        const deptCode = rawDept ? rawDept.trim().toUpperCase() : null;
         const semester = rowData.extracted_semester || rowData.semester || parsed.semester || null;
         const userId = profileMap.get(email) || null;
 
         if (deptCode) {
-          deptCodesToUpsert.add(deptCode.toUpperCase());
+          deptCodesToUpsert.add(deptCode);
         }
 
         if (participantType === 'teacher') {
@@ -436,7 +438,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. Handle Single Operations
-    const email = (body.email || body.student_email || body.teacher_email || '').trim().toLowerCase();
+    const email = (body.email || body.student_email || body.teacher_email || '').replace(/\s+/g, '').toLowerCase();
     if (!email) {
       return NextResponse.json({ error: 'Missing required field: email' }, { status: 400 });
     }

@@ -62,24 +62,30 @@ export default function StudentPortal() {
         let hasPre = false;
         const { data: preStudent } = await supabase
           .from('student_surveys')
-          .select('id')
+          .select('id, user_id')
           .or(`user_id.eq.${user.id},student_email.ilike.${userEmail}`)
           .eq('survey_type', 'pre')
           .maybeSingle();
 
         if (preStudent) {
           hasPre = true;
+          if (!preStudent.user_id && user.id) {
+            supabase.from('student_surveys').update({ user_id: user.id }).eq('id', preStudent.id).then();
+          }
         } else {
           // Cross-table check in case user submitted teacher form
           const { data: preTeacher } = await supabase
             .from('teacher_surveys')
-            .select('id')
+            .select('id, user_id')
             .or(`user_id.eq.${user.id},teacher_email.ilike.${userEmail}`)
             .eq('survey_type', 'pre')
             .maybeSingle();
 
           if (preTeacher) {
             hasPre = true;
+            if (!preTeacher.user_id && user.id) {
+              supabase.from('teacher_surveys').update({ user_id: user.id }).eq('id', preTeacher.id).then();
+            }
           } else {
             const { data: legacyPre } = await supabase
               .from('surveys')
@@ -110,23 +116,29 @@ export default function StudentPortal() {
         let hasPost = false;
         const { data: postStudent } = await supabase
           .from('student_surveys')
-          .select('id')
+          .select('id, user_id')
           .or(`user_id.eq.${user.id},student_email.ilike.${userEmail}`)
           .eq('survey_type', 'post')
           .maybeSingle();
 
         if (postStudent) {
           hasPost = true;
+          if (!postStudent.user_id && user.id) {
+            supabase.from('student_surveys').update({ user_id: user.id }).eq('id', postStudent.id).then();
+          }
         } else {
           const { data: postTeacher } = await supabase
             .from('teacher_surveys')
-            .select('id')
+            .select('id, user_id')
             .or(`user_id.eq.${user.id},teacher_email.ilike.${userEmail}`)
             .eq('survey_type', 'post')
             .maybeSingle();
 
           if (postTeacher) {
             hasPost = true;
+            if (!postTeacher.user_id && user.id) {
+              supabase.from('teacher_surveys').update({ user_id: user.id }).eq('id', postTeacher.id).then();
+            }
           } else {
             const { data: legacyPost } = await supabase
               .from('surveys')

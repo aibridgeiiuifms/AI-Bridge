@@ -88,6 +88,7 @@ function onFormSubmit(e) {
       sheet_row_number: row,
       performed_by: parsed.email,
       hours_saved_category: parsed.hoursSavedCategory,
+      ai_familiarity_rating: parsed.ai_familiarity_rating,
       feedback_notes: parsed.feedback,
       answers: parsed.answers,
       extracted_reg_no: parsed.regNo,
@@ -174,6 +175,7 @@ function syncAllRows() {
         survey_type: surveyType,
         sheet_row_number: rowNum,
         hours_saved_category: parsed.hoursSavedCategory,
+        ai_familiarity_rating: parsed.ai_familiarity_rating,
         feedback_notes: parsed.feedback,
         answers: parsed.answers,
         extracted_reg_no: parsed.regNo,
@@ -299,6 +301,7 @@ function parseRowData(headers, rowValues) {
   let email = "";
   let fullName = "";
   let hoursSavedCategory = "";
+  let rating = null;
   let feedback = "";
   let fallbackRoll = "";
   const answers = {};
@@ -309,10 +312,10 @@ function parseRowData(headers, rowValues) {
 
     answers[headers[i]] = val;
 
-    // Detect Email
+    // Detect Email (strip all internal spaces and lowercase)
     if (header.includes("email") || header.includes("student id") || header.includes("respondent")) {
       if (String(val).includes("@")) {
-        email = String(val).trim().toLowerCase();
+        email = String(val).replace(/\s+/g, "").toLowerCase();
       }
     }
 
@@ -332,6 +335,14 @@ function parseRowData(headers, rowValues) {
       hoursSavedCategory = String(val || "").trim();
     }
 
+    // Detect Rating (1-5 scale)
+    if (header.includes("familiar") || header.includes("rating") || header.includes("scale") || header.includes("comfort")) {
+      const num = parseInt(String(val).replace(/[^0-9]/g, ''));
+      if (!isNaN(num) && num >= 1 && num <= 5) {
+        rating = num;
+      }
+    }
+
     // Detect Feedback
     if (header.includes("feedback") || header.includes("note") || header.includes("comment") || header.includes("suggestion")) {
       feedback = String(val || "").trim();
@@ -344,6 +355,7 @@ function parseRowData(headers, rowValues) {
     email: email,
     fullName: fullName,
     hoursSavedCategory: hoursSavedCategory,
+    ai_familiarity_rating: rating,
     feedback: feedback,
     answers: answers,
     regNo: derived.regNo,
@@ -353,17 +365,27 @@ function parseRowData(headers, rowValues) {
 }
 
 function detectParticipantType(sheetName) {
-  const name = String(sheetName || "").toLowerCase();
-  if (name.includes("teach") || name.includes("faculty") || name.includes("prof")) {
+  let combined = String(sheetName || "").toLowerCase();
+  try {
+    const fileTitle = String(SpreadsheetApp.getActiveSpreadsheet().getName() || "").toLowerCase();
+    combined += " " + fileTitle;
+  } catch (e) {}
+
+  if (combined.includes("teach") || combined.includes("faculty") || combined.includes("prof") || combined.includes("educator")) {
     return "teacher";
   }
   return CONFIG.PARTICIPANT_TYPE || "student";
 }
 
 function detectSurveyType(sheetName) {
-  const name = String(sheetName || "").toLowerCase();
-  if (name.includes("post")) return "post";
-  if (name.includes("pre")) return "pre";
+  let combined = String(sheetName || "").toLowerCase();
+  try {
+    const fileTitle = String(SpreadsheetApp.getActiveSpreadsheet().getName() || "").toLowerCase();
+    combined += " " + fileTitle;
+  } catch (e) {}
+
+  if (combined.includes("post")) return "post";
+  if (combined.includes("pre")) return "pre";
   return CONFIG.DEFAULT_SURVEY_TYPE || "pre";
 }
 
