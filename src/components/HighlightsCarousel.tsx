@@ -79,7 +79,7 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-200 sm:text-xs">
           <Sparkles className="h-3 w-3 text-amber-300" />
-          <span>Campaign Highlights</span>
+          <span>Week 2 Highlights</span>
         </span>
         <div className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-200/80 sm:text-xs">
           <span className="font-bold text-white">{activeSlide + 1}</span>

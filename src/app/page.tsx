@@ -91,7 +91,7 @@ export default async function HomePage() {
             {/* Quick Metrics (Remaining Cards) */}
             <div className="grid min-w-0 grid-cols-2 gap-2 pt-1 sm:gap-3">
               <div className="min-w-0 rounded-lg border border-white/10 bg-white/5 p-2 backdrop-blur-sm sm:rounded-xl sm:p-2.5">
-                <div className="break-words text-sm font-black leading-tight text-teal-300 sm:text-xl">10 Ambassadors</div>
+                <div className="break-words text-sm font-black leading-tight text-teal-300 sm:text-xl">11 Ambassadors</div>
                 <div className="text-[9px] font-medium leading-tight text-slate-300 sm:text-xs">FMS SDG Core Volunteer Team</div>
               </div>
               <div className="min-w-0 rounded-lg border border-white/10 bg-white/5 p-2 backdrop-blur-sm sm:rounded-xl sm:p-2.5">
