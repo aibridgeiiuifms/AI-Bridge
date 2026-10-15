@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 export async function GET() {
   return NextResponse.json({
     status: 'healthy',
-    message: 'The AI Bridge Google Sheets Sync Webhook is online and ready.',
+    message: 'The AI Bridge Google Sheets Sync Webhook (2-Table Architecture) is online and ready.',
     timestamp: new Date().toISOString()
   });
 }
@@ -81,9 +81,55 @@ function extractFallbackRoll(answers: Record<string, any>): string {
   return '';
 }
 
+function extractFullName(answers: Record<string, any>, email: string): string {
+  if (!answers || typeof answers !== 'object') return splitEmailName(email);
+  for (const [key, val] of Object.entries(answers)) {
+    const k = key.toLowerCase();
+    if (k.includes('student name') || k.includes('teacher name') || k.includes('full name') || k === 'name') {
+      const v = String(val || '').trim();
+      if (v) return v;
+    }
+  }
+  return splitEmailName(email);
+}
+
+function splitEmailName(email: string): string {
+  const local = (email || '').split('@')[0];
+  const parts = local.split(/[._0-9]/).filter(Boolean);
+  return parts.length > 0 ? parts.join(' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Participant';
+}
+
+function extractHoursCategory(answers: Record<string, any>): string {
+  if (!answers || typeof answers !== 'object') return '';
+  for (const [key, val] of Object.entries(answers)) {
+    const k = key.toLowerCase();
+    if (k.includes('hour') || k.includes('time save') || k.includes('weekly')) {
+      return String(val || '').trim();
+    }
+  }
+  return '';
+}
+
+function extractRating(answers: Record<string, any>): number | null {
+  if (!answers || typeof answers !== 'object') return null;
+  for (const [key, val] of Object.entries(answers)) {
+    const k = key.toLowerCase();
+    if (k.includes('familiar') || k.includes('rating') || k.includes('scale') || k.includes('comfort')) {
+      const num = parseInt(String(val).replace(/[^0-9]/g, ''));
+      if (!isNaN(num) && num >= 1 && num <= 5) return num;
+    }
+  }
+  return null;
+}
+
+function detectParticipantType(sheetOrType: string, email: string): 'student' | 'teacher' {
+  const s = (sheetOrType || '').toLowerCase();
+  if (s.includes('teach') || s.includes('faculty') || s.includes('prof')) return 'teacher';
+  return 'student';
+}
+
 /**
  * Ensures the extracted department code exists in department_mappings so foreign key constraints hold.
- * If new, creates it with "Pending Review" status for the Admin to configure in the Dashboard.
  */
 async function ensureDepartmentMappingExists(supabase: any, deptCode: string) {
   if (!deptCode) return;
@@ -99,14 +145,115 @@ async function ensureDepartmentMappingExists(supabase: any, deptCode: string) {
       { onConflict: 'code', ignoreDuplicates: true }
     );
   } catch (err) {
-    // Non-fatal, continue sync even if mapping table is pending migration
     console.error(`ensureDepartmentMappingExists error for ${deptCode}:`, err);
   }
 }
 
+/**
+ * Core Ingestion Engine: Writes to student_surveys or teacher_surveys with dedicated full_name,
+ * preserves raw clean hours_saved_category, and mirrors to legacy surveys.
+ */
+async function syncSurveyRow(supabase: any, rowData: any) {
+  const email = (rowData.email || rowData.student_email || rowData.teacher_email || '').trim().toLowerCase();
+  if (!email) return null;
+
+  const answers = rowData.answers || {};
+  const fullName = rowData.full_name || extractFullName(answers, email);
+  const hoursCategory = rowData.hours_saved_category || extractHoursCategory(answers);
+  const rating = rowData.ai_familiarity_rating || rowData.comprehension_self_rating || extractRating(answers) || 3;
+  const surveyType = (rowData.survey_type || 'pre').toLowerCase() === 'post' ? 'post' : 'pre';
+  const participantType = rowData.participant_type || detectParticipantType(rowData.sheet_name || '', email);
+
+  // Parse email for student fields
+  const fallbackRoll = extractFallbackRoll(answers);
+  const parsed = parseStudentEmail(email, fallbackRoll);
+  const regNo = rowData.extracted_reg_no || rowData.reg_no || parsed.regNo || null;
+  const deptCode = rowData.extracted_dept_code || rowData.dept_code || parsed.deptCode || null;
+  const semester = rowData.extracted_semester || rowData.semester || parsed.semester || null;
+
+  if (deptCode) {
+    await ensureDepartmentMappingExists(supabase, deptCode);
+  }
+
+  // Resolve user profile if registered
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle();
+  const userId = profile?.id || null;
+
+  if (participantType === 'teacher') {
+    // 1. Save into teacher_surveys table
+    const teacherPayload = {
+      user_id: userId,
+      teacher_email: email,
+      full_name: fullName,
+      survey_type: surveyType,
+      designation: rowData.designation || answers['Designation'] || answers['Designation / Academic Rank'] || null,
+      dept_code: deptCode,
+      department_name: rowData.department_name || answers['Department'] || null,
+      teaching_experience: rowData.teaching_experience || answers['Teaching Experience'] || null,
+      hours_saved_category: hoursCategory || null,
+      ai_familiarity_rating: rating,
+      feedback_notes: rowData.feedback_notes || null,
+      answers: answers,
+      sheet_row_number: rowData.sheet_row_number || null,
+      submitted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    await supabase.from('teacher_surveys').upsert(teacherPayload, { onConflict: 'teacher_email,survey_type' });
+  } else {
+    // 2. Save into student_surveys table
+    const studentPayload = {
+      user_id: userId,
+      student_email: email,
+      full_name: fullName,
+      survey_type: surveyType,
+      reg_no: regNo,
+      dept_code: deptCode,
+      semester: semester,
+      hours_saved_category: hoursCategory || null,
+      ai_familiarity_rating: rating,
+      feedback_notes: rowData.feedback_notes || null,
+      answers: answers,
+      sheet_row_number: rowData.sheet_row_number || null,
+      submitted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    await supabase.from('student_surveys').upsert(studentPayload, { onConflict: 'student_email,survey_type' });
+  }
+
+  // 3. Mirror into legacy surveys table for 100% backwards compatibility
+  try {
+    const legacyPayload = {
+      user_id: userId,
+      respondent_email: email,
+      survey_type: surveyType,
+      answers: answers,
+      hours_saved_estimate: 0,
+      comprehension_self_rating: rating,
+      feedback_notes: rowData.feedback_notes || null,
+      sheet_row_number: rowData.sheet_row_number || null,
+      extracted_reg_no: regNo,
+      extracted_dept_code: deptCode,
+      extracted_semester: semester,
+      submitted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    await supabase.from('surveys').upsert(legacyPayload, { onConflict: 'respondent_email,survey_type' });
+  } catch (err) {
+    // Non-fatal if legacy surveys table is migrated to view
+  }
+
+  return { email, fullName, participantType, deptCode, semester, regNo };
+}
+
 export async function POST(req: NextRequest) {
   try {
-    // 1. Verify Secret Token (if configured in environment)
+    // 1. Verify Secret Token
     const expectedSecret = process.env.SHEETS_WEBHOOK_SECRET;
     if (expectedSecret) {
       const authHeader = req.headers.get('authorization') || '';
@@ -122,237 +269,198 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { 
-      action = 'INSERT', 
-      survey_type = 'pre', 
-      email, 
-      performed_by, 
-      sheet_row_number, 
-      hours_saved_estimate = 0, 
-      comprehension_self_rating = 3, 
-      feedback_notes = '', 
-      answers = {},
-      rows = []
-    } = body;
-
+    const { action = 'INSERT', rows = [] } = body;
     const supabase = createAdminClient();
 
     // 2. Handle Bulk Sync (SYNC_ALL)
     if (action === 'SYNC_ALL' && Array.isArray(rows)) {
-      let syncedCount = 0;
-      for (const row of rows) {
-        if (!row.email) continue;
-        const normalizedEmail = row.email.trim().toLowerCase();
-        
-        // Parse email to derive 3 distinct columns
-        const fallbackRoll = extractFallbackRoll(row.answers || {});
-        const { regNo, deptCode, semester } = parseStudentEmail(normalizedEmail, fallbackRoll);
-        
-        if (deptCode) {
-          await ensureDepartmentMappingExists(supabase, deptCode);
-        }
-
-        // Find existing profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('email', normalizedEmail)
-          .maybeSingle();
-
-        const payload: Record<string, any> = {
-          user_id: profile?.id || null,
-          respondent_email: normalizedEmail,
-          survey_type: row.survey_type || survey_type,
-          answers: row.answers || {},
-          hours_saved_estimate: Number(row.hours_saved_estimate) || 0,
-          comprehension_self_rating: Number(row.comprehension_self_rating) || 3,
-          feedback_notes: row.feedback_notes || null,
-          sheet_row_number: row.sheet_row_number || null,
-          extracted_reg_no: row.extracted_reg_no || regNo || null,
-          extracted_dept_code: row.extracted_dept_code || deptCode || null,
-          extracted_semester: row.extracted_semester || semester || null,
-          updated_at: new Date().toISOString(),
-        };
-
-        const { error } = await supabase
-          .from('surveys')
-          .upsert(payload, { onConflict: 'respondent_email,survey_type' });
-
-        if (!error) syncedCount++;
+      if (rows.length === 0) {
+        return NextResponse.json({
+          success: true,
+          action: 'SYNC_ALL',
+          rows_processed: 0,
+          synced_count: 0,
+          message: 'No rows provided to sync.'
+        });
       }
 
+      // Collect all distinct emails & dept codes
+      const validRows = rows.filter(r => (r.email || r.student_email || r.teacher_email || '').trim());
+      const allEmails = Array.from(new Set(validRows.map(r => (r.email || r.student_email || r.teacher_email || '').trim().toLowerCase())));
+
+      // Fetch user profile IDs in one query
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .in('email', allEmails);
+      
+      const profileMap = new Map<string, string>();
+      if (profiles) {
+        profiles.forEach((p: any) => {
+          if (p.email) profileMap.set(p.email.toLowerCase(), p.id);
+        });
+      }
+
+      const deptCodesToUpsert = new Set<string>();
+      const studentBatch: any[] = [];
+      const teacherBatch: any[] = [];
+      const legacyBatch: any[] = [];
+
+      for (const rowData of validRows) {
+        const email = (rowData.email || rowData.student_email || rowData.teacher_email || '').trim().toLowerCase();
+        const answers = rowData.answers || {};
+        const fullName = rowData.full_name || extractFullName(answers, email);
+        const hoursCategory = rowData.hours_saved_category || extractHoursCategory(answers);
+        const rating = rowData.ai_familiarity_rating || rowData.comprehension_self_rating || extractRating(answers) || 3;
+        const surveyType = (rowData.survey_type || 'pre').toLowerCase() === 'post' ? 'post' : 'pre';
+        const participantType = rowData.participant_type || detectParticipantType(rowData.sheet_name || '', email);
+
+        const fallbackRoll = extractFallbackRoll(answers);
+        const parsed = parseStudentEmail(email, fallbackRoll);
+        const regNo = rowData.extracted_reg_no || rowData.reg_no || parsed.regNo || null;
+        const deptCode = rowData.extracted_dept_code || rowData.dept_code || parsed.deptCode || null;
+        const semester = rowData.extracted_semester || rowData.semester || parsed.semester || null;
+        const userId = profileMap.get(email) || null;
+
+        if (deptCode) {
+          deptCodesToUpsert.add(deptCode.toUpperCase());
+        }
+
+        if (participantType === 'teacher') {
+          teacherBatch.push({
+            user_id: userId,
+            teacher_email: email,
+            full_name: fullName,
+            survey_type: surveyType,
+            designation: rowData.designation || answers['Designation'] || answers['Designation / Academic Rank'] || null,
+            dept_code: deptCode,
+            department_name: rowData.department_name || answers['Department'] || null,
+            teaching_experience: rowData.teaching_experience || answers['Teaching Experience'] || null,
+            hours_saved_category: hoursCategory || null,
+            ai_familiarity_rating: rating,
+            feedback_notes: rowData.feedback_notes || null,
+            answers: answers,
+            sheet_row_number: rowData.sheet_row_number || null,
+            submitted_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+        } else {
+          studentBatch.push({
+            user_id: userId,
+            student_email: email,
+            full_name: fullName,
+            survey_type: surveyType,
+            reg_no: regNo,
+            dept_code: deptCode,
+            semester: semester,
+            hours_saved_category: hoursCategory || null,
+            ai_familiarity_rating: rating,
+            feedback_notes: rowData.feedback_notes || null,
+            answers: answers,
+            sheet_row_number: rowData.sheet_row_number || null,
+            submitted_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+        }
+
+        legacyBatch.push({
+          user_id: userId,
+          respondent_email: email,
+          survey_type: surveyType,
+          answers: answers,
+          hours_saved_estimate: 0,
+          comprehension_self_rating: rating,
+          feedback_notes: rowData.feedback_notes || null,
+          sheet_row_number: rowData.sheet_row_number || null,
+          extracted_reg_no: regNo,
+          extracted_dept_code: deptCode,
+          extracted_semester: semester,
+          submitted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
+
+      // Batch upsert department codes in 1 query
+      if (deptCodesToUpsert.size > 0) {
+        const deptPayloads = Array.from(deptCodesToUpsert).map(code => ({
+          code,
+          standard_dept_name: code,
+          faculty_name: 'Pending Assignment',
+          updated_at: new Date().toISOString()
+        }));
+        await supabase.from('department_mappings').upsert(deptPayloads, { onConflict: 'code', ignoreDuplicates: true });
+      }
+
+      // High-speed chunked batch upsert for students
+      let studentSuccessCount = 0;
+      if (studentBatch.length > 0) {
+        for (let i = 0; i < studentBatch.length; i += 100) {
+          const chunk = studentBatch.slice(i, i + 100);
+          const { error } = await supabase.from('student_surveys').upsert(chunk, { onConflict: 'student_email,survey_type' });
+          if (!error) studentSuccessCount += chunk.length;
+        }
+      }
+
+      // High-speed chunked batch upsert for teachers
+      let teacherSuccessCount = 0;
+      if (teacherBatch.length > 0) {
+        for (let i = 0; i < teacherBatch.length; i += 100) {
+          const chunk = teacherBatch.slice(i, i + 100);
+          const { error } = await supabase.from('teacher_surveys').upsert(chunk, { onConflict: 'teacher_email,survey_type' });
+          if (!error) teacherSuccessCount += chunk.length;
+        }
+      }
+
+      // Batch mirror into legacy surveys
+      if (legacyBatch.length > 0) {
+        for (let i = 0; i < legacyBatch.length; i += 100) {
+          const chunk = legacyBatch.slice(i, i + 100);
+          try {
+            await supabase.from('surveys').upsert(chunk, { onConflict: 'respondent_email,survey_type' });
+          } catch (e) {
+            // Ignore legacy table error
+          }
+        }
+      }
+
+      const totalSynced = studentSuccessCount + teacherSuccessCount;
       return NextResponse.json({
         success: true,
         action: 'SYNC_ALL',
         rows_processed: rows.length,
-        synced_count: syncedCount,
-        message: `Successfully synchronized ${syncedCount} rows to Supabase with automatic email-to-department parsing.`
+        synced_count: totalSynced,
+        synced_students: studentSuccessCount,
+        synced_teachers: teacherSuccessCount,
+        message: `Successfully synchronized ${totalSynced} rows in high-speed bulk batch to 2-Table Architecture.`
       });
     }
 
-    // Single item operations require email
+    // 3. Handle Single Operations
+    const email = (body.email || body.student_email || body.teacher_email || '').trim().toLowerCase();
     if (!email) {
-      return NextResponse.json(
-        { error: 'Missing required field: email' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Missing required field: email' }, { status: 400 });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-    const fallbackRoll = extractFallbackRoll(answers || {});
-    const { regNo, deptCode, semester } = parseStudentEmail(normalizedEmail, fallbackRoll);
-
-    if (deptCode) {
-      await ensureDepartmentMappingExists(supabase, deptCode);
-    }
-
-    // 3. Resolve user_id if already registered in profiles
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('email', normalizedEmail)
-      .maybeSingle();
-
-    const userId = profile?.id || null;
-
-    // 4. Execute Action
-    if (action === 'INSERT') {
-      const payload: Record<string, any> = {
-        user_id: userId,
-        respondent_email: normalizedEmail,
-        survey_type,
-        answers: answers || {},
-        hours_saved_estimate: Number(hours_saved_estimate) || 0,
-        comprehension_self_rating: Number(comprehension_self_rating) || 3,
-        feedback_notes: feedback_notes || null,
-        sheet_row_number: sheet_row_number || null,
-        extracted_reg_no: body.extracted_reg_no || regNo || null,
-        extracted_dept_code: body.extracted_dept_code || deptCode || null,
-        extracted_semester: body.extracted_semester || semester || null,
-        submitted_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      // Upsert: handles if already exists without throwing unique constraint error
-      const { data, error } = await supabase
-        .from('surveys')
-        .upsert(payload, { onConflict: 'respondent_email,survey_type' })
-        .select()
-        .single();
-
-      if (error) {
-        return NextResponse.json({ error: error.message }, { status: 400 });
-      }
-
+    if (action === 'INSERT' || action === 'UPDATE') {
+      const result = await syncSurveyRow(supabase, body);
       return NextResponse.json({
         success: true,
-        action: 'INSERT',
-        message: `Survey registered for ${normalizedEmail}. Extracted: Dept ${deptCode || 'N/A'}, Sem ${semester || 'N/A'}, Reg ${regNo || 'N/A'}.`,
-        survey_id: data?.id,
-        user_id: userId,
-        extracted: { regNo, deptCode, semester }
-      });
-    }
-
-    if (action === 'UPDATE') {
-      // Find existing record
-      const { data: existingSurvey } = await supabase
-        .from('surveys')
-        .select('id')
-        .eq('respondent_email', normalizedEmail)
-        .eq('survey_type', survey_type)
-        .maybeSingle();
-
-      const updateData: Record<string, any> = {
-        updated_at: new Date().toISOString(),
-        extracted_reg_no: body.extracted_reg_no || regNo || null,
-        extracted_dept_code: body.extracted_dept_code || deptCode || null,
-        extracted_semester: body.extracted_semester || semester || null,
-      };
-
-      if (hours_saved_estimate !== undefined) updateData.hours_saved_estimate = Number(hours_saved_estimate);
-      if (comprehension_self_rating !== undefined) updateData.comprehension_self_rating = Number(comprehension_self_rating);
-      if (feedback_notes !== undefined) updateData.feedback_notes = feedback_notes;
-      if (answers && Object.keys(answers).length > 0) updateData.answers = answers;
-      if (sheet_row_number !== undefined) updateData.sheet_row_number = sheet_row_number;
-      if (userId) updateData.user_id = userId;
-
-      let resultSurveyId = existingSurvey?.id;
-
-      if (existingSurvey) {
-        const { error: updateError } = await supabase
-          .from('surveys')
-          .update(updateData)
-          .eq('id', existingSurvey.id);
-
-        if (updateError) {
-          return NextResponse.json({ error: updateError.message }, { status: 400 });
-        }
-      } else {
-        // If not found, insert as new
-        const { data: inserted, error: insertError } = await supabase
-          .from('surveys')
-          .insert({
-            user_id: userId,
-            respondent_email: normalizedEmail,
-            survey_type,
-            answers: answers || {},
-            hours_saved_estimate: Number(hours_saved_estimate) || 0,
-            comprehension_self_rating: Number(comprehension_self_rating) || 3,
-            feedback_notes: feedback_notes || null,
-            sheet_row_number: sheet_row_number || null,
-            extracted_reg_no: regNo || null,
-            extracted_dept_code: deptCode || null,
-            extracted_semester: semester || null,
-          })
-          .select()
-          .single();
-
-        if (insertError) {
-          return NextResponse.json({ error: insertError.message }, { status: 400 });
-        }
-        resultSurveyId = inserted?.id;
-      }
-
-      return NextResponse.json({
-        success: true,
-        action: 'UPDATE',
-        message: `Survey updated for ${normalizedEmail}. Audit log recorded.`,
-        survey_id: resultSurveyId,
-        extracted: { regNo, deptCode, semester }
+        action,
+        message: `Survey registered for ${email}. Saved in ${result?.participantType === 'teacher' ? 'teacher_surveys' : 'student_surveys'} with full_name '${result?.fullName}'.`,
+        details: result
       });
     }
 
     if (action === 'DELETE') {
-      // Retrieve before delete so we know what was deleted
-      const { data: existingSurvey } = await supabase
-        .from('surveys')
-        .select('*')
-        .eq('respondent_email', normalizedEmail)
-        .eq('survey_type', survey_type)
-        .maybeSingle();
-
-      if (!existingSurvey) {
-        return NextResponse.json({
-          success: true,
-          action: 'DELETE',
-          message: `No active survey found for ${normalizedEmail} with type ${survey_type}.`
-        });
-      }
-
-      const { error: deleteError } = await supabase
-        .from('surveys')
-        .delete()
-        .eq('id', existingSurvey.id);
-
-      if (deleteError) {
-        return NextResponse.json({ error: deleteError.message }, { status: 400 });
-      }
+      const surveyType = (body.survey_type || 'pre').toLowerCase() === 'post' ? 'post' : 'pre';
+      await supabase.from('student_surveys').delete().eq('student_email', email).eq('survey_type', surveyType);
+      await supabase.from('teacher_surveys').delete().eq('teacher_email', email).eq('survey_type', surveyType);
+      await supabase.from('surveys').delete().eq('respondent_email', email).eq('survey_type', surveyType);
 
       return NextResponse.json({
         success: true,
         action: 'DELETE',
-        message: `Survey deleted for ${normalizedEmail}. User progression reset and logged to audit table.`
+        message: `Survey deleted for ${email}.`
       });
     }
 

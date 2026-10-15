@@ -1,0 +1,158 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 708.8844999999998 2013.5860000000002" width="708.8844999999998" height="2013.5860000000002" style="--bg:#1F1F1F;--fg:#CCCCCC;--line:#CCCCCC;--accent:#0078D4;--muted:#CCCCCCCC;--surface:#181818;--border:#CCCCCC;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="Phase1" data-label="📱 STAGE 1: You Fill Out The Form">
+  <rect x="248.3450833333332" y="40" width="308.847" height="351.20000000000005" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="248.3450833333332" y="40" width="308.847" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="260.3450833333332" y="54" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">📱 STAGE 1: You Fill Out The Form</text>
+</g>
+<g class="subgraph" data-id="Phase2" data-label="📊 STAGE 2: Google Spreadsheet Receives It">
+  <rect x="241.67608333333325" y="451.20000000000005" width="322.1849999999999" height="215.60000000000002" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="241.67608333333325" y="451.20000000000005" width="322.1849999999999" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="253.67608333333325" y="465.20000000000005" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">📊 STAGE 2: Google Spreadsheet Receives It</text>
+</g>
+<g class="subgraph" data-id="Phase3" data-label="🤖 STAGE 3: The Smart Robot Courier Wakes Up">
+  <rect x="232.78408333333323" y="726.8000000000001" width="339.96899999999994" height="351.20000000000005" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="232.78408333333323" y="726.8000000000001" width="339.96899999999994" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="244.78408333333323" y="740.8000000000001" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">🤖 STAGE 3: The Smart Robot Courier Wakes Up</text>
+</g>
+<g class="subgraph" data-id="Phase4" data-label="☁️ STAGE 4: Website Security &amp; Smart Sorting">
+  <rect x="185.58258333333322" y="1138" width="435.8539999999999" height="543.086" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="185.58258333333322" y="1138" width="435.8539999999999" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="197.58258333333322" y="1152" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">☁️ STAGE 4: Website Security &amp; Smart Sorting</text>
+</g>
+<g class="subgraph" data-id="Phase5" data-label="🎉 STAGE 5: Instant Results on the Website!">
+  <rect x="40" y="1741.0860000000002" width="628.8844999999998" height="232.50000000000003" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="40" y="1741.0860000000002" width="628.8844999999998" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="52" y="1755.0860000000002" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">🎉 STAGE 5: Instant Results on the Website!</text>
+</g>
+<polyline class="edge" data-from="S3" data-to="S4" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="402.7685833333332,375.20000000000005 402.7685833333332,495.20000000000005" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S5" data-to="S6" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="402.76858333333325,650.8000000000001 402.76858333333325,770.8000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S8" data-to="S9" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="402.7685833333332,1062 402.76858333333314,1182" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S11A" data-to="S12" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="294.8050833333332,1665.086 294.8050833333332,1727.1985 216.2829999999999,1727.1985 216.2829999999999,1789.3110000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S11B" data-to="S13" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="510.73208333333315,1665.086 510.7320833333332,1723.086 561.5901666666665,1723.086 561.5901666666665,1789.3110000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S11A" data-to="S13" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="294.8050833333332,1665.086 294.8050833333332,1727.1985 515.9429999999998,1727.1985 515.9429999999998,1789.3110000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S1" data-to="S2" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="402.7685833333332,137.8 402.7685833333332,185.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S2" data-to="S3" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="402.7685833333332,273.40000000000003 402.7685833333332,321.40000000000003" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S4" data-to="S5" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="402.7685833333332,549 402.7685833333332,597" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S6" data-to="S7" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="402.7685833333332,824.6000000000001 402.7685833333332,872.6000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S7" data-to="S8" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="402.7685833333332,960.2 402.7685833333332,1008.2" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S9" data-to="S10" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="402.7685833333332,1235.8 402.7685833333332,1283.8" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S10" data-to="S11A" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="If Student" points="367.57091666666656,1459.7883333333334 367.57091666666656,1506.9859999999999 294.8050833333332,1506.9859999999999 294.8050833333332,1611.286" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S10" data-to="S11B" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="If Teacher" points="437.96624999999983,1459.7883333333332 437.96624999999983,1506.9859999999999 510.7320833333332,1506.9859999999999 510.7320833333332,1611.286" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S12" data-to="S14" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="216.2829999999999,1860.0110000000002 216.2829999999999,1920.6860000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<g class="edge-label" data-from="S10" data-to="S11A" data-label="If Student">
+  <rect x="264.80508333333324" y="1537.9859999999999" width="59.824" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="294.7170833333332" y="1553.136" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">If Student</text>
+</g>
+<g class="edge-label" data-from="S10" data-to="S11B" data-label="If Teacher">
+  <rect x="477.7320833333332" y="1537.9859999999999" width="65.764" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="510.6140833333332" y="1553.136" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">If Teacher</text>
+</g>
+<g class="node" data-id="S1" data-label="Step 1: Click the Survey Link
+(Opens on your Mobile Phone or Laptop)" data-shape="rectangle">
+  <rect x="264.3450833333332" y="84" width="276.847" height="53.800000000000004" rx="0" ry="0" fill="#ecfdf5" stroke="#10b981" stroke-width="2px" />
+  <text x="402.7685833333332" y="110.9" text-anchor="middle" font-size="13" font-weight="500" fill="#064e3b"><tspan x="402.7685833333332" dy="-3.9000000000000012">Step 1: Click the Survey Link</tspan><tspan x="402.7685833333332" dy="16.900000000000002">(Opens on your Mobile Phone or Laptop)</tspan></text>
+</g>
+<g class="node" data-id="S2" data-label="Step 2: Type Your Details
+• Full Name (e.g. Muhammad Ali)
+• University Email (e.g. 025580bsirf26)
+• Hours Saved (e.g. 3 - 5 hours)" data-shape="rectangle">
+  <rect x="270.64358333333325" y="185.8" width="264.24999999999994" height="87.60000000000001" rx="0" ry="0" fill="#ecfdf5" stroke="#10b981" stroke-width="2px" />
+  <text x="402.76858333333325" y="229.60000000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#064e3b"><tspan x="402.76858333333325" dy="-20.8">Step 2: Type Your Details</tspan><tspan x="402.76858333333325" dy="16.900000000000002">• Full Name (e.g. Muhammad Ali)</tspan><tspan x="402.76858333333325" dy="16.900000000000002">• University Email (e.g. 025580bsirf26)</tspan><tspan x="402.76858333333325" dy="16.900000000000002">• Hours Saved (e.g. 3 - 5 hours)</tspan></text>
+</g>
+<g class="node" data-id="S3" data-label="Step 3: Click 'Submit' Button
+(Google confirms: 'Response recorded!')" data-shape="rectangle">
+  <rect x="264.3450833333332" y="321.40000000000003" width="276.847" height="53.800000000000004" rx="0" ry="0" fill="#ecfdf5" stroke="#10b981" stroke-width="2px" />
+  <text x="402.7685833333332" y="348.3" text-anchor="middle" font-size="13" font-weight="500" fill="#064e3b"><tspan x="402.7685833333332" dy="-3.9000000000000012">Step 3: Click &#39;Submit&#39; Button</tspan><tspan x="402.7685833333332" dy="16.900000000000002">(Google confirms: &#39;Response recorded!&#39;)</tspan></text>
+</g>
+<g class="node" data-id="S4" data-label="Step 4: New Row Appears in Google Sheets
+(All your answers land in a clean row)" data-shape="rectangle">
+  <rect x="257.6760833333333" y="495.20000000000005" width="290.1849999999999" height="53.800000000000004" rx="0" ry="0" fill="#eff6ff" stroke="#3b82f6" stroke-width="2px" />
+  <text x="402.76858333333325" y="522.1" text-anchor="middle" font-size="13" font-weight="500" fill="#1e3a8a"><tspan x="402.76858333333325" dy="-3.9000000000000012">Step 4: New Row Appears in Google Sheets</tspan><tspan x="402.76858333333325" dy="16.900000000000002">(All your answers land in a clean row)</tspan></text>
+</g>
+<g class="node" data-id="S5" data-label="Step 5: Sheet Stays 100% Clean
+(No extra columns or clutter added)" data-shape="rectangle">
+  <rect x="280.6470833333332" y="597" width="244.24299999999997" height="53.800000000000004" rx="0" ry="0" fill="#eff6ff" stroke="#3b82f6" stroke-width="2px" />
+  <text x="402.7685833333332" y="623.9" text-anchor="middle" font-size="13" font-weight="500" fill="#1e3a8a"><tspan x="402.7685833333332" dy="-3.9000000000000012">Step 5: Sheet Stays 100% Clean</tspan><tspan x="402.7685833333332" dy="16.900000000000002">(No extra columns or clutter added)</tspan></text>
+</g>
+<g class="node" data-id="S6" data-label="Step 6: Robot Wakes Up Instantly
+(Detects your new row in under 1 second)" data-shape="rectangle">
+  <rect x="264.3450833333332" y="770.8000000000001" width="276.847" height="53.800000000000004" rx="0" ry="0" fill="#fef3c7" stroke="#f59e0b" stroke-width="2px" />
+  <text x="402.7685833333332" y="797.7" text-anchor="middle" font-size="13" font-weight="500" fill="#78350f"><tspan x="402.7685833333332" dy="-3.9000000000000012">Step 6: Robot Wakes Up Instantly</tspan><tspan x="402.7685833333332" dy="16.900000000000002">(Detects your new row in under 1 second)</tspan></text>
+</g>
+<g class="node" data-id="S7" data-label="Step 7: Smart Detective Reads Your Email
+• Finds Reg No: 025580
+• Finds Degree: BSIR (Int'l Relations)
+• Finds Semester: F26 (Fall 2026)" data-shape="rectangle">
+  <rect x="262.4925833333332" y="872.6000000000001" width="280.552" height="87.60000000000001" rx="0" ry="0" fill="#fef3c7" stroke="#f59e0b" stroke-width="2px" />
+  <text x="402.7685833333332" y="916.4000000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#78350f"><tspan x="402.7685833333332" dy="-20.8">Step 7: Smart Detective Reads Your Email</tspan><tspan x="402.7685833333332" dy="16.900000000000002">• Finds Reg No: 025580</tspan><tspan x="402.7685833333332" dy="16.900000000000002">• Finds Degree: BSIR (Int&#39;l Relations)</tspan><tspan x="402.7685833333332" dy="16.900000000000002">• Finds Semester: F26 (Fall 2026)</tspan></text>
+</g>
+<g class="node" data-id="S8" data-label="Step 8: Seals Inside a Secure Digital Envelope
+(Stamped with a secret password token)" data-shape="rectangle">
+  <rect x="248.78408333333323" y="1008.2" width="307.96899999999994" height="53.800000000000004" rx="0" ry="0" fill="#fef3c7" stroke="#f59e0b" stroke-width="2px" />
+  <text x="402.7685833333332" y="1035.1000000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#78350f"><tspan x="402.7685833333332" dy="-3.9000000000000012">Step 8: Seals Inside a Secure Digital Envelope</tspan><tspan x="402.7685833333332" dy="16.900000000000002">(Stamped with a secret password token)</tspan></text>
+</g>
+<g class="node" data-id="S9" data-label="Step 9: Security Door Checks Secret Password
+(Rejects fake data, welcomes real surveys)" data-shape="rectangle">
+  <rect x="243.2265833333332" y="1182" width="319.084" height="53.800000000000004" rx="0" ry="0" fill="#f3e8ff" stroke="#a855f7" stroke-width="2px" />
+  <text x="402.7685833333332" y="1208.9" text-anchor="middle" font-size="13" font-weight="500" fill="#581c87"><tspan x="402.7685833333332" dy="-3.9000000000000012">Step 9: Security Door Checks Secret Password</tspan><tspan x="402.7685833333332" dy="16.900000000000002">(Rejects fake data, welcomes real surveys)</tspan></text>
+</g>
+<g class="node" data-id="S10" data-label="Step 10: The Smart Sorter
+Who filled this?" data-shape="diamond">
+  <polygon points="402.76858333333314,1283.8 508.3615833333331,1389.393 402.76858333333314,1494.986 297.1755833333332,1389.393" fill="#f3e8ff" stroke="#a855f7" stroke-width="2px" />
+  <text x="402.76858333333314" y="1389.393" text-anchor="middle" font-size="13" font-weight="500" fill="#581c87"><tspan x="402.76858333333314" dy="-3.9000000000000012">Step 10: The Smart Sorter</tspan><tspan x="402.76858333333314" dy="16.900000000000002">Who filled this?</tspan></text>
+</g>
+<g class="node" data-id="S11A" data-label="Student Cabinet
+(student_surveys Table)" data-shape="rectangle">
+  <rect x="201.58258333333322" y="1611.286" width="186.44499999999996" height="53.800000000000004" rx="0" ry="0" fill="#f3e8ff" stroke="#a855f7" stroke-width="2px" />
+  <text x="294.8050833333332" y="1638.1860000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#581c87"><tspan x="294.8050833333332" dy="-3.9000000000000012">Student Cabinet</tspan><tspan x="294.8050833333332" dy="16.900000000000002">(student_surveys Table)</tspan></text>
+</g>
+<g class="node" data-id="S11B" data-label="Teacher Cabinet
+(teacher_surveys Table)" data-shape="rectangle">
+  <rect x="416.02758333333315" y="1611.286" width="189.40899999999996" height="53.800000000000004" rx="0" ry="0" fill="#f3e8ff" stroke="#a855f7" stroke-width="2px" />
+  <text x="510.73208333333315" y="1638.1860000000001" text-anchor="middle" font-size="13" font-weight="500" fill="#581c87"><tspan x="510.73208333333315" dy="-3.9000000000000012">Teacher Cabinet</tspan><tspan x="510.73208333333315" dy="16.900000000000002">(teacher_surveys Table)</tspan></text>
+</g>
+<g class="node" data-id="S12" data-label="Step 11: Student Portal Updates Instantly!
+• Step 1 turns Green: 'Completed ✅'
+• Step 2 Unlocks: '30-MCQ Exam 🔓'" data-shape="rectangle">
+  <rect x="81.56449999999995" y="1789.3110000000001" width="269.4369999999999" height="70.7" rx="0" ry="0" fill="#dcfce7" stroke="#16a34a" stroke-width="3px" />
+  <text x="216.2829999999999" y="1824.661" text-anchor="middle" font-size="13" font-weight="500" fill="#14532d"><tspan x="216.2829999999999" dy="-12.350000000000001">Step 11: Student Portal Updates Instantly!</tspan><tspan x="216.2829999999999" dy="16.900000000000002">• Step 1 turns Green: &#39;Completed ✅&#39;</tspan><tspan x="216.2829999999999" dy="16.900000000000002">• Step 2 Unlocks: &#39;30-MCQ Exam 🔓&#39;</tspan></text>
+</g>
+<g class="node" data-id="S13" data-label="Step 12: Admin Dashboard Updates Live!
+• Beneficiary counter goes +1
+• BSIR department chart grows
+• Weekly hours saved chart updates" data-shape="rectangle">
+  <rect x="379.00149999999985" y="1789.3110000000001" width="273.8829999999999" height="87.60000000000001" rx="0" ry="0" fill="#dcfce7" stroke="#16a34a" stroke-width="3px" />
+  <text x="515.9429999999998" y="1833.111" text-anchor="middle" font-size="13" font-weight="500" fill="#14532d"><tspan x="515.9429999999998" dy="-20.8">Step 12: Admin Dashboard Updates Live!</tspan><tspan x="515.9429999999998" dy="16.900000000000002">• Beneficiary counter goes +1</tspan><tspan x="515.9429999999998" dy="16.900000000000002">• BSIR department chart grows</tspan><tspan x="515.9429999999998" dy="16.900000000000002">• Weekly hours saved chart updates</tspan></text>
+</g>
+<g class="node" data-id="S14" data-label="Step 13: Pass Exam ➔ Get Verified Certificate! 📜" data-shape="rectangle">
+  <rect x="56" y="1920.6860000000001" width="320.5659999999998" height="36.900000000000006" rx="0" ry="0" fill="#dcfce7" stroke="#16a34a" stroke-width="3px" />
+  <text x="216.2829999999999" y="1939.1360000000002" text-anchor="middle" font-size="13" font-weight="500" fill="#14532d" dy="4.55">Step 13: Pass Exam ➔ Get Verified Certificate! 📜</text>
+</g>
+</svg>

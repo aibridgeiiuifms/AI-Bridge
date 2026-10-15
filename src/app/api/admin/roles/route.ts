@@ -32,14 +32,29 @@ export async function GET(req: NextRequest) {
       .order('created_at', { ascending: false });
 
     // 4. Fetch Real Metrics from Database
+    // 4. Fetch Real Metrics from Database (student_surveys + teacher_surveys with fallback to surveys)
     const { count: totalProfiles } = await supabase
       .from('profiles')
       .select('*', { count: 'exact', head: true });
 
-    const { count: preSurveysCount } = await supabase
-      .from('surveys')
+    const { count: studentPreCount } = await supabase
+      .from('student_surveys')
       .select('*', { count: 'exact', head: true })
       .eq('survey_type', 'pre');
+
+    const { count: teacherPreCount } = await supabase
+      .from('teacher_surveys')
+      .select('*', { count: 'exact', head: true })
+      .eq('survey_type', 'pre');
+
+    let preSurveysCount = (studentPreCount || 0) + (teacherPreCount || 0);
+    if (preSurveysCount === 0) {
+      const { count: legacyPreCount } = await supabase
+        .from('surveys')
+        .select('*', { count: 'exact', head: true })
+        .eq('survey_type', 'pre');
+      preSurveysCount = legacyPreCount || 0;
+    }
 
     const { count: passedQuizzesCount } = await supabase
       .from('quiz_attempts')
@@ -50,15 +65,44 @@ export async function GET(req: NextRequest) {
       .from('certificates')
       .select('*', { count: 'exact', head: true });
 
-    const { data: surveyHours } = await supabase
-      .from('surveys')
-      .select('hours_saved_estimate')
-      .not('hours_saved_estimate', 'is', null);
+    // Calculate hours saved from hours_saved_category across student & teacher surveys
+    const { data: studentHours } = await supabase
+      .from('student_surveys')
+      .select('hours_saved_category')
+      .not('hours_saved_category', 'is', null);
 
+    const { data: teacherHours } = await supabase
+      .from('teacher_surveys')
+      .select('hours_saved_category')
+      .not('hours_saved_category', 'is', null);
+
+    const allHourEntries = [...(studentHours || []), ...(teacherHours || [])];
     let avgHours = 0;
-    if (surveyHours && surveyHours.length > 0) {
-      const totalHours = surveyHours.reduce((acc, curr) => acc + (Number(curr.hours_saved_estimate) || 0), 0);
-      avgHours = parseFloat((totalHours / surveyHours.length).toFixed(1));
+
+    if (allHourEntries.length > 0) {
+      const parseCatVal = (cat: string): number => {
+        const c = String(cat || '').toLowerCase();
+        if (c.includes('5+') || c.includes('5 - 10') || c.includes('more than 5')) return 6.0;
+        if (c.includes('3 - 5') || c.includes('3-5')) return 4.0;
+        if (c.includes('1 - 2') || c.includes('1-2')) return 1.5;
+        if (c.includes('0') || c.includes('none') || c.includes('less than 1')) return 0.5;
+        const num = parseFloat(c.replace(/[^0-9.]/g, ''));
+        return isNaN(num) ? 3.0 : num;
+      };
+
+      const totalH = allHourEntries.reduce((acc, curr) => acc + parseCatVal(curr.hours_saved_category), 0);
+      avgHours = parseFloat((totalH / allHourEntries.length).toFixed(1));
+    } else {
+      // Fallback to legacy surveys table
+      const { data: surveyHours } = await supabase
+        .from('surveys')
+        .select('hours_saved_estimate')
+        .not('hours_saved_estimate', 'is', null);
+
+      if (surveyHours && surveyHours.length > 0) {
+        const totalHours = surveyHours.reduce((acc, curr) => acc + (Number(curr.hours_saved_estimate) || 0), 0);
+        avgHours = parseFloat((totalHours / surveyHours.length).toFixed(1));
+      }
     }
 
     return NextResponse.json({

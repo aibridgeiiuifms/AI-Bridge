@@ -15,7 +15,8 @@ import {
   Award,
   AlertCircle,
   Eye,
-  ShieldAlert
+  ShieldAlert,
+  RefreshCw
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import SurveySelectionModal from '@/components/SurveySelectionModal';
@@ -37,72 +38,140 @@ export default function StudentPortal() {
   const [quizScore, setQuizScore] = useState<number | null>(null);
   const [postSurveyCompleted, setPostSurveyCompleted] = useState(false);
   const [certificateReady, setCertificateReady] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshToast, setRefreshToast] = useState<string | null>(null);
 
-  useEffect(() => {
+  const checkCertificationProgress = async (showToast = false) => {
+    if (showToast) setIsRefreshing(true);
     const supabase = createClient();
-    async function loadData() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        setUser(user);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
 
-        if (user) {
-          const { data: prof } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-          setProfile(prof);
+      if (user) {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        setProfile(prof);
 
-          // Check Pre-Survey (by user_id or email synced from Google Sheets)
-          const userEmail = (user.email || '').trim().toLowerCase();
-          const { data: pre } = await supabase
-            .from('surveys')
+        const userEmail = (user.email || '').trim().toLowerCase();
+
+        // 1. Check Pre-Survey (student_surveys -> teacher_surveys cross-table fallback -> legacy surveys)
+        let hasPre = false;
+        const { data: preStudent } = await supabase
+          .from('student_surveys')
+          .select('id')
+          .or(`user_id.eq.${user.id},student_email.ilike.${userEmail}`)
+          .eq('survey_type', 'pre')
+          .maybeSingle();
+
+        if (preStudent) {
+          hasPre = true;
+        } else {
+          // Cross-table check in case user submitted teacher form
+          const { data: preTeacher } = await supabase
+            .from('teacher_surveys')
             .select('id')
-            .or(`user_id.eq.${user.id},respondent_email.eq.${userEmail}`)
+            .or(`user_id.eq.${user.id},teacher_email.ilike.${userEmail}`)
             .eq('survey_type', 'pre')
             .maybeSingle();
-          if (pre) setPreSurveyCompleted(true);
 
-          // Check Quiz
-          const { data: quiz } = await supabase
-            .from('quiz_attempts')
-            .select('score, passed')
-            .eq('user_id', user.id)
-            .eq('passed', true)
-            .order('completed_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (quiz) {
-            setQuizPassed(true);
-            setQuizScore(quiz.score);
-          }
-
-          // Check Post-Survey (by user_id or email synced from Google Sheets)
-          const { data: post } = await supabase
-            .from('surveys')
-            .select('id')
-            .or(`user_id.eq.${user.id},respondent_email.eq.${userEmail}`)
-            .eq('survey_type', 'post')
-            .maybeSingle();
-          if (post) setPostSurveyCompleted(true);
-
-          // Check Certificate
-          const { data: cert } = await supabase
-            .from('certificates')
-            .select('*')
-            .eq('user_id', user.id)
-            .maybeSingle();
-          if (cert || (pre && quiz && post)) {
-            setCertificateReady(true);
+          if (preTeacher) {
+            hasPre = true;
+          } else {
+            const { data: legacyPre } = await supabase
+              .from('surveys')
+              .select('id')
+              .or(`user_id.eq.${user.id},respondent_email.ilike.${userEmail}`)
+              .eq('survey_type', 'pre')
+              .maybeSingle();
+            if (legacyPre) hasPre = true;
           }
         }
-      } catch (err) {
-        // Suppress placeholder supabase url errors during development
-      } finally {
-        setLoading(false);
+        if (hasPre) setPreSurveyCompleted(true);
+
+        // 2. Check Quiz
+        const { data: quiz } = await supabase
+          .from('quiz_attempts')
+          .select('score, passed')
+          .eq('user_id', user.id)
+          .eq('passed', true)
+          .order('completed_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (quiz) {
+          setQuizPassed(true);
+          setQuizScore(quiz.score);
+        }
+
+        // 3. Check Post-Survey (student_surveys -> teacher_surveys -> legacy surveys)
+        let hasPost = false;
+        const { data: postStudent } = await supabase
+          .from('student_surveys')
+          .select('id')
+          .or(`user_id.eq.${user.id},student_email.ilike.${userEmail}`)
+          .eq('survey_type', 'post')
+          .maybeSingle();
+
+        if (postStudent) {
+          hasPost = true;
+        } else {
+          const { data: postTeacher } = await supabase
+            .from('teacher_surveys')
+            .select('id')
+            .or(`user_id.eq.${user.id},teacher_email.ilike.${userEmail}`)
+            .eq('survey_type', 'post')
+            .maybeSingle();
+
+          if (postTeacher) {
+            hasPost = true;
+          } else {
+            const { data: legacyPost } = await supabase
+              .from('surveys')
+              .select('id')
+              .or(`user_id.eq.${user.id},respondent_email.ilike.${userEmail}`)
+              .eq('survey_type', 'post')
+              .maybeSingle();
+            if (legacyPost) hasPost = true;
+          }
+        }
+        if (hasPost) setPostSurveyCompleted(true);
+
+        // 4. Check Certificate
+        const { data: cert } = await supabase
+          .from('certificates')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (cert || (hasPre && quiz && hasPost)) {
+          setCertificateReady(true);
+        }
+
+        if (showToast) {
+          if (hasPre && quiz && hasPost) {
+            setRefreshToast('🎉 All steps verified! Certificate is ready.');
+          } else if (hasPre && quiz) {
+            setRefreshToast('✅ Pre-Survey & Quiz verified! Please finish Post-Survey.');
+          } else if (hasPre) {
+            setRefreshToast('✅ Pre-Survey verified! Step 2 is unlocked.');
+          } else {
+            setRefreshToast('ℹ️ No pre-survey found yet for your account email.');
+          }
+          setTimeout(() => setRefreshToast(null), 4500);
+        }
       }
+    } catch (err) {
+      // Suppress placeholder supabase url errors during development
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
     }
-    loadData();
+  };
+
+  useEffect(() => {
+    checkCertificationProgress(false);
 
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -183,7 +252,29 @@ export default function StudentPortal() {
 
       {/* Progress Stepper Bar */}
       <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
-        <h2 className="text-base font-bold text-slate-900">Your Certification Progress</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-bold text-slate-900">Your Certification Progress</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Automated synchronization with Google Forms and Supabase</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => checkCertificationProgress(true)}
+            disabled={isRefreshing}
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-xs font-semibold text-slate-700 hover:text-emerald-800 transition-all cursor-pointer shadow-xs"
+            title="Re-check if your Google Form submission has arrived"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-600' : 'text-slate-500'}`} />
+            <span>{isRefreshing ? 'Checking Supabase...' : 'Check Status / Refresh'}</span>
+          </button>
+        </div>
+
+        {refreshToast && (
+          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-medium text-emerald-800 flex items-center gap-2 animate-fade-in">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+            <span>{refreshToast}</span>
+          </div>
+        )}
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
           {/* Step 1 Card */}

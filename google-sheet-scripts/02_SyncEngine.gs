@@ -1,12 +1,11 @@
 /**
  * ==============================================================================
- * THE AI BRIDGE - GOOGLE SHEETS SYNC ENGINE (v3.0 - Option 1: Pure Cloud Sync)
+ * THE AI BRIDGE - GOOGLE SHEETS SYNC ENGINE (v3.1 - 2-Table Architecture)
  * ==============================================================================
- * ARCHITECTURE (Option 1):
- * - Leaves Google Sheets 100% UNTOUCHED (Zero new columns, zero layout modification).
- * - All Registration Numbers, Department Codes, and Semesters are extracted
- *   in-memory and sent directly to Supabase and your Web Dashboard.
- * - Blazing fast, bug-proof, and requires zero spreadsheet maintenance.
+ * - Option 1: Pure Cloud Sync (Google Sheet stays 100% untouched).
+ * - Extracts full_name into its own clean dedicated field.
+ * - Stores hours_saved_category as original clean text ('3 - 5 hours', etc.).
+ * - Supports both Student Surveys and Teacher Surveys.
  * ==============================================================================
  */
 
@@ -34,10 +33,11 @@ function doPost(e) {
 
     const payload = {
       action: contents.action || "INSERT",
+      participant_type: contents.participant_type || CONFIG.PARTICIPANT_TYPE || "student",
       survey_type: contents.survey_type || CONFIG.DEFAULT_SURVEY_TYPE,
       email: email,
-      hours_saved_estimate: contents.hours_saved_estimate || contents.hoursSaved || 0,
-      comprehension_self_rating: contents.comprehension_self_rating || contents.rating || 3,
+      full_name: contents.full_name || contents.name || '',
+      hours_saved_category: contents.hours_saved_category || contents.hoursSavedCategory || '',
       feedback_notes: contents.feedback_notes || contents.feedback || '',
       answers: contents.answers || contents,
       extracted_reg_no: parsedEmailData.regNo,
@@ -61,9 +61,7 @@ function doPost(e) {
 // ----------------- AUTOMATIC EVENT TRIGGERS -----------------
 
 /**
- * 1. TRIGGER: Fires whenever a respondent submits a Google Form
- * Pure Cloud Mode: Reads row in memory, extracts fields, sends to Supabase.
- * Does NOT modify or add any columns in the Google Sheet.
+ * TRIGGER: Fires whenever a respondent submits a Google Form
  */
 function onFormSubmit(e) {
   try {
@@ -80,12 +78,13 @@ function onFormSubmit(e) {
 
     const payload = {
       action: "INSERT",
+      participant_type: detectParticipantType(sheet.getName()),
       survey_type: detectSurveyType(sheet.getName()),
       email: parsed.email,
+      full_name: parsed.fullName,
       sheet_row_number: row,
       performed_by: parsed.email,
-      hours_saved_estimate: parsed.hoursSaved,
-      comprehension_self_rating: parsed.rating,
+      hours_saved_category: parsed.hoursSavedCategory,
       feedback_notes: parsed.feedback,
       answers: parsed.answers,
       extracted_reg_no: parsed.regNo,
@@ -105,14 +104,42 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('🤖 The AI Bridge')
     .addItem('🔄 Sync Entire Sheet to Supabase (Option 1 Pure Sync)', 'syncAllRows')
+    .addItem('⚡ Setup Automatic Sync Trigger (One-Click)', 'setupAutomaticTrigger')
     .addItem('🧹 Clean Excess Duplicate Columns (One-Click)', 'cleanDuplicateColumns')
-    .addItem('⚡ Test Webhook Connection', 'testConnection')
+    .addItem('🔌 Test Webhook Connection', 'testConnection')
     .addToUi();
 }
 
 /**
- * Syncs all rows in the active sheet to Supabase in one fast batch.
- * Entirely in-memory: Does NOT modify the Google Sheet layout or cells.
+ * ONE-CLICK TRIGGER SETUP:
+ * Registers an Installable onFormSubmit trigger with full network permissions (UrlFetchApp).
+ */
+function setupAutomaticTrigger() {
+  const ui = SpreadsheetApp.getUi();
+  const sheet = SpreadsheetApp.getActiveSpreadsheet();
+
+  // Remove any conflicting old triggers
+  const existingTriggers = ScriptApp.getProjectTriggers();
+  let deletedCount = 0;
+  for (let i = 0; i < existingTriggers.length; i++) {
+    if (existingTriggers[i].getHandlerFunction() === 'onFormSubmit') {
+      ScriptApp.deleteTrigger(existingTriggers[i]);
+      deletedCount++;
+    }
+  }
+
+  // Create official installable trigger
+  ScriptApp.newTrigger('onFormSubmit')
+    .forSpreadsheet(sheet)
+    .onFormSubmit()
+    .create();
+
+  ui.alert("⚡ Automatic Sync Active!\n\nEvery new Google Form response will now automatically sync to Supabase in real-time.\n(Replaced " + deletedCount + " older triggers)");
+}
+
+/**
+ * Syncs all rows in active sheet to Supabase in one fast batch.
+ * Pure in-memory: Does NOT modify the Google Sheet cells or layout.
  */
 function syncAllRows() {
   const ui = SpreadsheetApp.getUi();
@@ -125,9 +152,12 @@ function syncAllRows() {
     return;
   }
 
-  // Load all headers and row values into memory once
+  // Load headers and row values into memory once
   const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
   const allData = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+
+  const participantType = detectParticipantType(sheet.getName());
+  const surveyType = detectSurveyType(sheet.getName());
 
   const rowsToSync = [];
   for (let i = 0; i < allData.length; i++) {
@@ -136,10 +166,11 @@ function syncAllRows() {
     if (parsed.email) {
       rowsToSync.push({
         email: parsed.email,
-        survey_type: detectSurveyType(sheet.getName()),
+        full_name: parsed.fullName,
+        participant_type: participantType,
+        survey_type: surveyType,
         sheet_row_number: rowNum,
-        hours_saved_estimate: parsed.hoursSaved,
-        comprehension_self_rating: parsed.rating,
+        hours_saved_category: parsed.hoursSavedCategory,
         feedback_notes: parsed.feedback,
         answers: parsed.answers,
         extracted_reg_no: parsed.regNo,
@@ -151,13 +182,14 @@ function syncAllRows() {
 
   const payload = {
     action: "SYNC_ALL",
-    survey_type: detectSurveyType(sheet.getName()),
+    participant_type: participantType,
+    survey_type: surveyType,
     rows: rowsToSync
   };
 
   const res = sendToWebhook(payload);
   if (res.success) {
-    ui.alert(`✅ Sync Complete!\n\nSuccessfully synced ${res.data.synced_count || rowsToSync.length} rows to Supabase.\n\nAll Registration Numbers, Department Codes, and Semesters were extracted and saved into Supabase without modifying your spreadsheet.`);
+    ui.alert(`✅ Sync Complete!\n\nSuccessfully synced ${res.data.synced_count || rowsToSync.length} rows to Supabase.\n\nTarget Table: ${participantType === 'teacher' ? 'teacher_surveys' : 'student_surveys'}\nNames and clean raw data preserved without modifying your spreadsheet.`);
   } else {
     ui.alert(`❌ Sync Failed: ${res.error}`);
   }
@@ -165,7 +197,7 @@ function syncAllRows() {
 
 /**
  * ONE-CLICK CLEANUP TOOL:
- * Removes any duplicate 'Derived...' or 'Sync Status' columns created previously.
+ * Removes any duplicate 'Derived...' columns created previously.
  */
 function cleanDuplicateColumns() {
   const ui = SpreadsheetApp.getUi();
@@ -177,7 +209,6 @@ function cleanDuplicateColumns() {
   const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
   let deletedCount = 0;
 
-  // Scan from right to left so indices don't shift when deleting
   for (let c = headers.length - 1; c >= 0; c--) {
     const colName = String(headers[c] || "").trim().toLowerCase();
     if (
@@ -208,14 +239,8 @@ function testConnection() {
   }
 }
 
-// ----------------- IN-MEMORY EMAIL PARSER UTILITIES -----------------
+// ----------------- IN-MEMORY PARSER UTILITIES -----------------
 
-/**
- * Pure in-memory email parser: Extracts Reg No, Dept Code, and Semester.
- * - Type 1: Modern Format [Reg][Dept][Semester] -> e.g. 025580bsirf26
- * - Type 2: Older Senior Format [Name].[Dept][Reg] -> e.g. zain.bsba126
- * - Fallback: Scans messy roll number for season+year if Type 2
- */
 function parseStudentEmail(rawEmail, fallbackRoll) {
   if (!rawEmail) return { regNo: "", deptCode: "", semester: "" };
 
@@ -269,8 +294,8 @@ function parseStudentEmail(rawEmail, fallbackRoll) {
 
 function parseRowData(headers, rowValues) {
   let email = "";
-  let hoursSaved = 0;
-  let rating = 3;
+  let fullName = "";
+  let hoursSavedCategory = "";
   let feedback = "";
   let fallbackRoll = "";
   const answers = {};
@@ -288,36 +313,34 @@ function parseRowData(headers, rowValues) {
       }
     }
 
+    // Detect Name
+    if (header.includes("student name") || header.includes("teacher name") || header.includes("full name") || header === "name") {
+      const nameVal = String(val || "").trim();
+      if (nameVal) fullName = nameVal;
+    }
+
     // Detect Fallback Roll Number
     if (header.includes("roll") || header.includes("registration") || header.includes("reg no")) {
       fallbackRoll = String(val || "");
     }
 
-    // Detect Hours Saved
+    // Detect Hours Saved Category (Keep original clean text, no midpoint math!)
     if (header.includes("hour") || header.includes("time save") || header.includes("weekly")) {
-      const parsedNum = parseFloat(String(val).replace(/[^0-9.]/g, ''));
-      if (!isNaN(parsedNum)) hoursSaved = parsedNum;
-    }
-
-    // Detect Rating
-    if (header.includes("rating") || header.includes("comprehension") || header.includes("literacy") || header.includes("scale")) {
-      const parsedInt = parseInt(String(val).replace(/[^0-9]/g, ''));
-      if (!isNaN(parsedInt)) rating = parsedInt;
+      hoursSavedCategory = String(val || "").trim();
     }
 
     // Detect Feedback
     if (header.includes("feedback") || header.includes("note") || header.includes("comment") || header.includes("suggestion")) {
-      feedback = String(val);
+      feedback = String(val || "").trim();
     }
   }
 
-  // Parse email into 3 derived components entirely in memory
   const derived = parseStudentEmail(email, fallbackRoll);
 
   return {
     email: email,
-    hoursSaved: hoursSaved,
-    rating: rating,
+    fullName: fullName,
+    hoursSavedCategory: hoursSavedCategory,
     feedback: feedback,
     answers: answers,
     regNo: derived.regNo,
@@ -326,11 +349,19 @@ function parseRowData(headers, rowValues) {
   };
 }
 
+function detectParticipantType(sheetName) {
+  const name = String(sheetName || "").toLowerCase();
+  if (name.includes("teach") || name.includes("faculty") || name.includes("prof")) {
+    return "teacher";
+  }
+  return CONFIG.PARTICIPANT_TYPE || "student";
+}
+
 function detectSurveyType(sheetName) {
-  const name = String(sheetName).toLowerCase();
+  const name = String(sheetName || "").toLowerCase();
   if (name.includes("post")) return "post";
   if (name.includes("pre")) return "pre";
-  return CONFIG.DEFAULT_SURVEY_TYPE;
+  return CONFIG.DEFAULT_SURVEY_TYPE || "pre";
 }
 
 function sendToWebhook(payload) {

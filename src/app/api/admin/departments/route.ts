@@ -42,17 +42,30 @@ export async function GET() {
       }, { status: 200 });
     }
 
-    // Query surveys count per extracted_dept_code
-    const { data: surveyCounts } = await supabase
-      .from('surveys')
-      .select('extracted_dept_code');
+    // Query surveys count per dept_code from student_surveys (with fallback to legacy surveys)
+    const { data: studentDeptCounts } = await supabase
+      .from('student_surveys')
+      .select('dept_code');
 
     const countsMap: Record<string, number> = {};
-    if (surveyCounts) {
-      for (const row of surveyCounts) {
-        if (row.extracted_dept_code) {
-          const c = row.extracted_dept_code.toUpperCase();
+    if (studentDeptCounts && studentDeptCounts.length > 0) {
+      for (const row of studentDeptCounts) {
+        if (row.dept_code) {
+          const c = row.dept_code.toUpperCase();
           countsMap[c] = (countsMap[c] || 0) + 1;
+        }
+      }
+    } else {
+      const { data: surveyCounts } = await supabase
+        .from('surveys')
+        .select('extracted_dept_code');
+
+      if (surveyCounts) {
+        for (const row of surveyCounts) {
+          if (row.extracted_dept_code) {
+            const c = row.extracted_dept_code.toUpperCase();
+            countsMap[c] = (countsMap[c] || 0) + 1;
+          }
         }
       }
     }

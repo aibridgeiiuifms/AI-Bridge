@@ -2,7 +2,7 @@
  * ==============================================================================
  * THE AI BRIDGE - GOOGLE SHEETS SYNC CONFIGURATION
  * ==============================================================================
- * Copy and paste this entire code into File 1 (Config.gs) in Google Apps Script.
+ * Copy and paste this code into File 1 (Config.gs) in Google Apps Script.
  * ==============================================================================
  */
 
@@ -13,6 +13,9 @@ const CONFIG = {
   // Security Secret Token (Matches SHEETS_WEBHOOK_SECRET in .env.local / Vercel env)
   WEBHOOK_SECRET: "Hum_Hai_Pakistan-AI_Bridge_iiui_fms",
 
-  // Set default survey type for this sheet: 'pre' or 'post'
-  DEFAULT_SURVEY_TYPE: "pre"
+  // Set survey phase: 'pre' or 'post'
+  DEFAULT_SURVEY_TYPE: "pre",
+
+  // Set participant audience: 'student' or 'teacher'
+  PARTICIPANT_TYPE: "student"
 };
