@@ -23,14 +23,19 @@ interface HighlightsCarouselProps {
 }
 
 export default function HighlightsCarousel({ className = '' }: HighlightsCarouselProps) {
+  // ── Main carousel state ──────────────────────────────────────────────────
   const [activeSlide, setActiveSlide] = useState(4);
   const [isPaused, setIsPaused] = useState(false);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
-  // Lightbox preview state
+  // ── Lightbox preview state ────────────────────────────────────────────────
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
 
+  // ── Preview swipe state ───────────────────────────────────────────────────
+  const [previewTouchStartX, setPreviewTouchStartX] = useState<number | null>(null);
+
+  // ── Preview helpers ───────────────────────────────────────────────────────
   const openPreview = (index: number) => {
     setPreviewIndex(index);
     setPreviewOpen(true);
@@ -48,21 +53,38 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
     setPreviewIndex((prev) => (prev + 1) % slides.length);
   };
 
+  // ── Preview swipe handlers ────────────────────────────────────────────────
+  const handlePreviewTouchStart = (e: React.TouchEvent) => {
+    setPreviewTouchStartX(e.touches[0].clientX);
+  };
+
+  const handlePreviewTouchEnd = (e: React.TouchEvent) => {
+    if (previewTouchStartX === null) return;
+    const diff = previewTouchStartX - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) handleNextPreview();
+      else handlePrevPreview();
+    }
+    setPreviewTouchStartX(null);
+  };
+
+  // ── Keyboard + body scroll lock when preview is open ─────────────────────
   useEffect(() => {
     if (!previewOpen) return;
-
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') closePreview();
+      if (event.key === 'ArrowLeft') handlePrevPreview();
+      if (event.key === 'ArrowRight') handleNextPreview();
     };
-
     document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       document.body.style.overflow = '';
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [previewOpen]);
+  }, [previewOpen, previewIndex]);
 
+  // ── Main carousel helpers ─────────────────────────────────────────────────
   const goToSlide = useCallback((index: number) => {
     setActiveSlide((index + slides.length) % slides.length);
   }, []);
@@ -75,7 +97,6 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
     goToSlide(activeSlide + 1);
   }, [activeSlide, goToSlide]);
 
-  // Faster transition interval: 3200ms
   useEffect(() => {
     if (isPaused) return;
     const interval = setInterval(() => {
@@ -84,6 +105,7 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
     return () => clearInterval(interval);
   }, [activeSlide, isPaused, goToSlide]);
 
+  // ── Main carousel swipe ───────────────────────────────────────────────────
   const handleTouchStart = (e: React.TouchEvent) => {
     setIsPaused(true);
     setTouchStartX(e.touches[0].clientX);
@@ -92,18 +114,15 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
   const handleTouchEnd = (e: React.TouchEvent) => {
     setIsPaused(false);
     if (touchStartX === null) return;
-    const touchEndX = e.changedTouches[0].clientX;
-    const diff = touchStartX - touchEndX;
+    const diff = touchStartX - e.changedTouches[0].clientX;
     if (Math.abs(diff) > 40) {
-      if (diff > 0) {
-        handleNext();
-      } else {
-        handlePrev();
-      }
+      if (diff > 0) handleNext();
+      else handlePrev();
     }
     setTouchStartX(null);
   };
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div
       className={`flex flex-col w-full ${className}`}
@@ -112,6 +131,7 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
+      {/* Header */}
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-200 sm:text-xs">
           <Sparkles className="h-3 w-3 text-amber-300" />
@@ -124,8 +144,8 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
         </div>
       </div>
 
+      {/* Carousel track */}
       <div className="relative group overflow-hidden rounded-2xl border border-white/20 bg-slate-950/80 shadow-2xl backdrop-blur-md">
-        {/* Slides Track */}
         <div
           className="flex transition-transform duration-500 ease-out will-change-transform"
           style={{ transform: `translateX(-${activeSlide * 100}%)` }}
@@ -136,7 +156,7 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
               className="relative aspect-video w-full shrink-0 overflow-hidden bg-slate-950 flex items-center justify-center"
               aria-label={`Highlight ${index + 1} of ${slides.length}`}
             >
-              {/* Blurred ambient background to fill borders cleanly */}
+              {/* Blurred ambient background */}
               <Image
                 src={slide.src}
                 alt=""
@@ -145,8 +165,7 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
                 sizes="(max-width: 768px) 100vw, 40vw"
                 className="object-cover blur-2xl scale-110 opacity-30 pointer-events-none"
               />
-
-              {/* Main image fitted accurately without cropping */}
+              {/* Main image */}
               <Image
                 src={slide.src}
                 alt={slide.alt}
@@ -161,7 +180,7 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
           ))}
         </div>
 
-        {/* Previous & Next Arrows */}
+        {/* Prev / Next arrows */}
         <button
           type="button"
           onClick={handlePrev}
@@ -179,7 +198,7 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
           <ChevronRight className="h-4 w-4" />
         </button>
 
-        {/* Indicator Dots */}
+        {/* Indicator dots */}
         <div className="absolute inset-x-0 bottom-2.5 z-20 flex items-center justify-center gap-1 sm:gap-1.5 pointer-events-auto px-4">
           {slides.map((_, dotIndex) => (
             <button
@@ -197,6 +216,8 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
           ))}
         </div>
       </div>
+
+      {/* ── Lightbox overlay ── */}
       {previewOpen && (
         <div
           className="fixed inset-0 z-[100] overflow-hidden bg-slate-950/95 backdrop-blur-sm"
@@ -204,32 +225,52 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
           role="dialog"
           aria-modal="true"
           aria-label="Highlight preview"
+          onTouchStart={handlePreviewTouchStart}
+          onTouchEnd={handlePreviewTouchEnd}
         >
-          <div className="relative h-full w-full" onClick={(event) => event.stopPropagation()}>
-            <a
-              href="/"
-              className="absolute bottom-20 left-12 z-30 rounded-full border border-white/30 bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-xl transition-colors hover:bg-slate-800 hover:text-emerald-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 sm:left-16"
+          {/* Inner wrapper stops click-to-close on the image area */}
+          <div
+            className="relative h-full w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Go Back — closes preview instantly */}
+            <button
+              type="button"
+              onClick={closePreview}
+              className="absolute bottom-20 left-6 z-30 flex items-center gap-2 rounded-full border border-white/30 bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-xl hover:bg-slate-800 hover:text-emerald-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 sm:left-16"
             >
               ← Go Back
-            </a>
+            </button>
+
+            {/* Close (X) */}
             <button
               type="button"
               onClick={closePreview}
               aria-label="Close preview"
-              className="absolute right-4 top-4 z-20 rounded-full border border-white/25 bg-slate-900/90 p-2 text-white shadow-lg transition-colors hover:bg-slate-800 hover:text-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+              className="absolute right-4 top-4 z-30 rounded-full border border-white/25 bg-slate-900/90 p-2 text-white shadow-lg hover:bg-slate-800 hover:text-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
             >
               <X className="h-6 w-6" />
             </button>
+
+            {/* Counter */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 rounded-full bg-slate-900/80 px-3 py-1 text-xs font-semibold text-white border border-white/20">
+              {previewIndex + 1} / {slides.length}
+            </div>
+
+            {/* Prev arrow */}
             <button
               type="button"
               onClick={handlePrevPreview}
               aria-label="Previous highlight"
-              className="absolute left-2 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/25 bg-slate-900/80 p-2 text-white shadow-lg transition-colors hover:bg-slate-800 hover:text-emerald-200 sm:left-4"
+              className="absolute left-2 top-1/2 z-30 -translate-y-1/2 rounded-full border border-white/25 bg-slate-900/80 p-2 text-white shadow-lg hover:bg-slate-800 hover:text-emerald-200 sm:left-4"
             >
               <ChevronLeft className="h-8 w-8" />
             </button>
-            <div className="absolute inset-x-12 bottom-20 top-20 sm:inset-x-16 sm:bottom-20 sm:top-20">
+
+            {/* Image */}
+            <div className="absolute inset-x-12 bottom-20 top-16 sm:inset-x-16 sm:top-16">
               <Image
+                key={slides[previewIndex].src}
                 src={slides[previewIndex].src}
                 alt={slides[previewIndex].alt}
                 fill
@@ -237,11 +278,13 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
                 className="object-contain"
               />
             </div>
+
+            {/* Next arrow */}
             <button
               type="button"
               onClick={handleNextPreview}
               aria-label="Next highlight"
-              className="absolute right-2 top-1/2 z-20 -translate-y-1/2 rounded-full border border-white/25 bg-slate-900/80 p-2 text-white shadow-lg transition-colors hover:bg-slate-800 hover:text-emerald-200 sm:right-4"
+              className="absolute right-2 top-1/2 z-30 -translate-y-1/2 rounded-full border border-white/25 bg-slate-900/80 p-2 text-white shadow-lg hover:bg-slate-800 hover:text-emerald-200 sm:right-4"
             >
               <ChevronRight className="h-8 w-8" />
             </button>
