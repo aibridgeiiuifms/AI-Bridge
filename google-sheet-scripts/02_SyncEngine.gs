@@ -84,6 +84,8 @@ function onFormSubmit(e) {
       participant_type: detectParticipantType(sheet.getName()),
       survey_type: detectSurveyType(sheet.getName()),
       email: parsed.email,
+      student_email: parsed.student_email,
+      personal_email: parsed.personal_email,
       full_name: parsed.fullName,
       sheet_row_number: row,
       performed_by: parsed.email,
@@ -170,6 +172,8 @@ function syncAllRows() {
     if (parsed.email) {
       rowsToSync.push({
         email: parsed.email,
+        student_email: parsed.student_email,
+        personal_email: parsed.personal_email,
         full_name: parsed.fullName,
         participant_type: participantType,
         survey_type: surveyType,
@@ -298,7 +302,8 @@ function parseStudentEmail(rawEmail, fallbackRoll) {
 }
 
 function parseRowData(headers, rowValues) {
-  let email = "";
+  let studentEmail = "";
+  let personalEmail = "";
   let fullName = "";
   let hoursSavedCategory = "";
   let rating = null;
@@ -312,10 +317,18 @@ function parseRowData(headers, rowValues) {
 
     answers[headers[i]] = val;
 
-    // Detect Email (strip all internal spaces and lowercase)
+    // Detect Email with explicit priority:
+    // Priority 1: Official Student Email Question or institutional domain
+    // Priority 2: General / Google Account / Personal Email (only used if Student Email is empty)
     if (header.includes("email") || header.includes("student id") || header.includes("respondent")) {
-      if (String(val).includes("@")) {
-        email = String(val).replace(/\s+/g, "").toLowerCase();
+      const cleanVal = String(val || "").replace(/\s+/g, "").toLowerCase();
+      if (cleanVal.includes("@")) {
+        const isStudentField = header.includes("student email") || header.includes("university email") || header.includes("institutional email") || cleanVal.includes("@student.iiu.edu.pk") || cleanVal.includes("@iiu.edu.pk");
+        if (isStudentField) {
+          studentEmail = cleanVal;
+        } else if (!personalEmail) {
+          personalEmail = cleanVal;
+        }
       }
     }
 
@@ -349,10 +362,16 @@ function parseRowData(headers, rowValues) {
     }
   }
 
+  // PRIORITY RULE:
+  // 1. Student Email is verified 1st; if filled, personal email is ignored.
+  // 2. Personal email only matters when student email is empty.
+  const email = studentEmail || personalEmail;
   const derived = parseStudentEmail(email, fallbackRoll);
 
   return {
     email: email,
+    student_email: studentEmail,
+    personal_email: personalEmail,
     fullName: fullName,
     hoursSavedCategory: hoursSavedCategory,
     ai_familiarity_rating: rating,

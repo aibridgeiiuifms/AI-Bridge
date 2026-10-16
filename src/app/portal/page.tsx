@@ -16,7 +16,9 @@ import {
   AlertCircle,
   Eye,
   ShieldAlert,
-  RefreshCw
+  RefreshCw,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import SurveySelectionModal from '@/components/SurveySelectionModal';
@@ -40,6 +42,35 @@ export default function StudentPortal() {
   const [certificateReady, setCertificateReady] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshToast, setRefreshToast] = useState<string | null>(null);
+
+  // AI Typo Detection State
+  const [surveySuggestion, setSurveySuggestion] = useState<any>(null);
+  const [isClaiming, setIsClaiming] = useState(false);
+  const [claimToast, setClaimToast] = useState<string | null>(null);
+
+  const handleClaimSurvey = async (surveyId: string, participantType: string) => {
+    setIsClaiming(true);
+    try {
+      const res = await fetch('/api/portal/link-survey', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ surveyId, participantType })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setClaimToast('🎉 Survey successfully linked to your account! Pre-Assessment is now marked complete.');
+        setSurveySuggestion(null);
+        await checkCertificationProgress();
+      } else {
+        alert(data.error || 'Failed to link survey.');
+      }
+    } catch (err: any) {
+      alert('Network error while linking survey: ' + err.message);
+    } finally {
+      setIsClaiming(false);
+      setTimeout(() => setClaimToast(null), 6000);
+    }
+  };
 
   const checkCertificationProgress = async (showToast = false) => {
     if (showToast) setIsRefreshing(true);
@@ -96,7 +127,25 @@ export default function StudentPortal() {
             if (legacyPre) hasPre = true;
           }
         }
-        if (hasPre) setPreSurveyCompleted(true);
+
+        if (hasPre) {
+          setPreSurveyCompleted(true);
+          setSurveySuggestion(null);
+        } else {
+          setPreSurveyCompleted(false);
+          // Check for AI 80%+ similarity match on unlinked submissions
+          try {
+            const sugRes = await fetch('/api/portal/survey-suggestions?survey_type=pre');
+            const sugData = await sugRes.json();
+            if (sugData?.hasSuggestion && sugData.suggestion) {
+              setSurveySuggestion(sugData.suggestion);
+            } else {
+              setSurveySuggestion(null);
+            }
+          } catch (e) {
+            setSurveySuggestion(null);
+          }
+        }
 
         // 2. Check Quiz
         const { data: quiz } = await supabase
@@ -287,6 +336,60 @@ export default function StudentPortal() {
             <span>{refreshToast}</span>
           </div>
         )}
+
+        {claimToast && (
+          <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-2xl text-xs font-semibold text-emerald-900 flex items-center gap-2.5 animate-fade-in shadow-xs">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{claimToast}</span>
+          </div>
+        )}
+
+        {surveySuggestion && !preSurveyCompleted && (
+          <div className="rounded-2xl border border-amber-300 bg-amber-50/70 p-5 shadow-xs transition-all">
+            <div className="flex items-start gap-3.5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-200/60 text-amber-800">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="text-sm font-bold text-slate-900">
+                    AI Match Detected ({surveySuggestion.similarity_percentage}% Match)
+                  </h4>
+                  <span className="rounded-full bg-amber-200/70 text-amber-900 px-2.5 py-0.5 text-[11px] font-bold">
+                    Email Typo Identified
+                  </span>
+                </div>
+                <p className="mt-1.5 text-xs text-slate-700 leading-relaxed">
+                  We found a submitted pre-assessment survey under{' '}
+                  <strong className="font-mono text-amber-900 bg-amber-200/50 px-1.5 py-0.5 rounded border border-amber-300">
+                    {surveySuggestion.survey_email}
+                  </strong>
+                  {surveySuggestion.full_name ? <> (submitted as <em>&quot;{surveySuggestion.full_name}&quot;</em>)</> : null}. 
+                  It closely matches your logged-in email (<strong>{user?.email}</strong>). 
+                  If this is your submission, you can link it with one click to unlock Step 2.
+                </p>
+                <div className="mt-3.5 flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleClaimSurvey(surveySuggestion.id, surveySuggestion.participant_type)}
+                    disabled={isClaiming}
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    {isClaiming ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                    Yes, That&apos;s Me — Link My Survey
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSurveySuggestion(null)}
+                    className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-amber-100/60 transition-colors cursor-pointer"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
           {/* Step 1 Card */}
@@ -315,16 +418,24 @@ export default function StudentPortal() {
                   <CheckCircle2 className="w-3.5 h-3.5" /> Completed
                 </span>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveSurveyType('pre');
-                    setSurveyModalOpen(true);
-                  }}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
-                >
-                  Complete Pre-Training Survey →
-                </button>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSurveyType('pre');
+                      setSurveyModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
+                  >
+                    Complete Pre-Training Survey →
+                  </button>
+                  {surveySuggestion && (
+                    <div className="p-2 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 flex items-start gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                      <span>AI detected your survey with a slight typo above! Click <strong>&quot;Link My Survey&quot;</strong> to claim.</span>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>

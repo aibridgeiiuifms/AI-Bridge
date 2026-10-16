@@ -129,6 +129,54 @@ function detectParticipantType(sheetOrType: string, email: string): 'student' | 
 }
 
 /**
+ * Resolves email by strictly prioritizing the official Student Email field.
+ * If filled, personal email is ignored. Personal email is only used when student email is empty.
+ */
+function resolvePrioritizedEmail(rowData: any): string {
+  const answers = rowData.answers || {};
+
+  // 1. Explicit student_email field passed from script
+  const rowStudentEmail = (rowData.student_email || '').replace(/\s+/g, '').toLowerCase();
+  if (rowStudentEmail && rowStudentEmail.includes('@')) {
+    return rowStudentEmail;
+  }
+
+  // 2. Scan form answers for official student email question or institutional domain
+  let formStudentEmail = '';
+  let formPersonalEmail = '';
+
+  for (const [key, val] of Object.entries(answers)) {
+    const k = key.toLowerCase();
+    const cleanVal = String(val || '').replace(/\s+/g, '').toLowerCase();
+    if (!cleanVal.includes('@')) continue;
+
+    const isStudentField = k.includes('student email') || k.includes('university email') || k.includes('institutional email') || cleanVal.includes('@student.iiu.edu.pk') || cleanVal.includes('@iiu.edu.pk');
+    if (isStudentField) {
+      formStudentEmail = cleanVal;
+    } else if (k.includes('email') || k.includes('respondent') || k.includes('username')) {
+      if (!formPersonalEmail) formPersonalEmail = cleanVal;
+    }
+  }
+
+  // If student email found in form answers, prioritize it and IGNORE personal email
+  if (formStudentEmail) {
+    return formStudentEmail;
+  }
+
+  // 3. Personal email only matters when student email is empty
+  const rowPersonalEmail = (rowData.personal_email || '').replace(/\s+/g, '').toLowerCase();
+  if (rowPersonalEmail && rowPersonalEmail.includes('@')) {
+    return rowPersonalEmail;
+  }
+  if (formPersonalEmail) {
+    return formPersonalEmail;
+  }
+
+  // 4. Fallback to general email or teacher email
+  return (rowData.email || rowData.teacher_email || '').replace(/\s+/g, '').toLowerCase();
+}
+
+/**
  * Ensures the extracted department code exists in department_mappings so foreign key constraints hold.
  */
 async function ensureDepartmentMappingExists(supabase: any, deptCode: string) {
@@ -154,7 +202,7 @@ async function ensureDepartmentMappingExists(supabase: any, deptCode: string) {
  * preserves raw clean hours_saved_category, and mirrors to legacy surveys.
  */
 async function syncSurveyRow(supabase: any, rowData: any) {
-  const email = (rowData.email || rowData.student_email || rowData.teacher_email || '').replace(/\s+/g, '').toLowerCase();
+  const email = resolvePrioritizedEmail(rowData);
   if (!email) return null;
 
   const answers = rowData.answers || {};
@@ -285,9 +333,11 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // Collect all distinct emails & dept codes
-      const validRows = rows.filter(r => (r.email || r.student_email || r.teacher_email || '').replace(/\s+/g, ''));
-      const allEmails = Array.from(new Set(validRows.map(r => (r.email || r.student_email || r.teacher_email || '').replace(/\s+/g, '').toLowerCase())));
+      // Collect all distinct emails & dept codes using prioritized email resolution
+      const validRows = rows
+        .map(r => ({ ...r, resolved_email: resolvePrioritizedEmail(r) }))
+        .filter(r => r.resolved_email);
+      const allEmails = Array.from(new Set(validRows.map(r => r.resolved_email)));
 
       // Fetch user profile IDs in one query
       const { data: profiles } = await supabase
@@ -308,7 +358,7 @@ export async function POST(req: NextRequest) {
       const legacyBatch: any[] = [];
 
       for (const rowData of validRows) {
-        const email = (rowData.email || rowData.student_email || rowData.teacher_email || '').replace(/\s+/g, '').toLowerCase();
+        const email = rowData.resolved_email;
         const answers = rowData.answers || {};
         const fullName = rowData.full_name || extractFullName(answers, email);
         const hoursCategory = rowData.hours_saved_category || extractHoursCategory(answers);
