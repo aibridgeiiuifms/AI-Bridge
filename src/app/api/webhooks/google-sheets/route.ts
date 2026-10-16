@@ -286,8 +286,8 @@ export async function POST(req: NextRequest) {
       }
 
       // Collect all distinct emails & dept codes
-      const validRows = rows.filter(r => (r.email || r.student_email || r.teacher_email || '').trim());
-      const allEmails = Array.from(new Set(validRows.map(r => (r.email || r.student_email || r.teacher_email || '').trim().toLowerCase())));
+      const validRows = rows.filter(r => (r.email || r.student_email || r.teacher_email || '').replace(/\s+/g, ''));
+      const allEmails = Array.from(new Set(validRows.map(r => (r.email || r.student_email || r.teacher_email || '').replace(/\s+/g, '').toLowerCase())));
 
       // Fetch user profile IDs in one query
       const { data: profiles } = await supabase

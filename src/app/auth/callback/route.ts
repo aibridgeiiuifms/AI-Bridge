@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
@@ -13,6 +14,33 @@ export async function GET(request: Request) {
       if (error) {
         console.error('exchangeCodeForSession error:', error);
       } else if (data.user) {
+        // Auto-link any pre-registered surveys for this user's email
+        const userEmail = (data.user.email || '').replace(/\s+/g, '').toLowerCase();
+        if (userEmail) {
+          try {
+            const adminSupabase = createAdminClient();
+            await Promise.all([
+              adminSupabase
+                .from('student_surveys')
+                .update({ user_id: data.user.id })
+                .ilike('student_email', userEmail)
+                .is('user_id', null),
+              adminSupabase
+                .from('teacher_surveys')
+                .update({ user_id: data.user.id })
+                .ilike('teacher_email', userEmail)
+                .is('user_id', null),
+              adminSupabase
+                .from('surveys')
+                .update({ user_id: data.user.id })
+                .ilike('respondent_email', userEmail)
+                .is('user_id', null),
+            ]);
+          } catch (linkErr) {
+            console.error('Error auto-linking pre-registered surveys:', linkErr);
+          }
+        }
+
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('role')
