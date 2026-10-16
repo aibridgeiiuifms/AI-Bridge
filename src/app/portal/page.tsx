@@ -104,27 +104,47 @@ export default function StudentPortal() {
             supabase.from('student_surveys').update({ user_id: user.id }).eq('id', preStudent.id).then();
           }
         } else {
-          // Cross-table check in case user submitted teacher form
-          const { data: preTeacher } = await supabase
-            .from('teacher_surveys')
+          // Fallback: check answers JSONB for 'Student Email Address' field
+          // Covers old rows where student_email column still holds a personal Gmail
+          const { data: preByAnswers } = await supabase
+            .from('student_surveys')
             .select('id, user_id')
-            .or(`user_id.eq.${user.id},teacher_email.ilike.${userEmail}`)
+            .filter('answers->>Student Email Address', 'ilike', userEmail)
             .eq('survey_type', 'pre')
             .maybeSingle();
 
-          if (preTeacher) {
+          if (preByAnswers) {
             hasPre = true;
-            if (!preTeacher.user_id && user.id) {
-              supabase.from('teacher_surveys').update({ user_id: user.id }).eq('id', preTeacher.id).then();
+            // Opportunistically fix user_id and student_email for this row
+            if (user.id) {
+              supabase.from('student_surveys')
+                .update({ user_id: user.id, student_email: userEmail })
+                .eq('id', preByAnswers.id)
+                .then();
             }
           } else {
-            const { data: legacyPre } = await supabase
-              .from('surveys')
-              .select('id')
-              .or(`user_id.eq.${user.id},respondent_email.ilike.${userEmail}`)
+            // Cross-table check in case user submitted teacher form
+            const { data: preTeacher } = await supabase
+              .from('teacher_surveys')
+              .select('id, user_id')
+              .or(`user_id.eq.${user.id},teacher_email.ilike.${userEmail}`)
               .eq('survey_type', 'pre')
               .maybeSingle();
-            if (legacyPre) hasPre = true;
+
+            if (preTeacher) {
+              hasPre = true;
+              if (!preTeacher.user_id && user.id) {
+                supabase.from('teacher_surveys').update({ user_id: user.id }).eq('id', preTeacher.id).then();
+              }
+            } else {
+              const { data: legacyPre } = await supabase
+                .from('surveys')
+                .select('id')
+                .or(`user_id.eq.${user.id},respondent_email.ilike.${userEmail}`)
+                .eq('survey_type', 'pre')
+                .maybeSingle();
+              if (legacyPre) hasPre = true;
+            }
           }
         }
 
@@ -176,26 +196,44 @@ export default function StudentPortal() {
             supabase.from('student_surveys').update({ user_id: user.id }).eq('id', postStudent.id).then();
           }
         } else {
-          const { data: postTeacher } = await supabase
-            .from('teacher_surveys')
+          // Fallback: check answers JSONB for 'Student Email Address' field
+          const { data: postByAnswers } = await supabase
+            .from('student_surveys')
             .select('id, user_id')
-            .or(`user_id.eq.${user.id},teacher_email.ilike.${userEmail}`)
+            .filter('answers->>Student Email Address', 'ilike', userEmail)
             .eq('survey_type', 'post')
             .maybeSingle();
 
-          if (postTeacher) {
+          if (postByAnswers) {
             hasPost = true;
-            if (!postTeacher.user_id && user.id) {
-              supabase.from('teacher_surveys').update({ user_id: user.id }).eq('id', postTeacher.id).then();
+            if (user.id) {
+              supabase.from('student_surveys')
+                .update({ user_id: user.id, student_email: userEmail })
+                .eq('id', postByAnswers.id)
+                .then();
             }
           } else {
-            const { data: legacyPost } = await supabase
-              .from('surveys')
-              .select('id')
-              .or(`user_id.eq.${user.id},respondent_email.ilike.${userEmail}`)
+            const { data: postTeacher } = await supabase
+              .from('teacher_surveys')
+              .select('id, user_id')
+              .or(`user_id.eq.${user.id},teacher_email.ilike.${userEmail}`)
               .eq('survey_type', 'post')
               .maybeSingle();
-            if (legacyPost) hasPost = true;
+
+            if (postTeacher) {
+              hasPost = true;
+              if (!postTeacher.user_id && user.id) {
+                supabase.from('teacher_surveys').update({ user_id: user.id }).eq('id', postTeacher.id).then();
+              }
+            } else {
+              const { data: legacyPost } = await supabase
+                .from('surveys')
+                .select('id')
+                .or(`user_id.eq.${user.id},respondent_email.ilike.${userEmail}`)
+                .eq('survey_type', 'post')
+                .maybeSingle();
+              if (legacyPost) hasPost = true;
+            }
           }
         }
         if (hasPost) setPostSurveyCompleted(true);
