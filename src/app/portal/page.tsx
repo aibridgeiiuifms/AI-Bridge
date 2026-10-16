@@ -498,21 +498,21 @@ export default function StudentPortal() {
                 <Lock className="w-5 h-5 text-slate-400" />
               )}
             </div>
-            <h3 className="font-bold text-slate-900 text-sm mb-1">30-MCQ Course Exam</h3>
+            <h3 className="font-bold text-slate-900 text-sm mb-1">12-MCQ Course Assessment</h3>
             <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-              Dynamic evaluation drawn from the 50-MCQ pool (70% passing threshold).
+              Dynamic evaluation drawn from the master question pool (75% passing threshold — 9/12 to pass).
             </p>
             <div className="pt-3 border-t border-slate-100">
               {quizPassed ? (
                 <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Passed ({quizScore || 24}/30)
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Passed ({quizScore || 9}/12)
                 </span>
               ) : preSurveyCompleted ? (
                 <Link
                   href="/portal/quiz"
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 hover:text-amber-950"
                 >
-                  Attempt 30-MCQ Quiz →
+                  Attempt 12-MCQ Quiz →
                 </Link>
               ) : (
                 <span className="text-xs text-slate-400 flex items-center gap-1">
@@ -590,7 +590,7 @@ export default function StudentPortal() {
             <p className={`text-xs sm:text-sm leading-relaxed ${certificateReady ? 'text-emerald-100' : 'text-slate-500'}`}>
               {certificateReady
                 ? 'Congratulations! You have fulfilled all 3 requirements. Your certificate contains an embedded QR code linking to the public IIUI verification registry.'
-                : 'To unlock your certificate, you must complete the Pre-Survey, achieve at least 70% on the 30-MCQ Course Assessment, and complete the Post-Survey.'}
+                : 'To unlock your certificate, you must complete the Pre-Survey, achieve at least 75% on the 12-MCQ Course Assessment (9/12 to pass), and complete the Post-Survey.'}
             </p>
           </div>
 

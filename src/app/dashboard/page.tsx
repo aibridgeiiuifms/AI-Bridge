@@ -443,7 +443,7 @@ export default function AdminDashboard() {
   const stats = [
     { label: 'Total Enrolled Beneficiaries', value: String(dbStats.totalProfiles), change: 'Live from Supabase', icon: Users, color: 'text-blue-600 bg-blue-50' },
     { label: 'Pre-Surveys Completed', value: String(dbStats.preSurveysCount), change: 'Live from Supabase', icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50' },
-    { label: '30-MCQ Passed (≥70%)', value: String(dbStats.passedQuizzesCount), change: 'Live from Supabase', icon: HelpCircle, color: 'text-amber-600 bg-amber-50' },
+    { label: '12-MCQ Passed (≥75%)', value: String(dbStats.passedQuizzesCount), change: 'Live from Supabase', icon: HelpCircle, color: 'text-amber-600 bg-amber-50' },
     { label: 'Certificates Unlocked', value: String(dbStats.certificatesCount), change: 'Live from Supabase', icon: Award, color: 'text-teal-600 bg-teal-50' },
     { label: 'Avg. Hours Saved / Week', value: dbStats.avgHoursSaved, change: 'Live from Supabase', icon: Clock, color: 'text-purple-600 bg-purple-50' },
   ];
@@ -902,7 +902,7 @@ export default function AdminDashboard() {
             <span className="text-xs text-slate-400">• Hum Hain Pakistan QIP</span>
           </div>
           <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">The AI Bridge Management Console</h1>
-          <p className="text-xs text-slate-500">Live monitoring of participant progression, 30-MCQ pass rates, and QIP indicators.</p>
+          <p className="text-xs text-slate-500">Live monitoring of participant progression, 12-MCQ pass rates, and QIP indicators.</p>
         </div>
 
         <div className="flex items-center gap-3">
