@@ -775,7 +775,7 @@ export default function QuizPage() {
 
             let pillStyle = 'bg-slate-100 text-slate-600 hover:bg-slate-200';
             if (isAnswered) {
-              pillStyle = 'bg-emerald-600 text-white font-bold shadow-xs';
+              pillStyle = 'bg-emerald-600 text-palette-haiti font-bold shadow-xs';
             }
             if (isCurrent) {
               pillStyle += ' ring-2 ring-amber-400 ring-offset-2';
@@ -850,7 +850,7 @@ export default function QuizPage() {
                 >
                   <div className={`w-8 h-8 rounded-xl font-extrabold text-xs flex items-center justify-center shrink-0 transition-transform ${
                     isSelected
-                      ? 'bg-emerald-600 text-white shadow-xs scale-105'
+                      ? 'bg-emerald-600 text-palette-haiti shadow-xs scale-105'
                       : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200'
                   }`}>
                     {String.fromCharCode(65 + optIdx)}
@@ -863,7 +863,7 @@ export default function QuizPage() {
                   </span>
 
                   <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                    isSelected ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300'
+                    isSelected ? 'border-emerald-600 bg-emerald-600 text-palette-haiti' : 'border-slate-300'
                   }`}>
                     {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                   </div>

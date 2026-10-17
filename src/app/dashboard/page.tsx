@@ -3005,7 +3005,7 @@ export default function AdminDashboard() {
                         type="button"
                         onClick={handleSaveQuizConfig}
                         disabled={savingQuizConfig}
-                        className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-2 disabled:opacity-60 cursor-pointer"
+                        className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-palette-haiti text-xs font-bold shadow-sm transition-colors flex items-center gap-2 disabled:opacity-60 cursor-pointer"
                       >
                         {savingQuizConfig ? (
                           <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving…</>
@@ -3077,7 +3077,7 @@ export default function AdminDashboard() {
                   type="button"
                   onClick={() => setMcqStatusFilter('active')}
                   className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
-                    mcqStatusFilter === 'active' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                    mcqStatusFilter === 'active' ? 'bg-emerald-600 text-palette-haiti shadow-xs' : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
                   Active
@@ -3228,7 +3228,7 @@ export default function AdminDashboard() {
                                 }`}
                               >
                                 <span className={`w-5 h-5 rounded-full text-[10px] font-extrabold flex items-center justify-center shrink-0 ${
-                                  isCorrect ? 'bg-emerald-600 text-white' : 'bg-white border text-slate-600'
+                                  isCorrect ? 'bg-emerald-600 text-palette-haiti' : 'bg-white border text-slate-600'
                                 }`}>
                                   {String.fromCharCode(65 + optIdx)}
                                 </span>
@@ -3622,7 +3622,7 @@ export default function AdminDashboard() {
                               }}
                               className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
                                 isAssigned
-                                  ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs font-semibold'
+                                  ? 'bg-emerald-600 text-palette-haiti border-emerald-600 shadow-2xs font-semibold'
                                   : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                               }`}
                             >
