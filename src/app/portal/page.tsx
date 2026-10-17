@@ -40,6 +40,8 @@ export default function StudentPortal() {
   const [quizScore, setQuizScore] = useState<number | null>(null);
   const [postSurveyCompleted, setPostSurveyCompleted] = useState(false);
   const [certificateReady, setCertificateReady] = useState(false);
+  const [certificate, setCertificate] = useState<any>(null);
+  const [isDownloadingCert, setIsDownloadingCert] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshToast, setRefreshToast] = useState<string | null>(null);
 
@@ -69,6 +71,40 @@ export default function StudentPortal() {
     } finally {
       setIsClaiming(false);
       setTimeout(() => setClaimToast(null), 6000);
+    }
+  };
+
+  const handleDownloadCertificate = async () => {
+    setIsDownloadingCert(true);
+    try {
+      const res = await fetch('/api/portal/certificate');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        alert(errData.error || 'Failed to generate certificate.');
+        return;
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `The_AI_Bridge_Certificate_${certificate?.certificate_id || 'Verified'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      // Refresh certificate state if newly issued
+      await checkCertificationProgress();
+
+      // Celebratory confetti trigger
+      try {
+        const confetti = (await import('canvas-confetti')).default;
+        confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+      } catch (e) {}
+    } catch (err: any) {
+      alert('Error downloading certificate: ' + err.message);
+    } finally {
+      setIsDownloadingCert(false);
     }
   };
 
@@ -244,7 +280,10 @@ export default function StudentPortal() {
           .select('*')
           .eq('user_id', user.id)
           .maybeSingle();
-        if (cert || (hasPre && quiz && hasPost)) {
+        if (cert) {
+          setCertificate(cert);
+          setCertificateReady(true);
+        } else if (hasPre && quiz && hasPost) {
           setCertificateReady(true);
         }
 
@@ -597,19 +636,29 @@ export default function StudentPortal() {
           <div>
             {certificateReady ? (
               <div className="flex flex-col sm:flex-row gap-3">
-                <a
-                  href="/verify/AIB-2025-0001"
-                  className="px-5 py-3 rounded-xl font-bold text-xs bg-white text-emerald-950 hover:bg-emerald-50 shadow-md flex items-center justify-center gap-2 transition-all"
+                <Link
+                  href={`/verify/${certificate?.certificate_id || 'AIB-2026-0001'}`}
+                  className="px-5 py-3 rounded-xl font-bold text-xs bg-white text-emerald-950 hover:bg-emerald-50 shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   <ShieldCheck className="w-4 h-4 text-emerald-700" />
                   <span>Verify Status</span>
-                </a>
+                </Link>
                 <button
-                  onClick={() => alert('Certificate PDF generator will render your credential with QR code in Phase 3!')}
-                  className="px-6 py-3 rounded-xl font-bold text-xs bg-amber-400 text-slate-900 hover:bg-amber-300 shadow-lg flex items-center justify-center gap-2 transition-all"
+                  onClick={handleDownloadCertificate}
+                  disabled={isDownloadingCert}
+                  className="px-6 py-3 rounded-xl font-bold text-xs bg-amber-400 text-slate-900 hover:bg-amber-300 disabled:opacity-50 shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
-                  <Download className="w-4 h-4" />
-                  <span>Download PDF Certificate</span>
+                  {isDownloadingCert ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Generating Certificate...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      <span>Download PDF Certificate</span>
+                    </>
+                  )}
                 </button>
               </div>
             ) : (
