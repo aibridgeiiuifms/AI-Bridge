@@ -4,34 +4,19 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
-const TOTAL_QUESTIONS = 12;
-const PASSING_SCORE = 9; // 75% of 12 = 9 questions
-const COOLDOWN_DURATION_SECONDS = 300; // 5 minutes cooldown between failed attempts
+const CONFIG_KEY = 'quiz_category_config';
 
-/**
- * Categorical Clusters for Balanced Sampling (3 questions per cluster = 12 total)
- */
-const CATEGORY_CLUSTERS = [
-  // Cluster 1: NotebookLM Foundations & AI Core (3 questions)
-  {
-    name: 'NotebookLM Foundations & Architecture',
-    categories: ['NotebookLM Foundations', 'AI Foundations']
-  },
-  // Cluster 2: Multi-Modal Audio, Study Guides & Educational Apps (3 questions)
-  {
-    name: 'Multi-Modal Audio & Structured Outputs',
-    categories: ['Audio Overviews', 'Structured Outputs', 'Educational Applications']
-  },
-  // Cluster 3: Prompt Crafting, AI Ethics & Academic Integrity (3 questions)
-  {
-    name: 'Prompt Crafting & AI Ethics',
-    categories: ['Prompt Crafting', 'AI Ethics & Integrity']
-  },
-  // Cluster 4: SDG Literacy, Governance & The AI Bridge Platform (3 questions)
-  {
-    name: 'SDG Literacy & Institutional Framework',
-    categories: ['SDG Literacy', 'The AI Bridge Platform', 'Project Governance', 'Project Metrics']
-  }
+/** Fallback constants when no config exists in system_settings */
+const DEFAULT_TOTAL_QUESTIONS = 12;
+const DEFAULT_PASSING_SCORE = 9;
+const DEFAULT_COOLDOWN_SECONDS = 300;
+
+/** Fallback clusters when no DB config found */
+const DEFAULT_CATEGORY_CLUSTERS = [
+  { name: 'NotebookLM Foundations & Architecture', categories: ['NotebookLM Foundations', 'AI Foundations'], count: 3 },
+  { name: 'Multi-Modal Audio & Structured Outputs', categories: ['Audio Overviews', 'Structured Outputs', 'Educational Applications'], count: 3 },
+  { name: 'Prompt Crafting & AI Ethics', categories: ['Prompt Crafting', 'AI Ethics & Integrity'], count: 3 },
+  { name: 'SDG Literacy & Institutional Framework', categories: ['SDG Literacy', 'The AI Bridge Platform', 'Project Governance', 'Project Metrics'], count: 3 }
 ];
 
 /**
@@ -47,45 +32,53 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 /**
- * Performs balanced sampling: draws 3 questions per cluster, with fallback to any pool question
+ * Performs dynamic category-based sampling.
+ * categoryConfig: array of { category, count } — one entry per category, with how many to draw.
+ * Falls back to remaining pool questions if a category has fewer than configured.
  */
-function sampleBalancedQuestions(poolQuestions: any[]): any[] {
+function sampleBalancedQuestions(
+  poolQuestions: any[],
+  categoryConfig: { category: string; count: number }[],
+  totalQuestions: number
+): any[] {
   const selected: any[] = [];
   const selectedIds = new Set<string>();
 
-  for (const cluster of CATEGORY_CLUSTERS) {
+  for (const entry of categoryConfig) {
+    const needed = Number(entry.count) || 0;
+    if (needed <= 0) continue;
     const matching = poolQuestions.filter(
-      (q) => !selectedIds.has(q.id) && cluster.categories.includes(q.category)
+      (q) => !selectedIds.has(q.id) && q.category === entry.category
     );
     const shuffled = shuffleArray(matching);
-    const countToTake = Math.min(3, shuffled.length);
-
+    const countToTake = Math.min(needed, shuffled.length);
     for (let i = 0; i < countToTake; i++) {
       selected.push(shuffled[i]);
       selectedIds.add(shuffled[i].id);
     }
   }
 
-  // Fallback: If any cluster had fewer than 3, fill from remaining questions
-  if (selected.length < TOTAL_QUESTIONS) {
+  // Fallback: if any category was short, fill from remaining active pool
+  if (selected.length < totalQuestions) {
     const remaining = poolQuestions.filter((q) => !selectedIds.has(q.id));
     const shuffledRemaining = shuffleArray(remaining);
-    const needed = TOTAL_QUESTIONS - selected.length;
+    const needed = totalQuestions - selected.length;
     for (let i = 0; i < needed && i < shuffledRemaining.length; i++) {
       selected.push(shuffledRemaining[i]);
       selectedIds.add(shuffledRemaining[i].id);
     }
   }
 
-  // Shuffle the final 12 questions so categories aren't in predictable blocks
-  return shuffleArray(selected).slice(0, TOTAL_QUESTIONS);
+  // Final shuffle so category order is not predictable
+  return shuffleArray(selected).slice(0, totalQuestions);
 }
 
 /**
  * GET /api/portal/quiz
+ * - Fetches quiz configuration from system_settings (quiz_category_config), falls back to defaults
  * - Enforces Step 1 (Pre-Survey) prerequisite
- * - Enforces 5-minute cooldown on retakes after a failed attempt
- * - Performs balanced category sampling across 4 clusters
+ * - Enforces cooldown on retakes after a failed attempt
+ * - Performs per-category question sampling per admin configuration
  * - Dynamically shuffles option choices (A, B, C, D) per question
  * - Strips answers and explanations to prevent cheating
  */
@@ -103,6 +96,47 @@ export async function GET(req: NextRequest) {
 
     const adminSupabase = createAdminClient();
     const userEmail = (user.email || '').trim().toLowerCase();
+
+    // 0. Fetch dynamic quiz configuration from system_settings (with fallback)
+    let TOTAL_QUESTIONS = DEFAULT_TOTAL_QUESTIONS;
+    let PASSING_SCORE = DEFAULT_PASSING_SCORE;
+    let COOLDOWN_DURATION_SECONDS = DEFAULT_COOLDOWN_SECONDS;
+    let categoryConfig: { category: string; count: number }[];
+
+    try {
+      const { data: configRow } = await adminSupabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', CONFIG_KEY)
+        .maybeSingle();
+
+      if (configRow?.value) {
+        const cfg = configRow.value as any;
+        if (cfg.total_questions) TOTAL_QUESTIONS = Number(cfg.total_questions);
+        if (cfg.passing_score) PASSING_SCORE = Number(cfg.passing_score);
+        if (cfg.cooldown_seconds) COOLDOWN_DURATION_SECONDS = Number(cfg.cooldown_seconds);
+        if (Array.isArray(cfg.categories) && cfg.categories.length > 0) {
+          categoryConfig = cfg.categories.map((c: any) => ({
+            category: String(c.category),
+            count: Number(c.count) || 0
+          }));
+        } else {
+          // Build flat config from default clusters
+          categoryConfig = DEFAULT_CATEGORY_CLUSTERS.flatMap((cl) =>
+            cl.categories.map((cat, i) => ({ category: cat, count: i === 0 ? cl.count : 0 }))
+          ).filter((e) => e.count > 0);
+        }
+      } else {
+        // Build flat config from default clusters
+        categoryConfig = DEFAULT_CATEGORY_CLUSTERS.flatMap((cl) =>
+          cl.categories.map((cat, i) => ({ category: cat, count: i === 0 ? cl.count : 0 }))
+        ).filter((e) => e.count > 0);
+      }
+    } catch {
+      categoryConfig = DEFAULT_CATEGORY_CLUSTERS.flatMap((cl) =>
+        cl.categories.map((cat, i) => ({ category: cat, count: i === 0 ? cl.count : 0 }))
+      ).filter((e) => e.count > 0);
+    }
 
     // 1. Verify User Has Completed Step 1 (Pre-Survey)
     let hasPre = false;
@@ -207,8 +241,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 4. Balanced Category Sampling (3 questions per cluster)
-    const balancedQuestions = sampleBalancedQuestions(poolQuestions);
+    // 4. Per-Category Sampling (admin-configured counts per category)
+    const balancedQuestions = sampleBalancedQuestions(poolQuestions, categoryConfig, TOTAL_QUESTIONS);
 
     // 5. Dynamic Option Shuffling per Question (strips static answer position advantage)
     const questionsWithShuffledOptions = balancedQuestions.map((q) => {
@@ -222,13 +256,17 @@ export async function GET(req: NextRequest) {
       };
     });
 
+    const passingPercentage = TOTAL_QUESTIONS > 0
+      ? Math.round((PASSING_SCORE / TOTAL_QUESTIONS) * 100)
+      : 75;
+
     return NextResponse.json({
       success: true,
       questions: questionsWithShuffledOptions,
       drawn_question_ids: questionsWithShuffledOptions.map((q) => q.id),
       total_questions: TOTAL_QUESTIONS,
       passing_score: PASSING_SCORE,
-      passing_percentage: 75,
+      passing_percentage: passingPercentage,
       already_passed: Boolean(latestAttempt?.passed),
       previous_score: latestAttempt?.score ?? null
     });
@@ -266,7 +304,25 @@ export async function POST(req: NextRequest) {
 
     const adminSupabase = createAdminClient();
 
-    // 1. Verify 5-minute cooldown on submission
+    // 0. Fetch quiz config from system_settings (for cooldown + total questions)
+    let TOTAL_QUESTIONS = DEFAULT_TOTAL_QUESTIONS;
+    let PASSING_SCORE = DEFAULT_PASSING_SCORE;
+    let COOLDOWN_DURATION_SECONDS = DEFAULT_COOLDOWN_SECONDS;
+    try {
+      const { data: configRow } = await adminSupabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', CONFIG_KEY)
+        .maybeSingle();
+      if (configRow?.value) {
+        const cfg = configRow.value as any;
+        if (cfg.total_questions) TOTAL_QUESTIONS = Number(cfg.total_questions);
+        if (cfg.passing_score) PASSING_SCORE = Number(cfg.passing_score);
+        if (cfg.cooldown_seconds) COOLDOWN_DURATION_SECONDS = Number(cfg.cooldown_seconds);
+      }
+    } catch { /* use defaults */ }
+
+    // 1. Verify cooldown on submission
     const { data: latestAttempt } = await adminSupabase
       .from('quiz_attempts')
       .select('id, passed, completed_at')

@@ -76,6 +76,72 @@ export default function AdminDashboard() {
     is_active: true,
   });
 
+  // Quiz Configuration State (per-category question counts)
+  const [quizConfig, setQuizConfig] = useState<{
+    total_questions: number;
+    passing_score: number;
+    cooldown_seconds: number;
+    categories: { category: string; count: number }[];
+  } | null>(null);
+  const [quizConfigDraft, setQuizConfigDraft] = useState<{
+    total_questions: number;
+    passing_score: number;
+    cooldown_seconds: number;
+    categories: { category: string; count: number }[];
+  } | null>(null);
+  const [loadingQuizConfig, setLoadingQuizConfig] = useState(false);
+  const [savingQuizConfig, setSavingQuizConfig] = useState(false);
+  const [quizConfigFeedback, setQuizConfigFeedback] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [showQuizConfig, setShowQuizConfig] = useState(false);
+
+  const fetchQuizConfig = async () => {
+    setLoadingQuizConfig(true);
+    try {
+      const res = await fetch('/api/admin/quiz-config');
+      const data = await res.json();
+      if (data.success && data.config) {
+        setQuizConfig(data.config);
+        setQuizConfigDraft(JSON.parse(JSON.stringify(data.config)));
+      }
+    } catch (e) {
+      console.error('Failed to fetch quiz config:', e);
+    } finally {
+      setLoadingQuizConfig(false);
+    }
+  };
+
+  const handleSaveQuizConfig = async () => {
+    if (!quizConfigDraft) return;
+    const sum = quizConfigDraft.categories.reduce((acc, c) => acc + (Number(c.count) || 0), 0);
+    if (sum !== quizConfigDraft.total_questions) {
+      setQuizConfigFeedback({
+        text: `Category counts must sum to ${quizConfigDraft.total_questions}. Current sum: ${sum}.`,
+        type: 'error'
+      });
+      setTimeout(() => setQuizConfigFeedback(null), 5000);
+      return;
+    }
+    setSavingQuizConfig(true);
+    try {
+      const res = await fetch('/api/admin/quiz-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(quizConfigDraft)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setQuizConfig(data.config);
+      setQuizConfigDraft(JSON.parse(JSON.stringify(data.config)));
+      setQuizConfigFeedback({ text: 'Quiz configuration saved! New sessions will use the updated settings.', type: 'success' });
+    } catch (err: any) {
+      setQuizConfigFeedback({ text: `Failed to save: ${err.message}`, type: 'error' });
+    } finally {
+      setSavingQuizConfig(false);
+      setTimeout(() => setQuizConfigFeedback(null), 5000);
+    }
+  };
+
+
   // Department & Faculty Mappings State
   const [departmentMappings, setDepartmentMappings] = useState<any[]>([]);
   const [loadingDepts, setLoadingDepts] = useState(false);
@@ -583,6 +649,7 @@ export default function AdminDashboard() {
     fetchTeamData();
     fetchDepartmentMappings();
     fetchMCQs();
+    fetchQuizConfig();
   }, []);
 
   // Live Metric Cards derived from Supabase
@@ -2751,6 +2818,208 @@ export default function AdminDashboard() {
               <div className="text-2xl font-black text-purple-600 mt-0.5">{availableMcqCategories.length}</div>
               <div className="text-[10px] text-purple-700 font-semibold mt-0.5">4 Core academic clusters</div>
             </div>
+          </div>
+
+          {/* Quiz Settings Panel */}
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+            {/* Panel Header — collapsible toggle */}
+            <button
+              type="button"
+              onClick={() => {
+                setShowQuizConfig((v) => !v);
+                if (!quizConfigDraft) fetchQuizConfig();
+              }}
+              className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-700">
+                  <Sliders className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900">Quiz Settings</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Control how many questions are drawn from each category per quiz session
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {quizConfig && (
+                  <span className="px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold">
+                    {quizConfig.total_questions}Q · {quizConfig.passing_score} to pass
+                  </span>
+                )}
+                {showQuizConfig ? (
+                  <ChevronUp className="w-4 h-4 text-slate-400" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                )}
+              </div>
+            </button>
+
+            {/* Panel Body */}
+            {showQuizConfig && (
+              <div className="border-t border-slate-100 px-5 py-5 space-y-5">
+                {/* Config Feedback */}
+                {quizConfigFeedback && (
+                  <div className={`p-3 rounded-xl border text-xs font-bold flex items-center gap-2 ${
+                    quizConfigFeedback.type === 'success'
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                      : 'bg-rose-50 border-rose-300 text-rose-900'
+                  }`}>
+                    {quizConfigFeedback.type === 'success'
+                      ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      : <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    }
+                    {quizConfigFeedback.text}
+                  </div>
+                )}
+
+                {loadingQuizConfig ? (
+                  <div className="flex items-center gap-2 text-xs text-slate-400 py-4">
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Loading configuration…
+                  </div>
+                ) : quizConfigDraft ? (
+                  <>
+                    {/* Global Settings Row */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                          Total Questions per Session
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={50}
+                          value={quizConfigDraft.total_questions}
+                          onChange={(e) =>
+                            setQuizConfigDraft((d) => d ? { ...d, total_questions: Number(e.target.value) } : d)
+                          }
+                          className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                          Passing Score (min correct)
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={quizConfigDraft.total_questions}
+                          value={quizConfigDraft.passing_score}
+                          onChange={(e) =>
+                            setQuizConfigDraft((d) => d ? { ...d, passing_score: Number(e.target.value) } : d)
+                          }
+                          className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          = {quizConfigDraft.total_questions > 0 ? Math.round((quizConfigDraft.passing_score / quizConfigDraft.total_questions) * 100) : 0}% pass rate
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                          Retake Cooldown (seconds)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          max={3600}
+                          value={quizConfigDraft.cooldown_seconds}
+                          onChange={(e) =>
+                            setQuizConfigDraft((d) => d ? { ...d, cooldown_seconds: Number(e.target.value) } : d)
+                          }
+                          className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">
+                          {Math.floor(quizConfigDraft.cooldown_seconds / 60)}m {quizConfigDraft.cooldown_seconds % 60}s after failed attempt
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Per-Category Question Count Table */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                          Questions per Category
+                        </label>
+                        {/* Live Sum Indicator */}
+                        <div className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
+                          quizConfigDraft.categories.reduce((a, c) => a + (Number(c.count) || 0), 0) === quizConfigDraft.total_questions
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-rose-100 text-rose-700'
+                        }`}>
+                          Sum: {quizConfigDraft.categories.reduce((a, c) => a + (Number(c.count) || 0), 0)} / {quizConfigDraft.total_questions}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {quizConfigDraft.categories.map((entry, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-semibold text-slate-700 truncate">{entry.category}</p>
+                              <p className="text-[10px] text-slate-400">
+                                {mcqsList.filter(m => m.category === entry.category && m.is_active).length} active in pool
+                              </p>
+                            </div>
+                            <input
+                              type="number"
+                              min={0}
+                              max={20}
+                              value={entry.count}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                setQuizConfigDraft((d) => {
+                                  if (!d) return d;
+                                  const cats = [...d.categories];
+                                  cats[idx] = { ...cats[idx], count: val };
+                                  return { ...d, categories: cats };
+                                });
+                              }}
+                              className="w-14 px-2 py-1.5 border border-slate-300 rounded-lg text-sm font-bold text-center text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                            />
+                          </div>
+                        ))}
+                      </div>
+
+                      <p className="text-[10px] text-slate-400 mt-2">
+                        Set count to 0 to exclude a category. Counts must sum to the total questions per session.
+                        Any shortfall is filled from the remaining pool automatically.
+                      </p>
+                    </div>
+
+                    {/* Save / Discard Buttons */}
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (quizConfig) setQuizConfigDraft(JSON.parse(JSON.stringify(quizConfig)));
+                        }}
+                        className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                      >
+                        Discard Changes
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveQuizConfig}
+                        disabled={savingQuizConfig}
+                        className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-2 disabled:opacity-60 cursor-pointer"
+                      >
+                        {savingQuizConfig ? (
+                          <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving…</>
+                        ) : (
+                          <><Check className="w-3.5 h-3.5" /> Save Quiz Settings</>
+                        )}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-xs text-slate-400 py-4">Could not load configuration. <button onClick={fetchQuizConfig} className="text-indigo-600 underline cursor-pointer">Retry</button></div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Filter & Search Bar */}
