@@ -138,14 +138,18 @@ The 50 questions cover these topics:
 | Project Governance | Team structure, Dr. Abdul Zahid Khan's role, milestones |
 | Project Metrics | 3-5 hours/week goal, zero-cost model, 3 courses target |
 
-### Quiz Rules (Enforced in Database Schema)
+### Quiz Rules (Enforced in Database & API Architecture)
 
 - `passing_score` is stored as `9` (integer) in every attempt record
 - `total_questions` is stored as `12`
-- `passed = true` only if `score >= 9`
-- The quiz draws from **active questions only** (`is_active = true` in `mcq_pool`)
+- `passed = true` only if `score >= 9` (75% threshold)
+- **Balanced 4-Cluster Sampling:** Questions are not drawn purely at random; the API draws exactly **3 questions from each of 4 academic clusters** (Foundations, Audio & Study Guides, Prompt Crafting & Ethics, SDG & Governance) to ensure comprehensive evaluation.
+- **Dynamic Option Shuffling:** The choices (A, B, C, D) are shuffled per student session. Correct answer grading is done by option text matching on the server, eliminating option-position memorization.
+- **Strict 12-Question Denominator:** Unanswered questions are always scored as 0. The denominator is strictly 12, preventing the partial-submission loophole.
+- **5-Minute Reflection Cooldown:** If a participant scores below 9/12, a 5-minute cooldown timer is enforced before a retake can be launched, preventing rapid guessing.
+- **Session Auto-Recovery:** In-progress answers and elapsed time are auto-saved in `localStorage`, preventing data loss if the browser tab is accidentally refreshed or closed.
 - `correct_option_index` is **never exposed** to the student during the quiz — only used server-side to calculate the score
-- Each attempt is a **separate row** in `quiz_attempts` (multiple attempts allowed)
+- Each attempt is a **separate row** in `quiz_attempts` (multiple attempts allowed after cooldown)
 - The portal only checks for **passed = true** attempts to unlock Step 3
 
 ### Quiz Attempt Database Record

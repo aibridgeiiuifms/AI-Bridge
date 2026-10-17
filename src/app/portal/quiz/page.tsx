@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
@@ -14,10 +14,12 @@ import {
   Award, 
   RotateCcw, 
   Lock, 
-  ChevronRight,
-  Check,
-  X,
-  FileText
+  Check, 
+  X, 
+  FileText,
+  BookmarkCheck,
+  RefreshCw,
+  Hourglass
 } from 'lucide-react';
 
 interface Question {
@@ -28,11 +30,18 @@ interface Question {
   difficulty: 'easy' | 'intermediate' | 'advanced';
 }
 
+interface QuestionAnswer {
+  index: number;
+  text: string;
+}
+
 interface QuestionReview {
   id: string;
   question_text: string;
   options: string[];
+  user_selected_text: string | null;
   user_selected_index: number | null;
+  correct_option_text: string;
   correct_option_index: number;
   is_correct: boolean;
   explanation: string | null;
@@ -46,45 +55,107 @@ interface QuizResult {
   percentage: number;
   passed: boolean;
   message: string;
+  cooldown_duration_seconds?: number;
   review: QuestionReview[];
 }
+
+const LOCAL_STORAGE_KEY = 'aib_active_quiz_v2';
 
 export default function QuizPage() {
   const router = useRouter();
 
+  // Loading & Error States
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [preSurveyMissing, setPreSurveyMissing] = useState(false);
 
-  // Questions and state
+  // Cooldown State (5 minutes)
+  const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
+  const [cooldownMessage, setCooldownMessage] = useState<string>('');
+
+  // Questions and Progress
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number>>({});
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, QuestionAnswer>>({});
   
-  // Timer and tracking
+  // Timer and Tracking
   const [startedAt, setStartedAt] = useState<string>('');
   const [secondsElapsed, setSecondsElapsed] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [restoredFromStorage, setRestoredFromStorage] = useState(false);
 
-  // Results
+  // Results & Review
   const [quizResult, setQuizResult] = useState<QuizResult | null>(null);
   const [showReviewAccordion, setShowReviewAccordion] = useState(false);
 
-  const fetchQuestions = useCallback(async () => {
+  // Clear local storage helper
+  const clearQuizStorage = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
+      }
+    } catch (e) {
+      // Ignore storage errors
+    }
+  };
+
+  // Fetch Questions from API
+  const fetchQuestions = useCallback(async (isFresh = false) => {
     setLoading(true);
     setError(null);
     setPreSurveyMissing(false);
     setQuizResult(null);
-    setSelectedAnswers({});
-    setCurrentIndex(0);
-    setSecondsElapsed(0);
+    setRestoredFromStorage(false);
 
+    if (isFresh) {
+      clearQuizStorage();
+      setSelectedAnswers({});
+      setCurrentIndex(0);
+      setSecondsElapsed(0);
+    }
+
+    // 1. Check for valid saved active session in localStorage (if not explicitly fresh)
+    if (!isFresh && typeof window !== 'undefined') {
+      try {
+        const savedRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (savedRaw) {
+          const saved = JSON.parse(savedRaw);
+          const savedTime = new Date(saved.startedAt || '').getTime();
+          const ageMinutes = (Date.now() - savedTime) / (1000 * 60);
+
+          // Restore session if under 90 minutes old and has valid questions
+          if (ageMinutes < 90 && Array.isArray(saved.questions) && saved.questions.length === 12) {
+            setQuestions(saved.questions);
+            setSelectedAnswers(saved.selectedAnswers || {});
+            setCurrentIndex(saved.currentIndex || 0);
+            setSecondsElapsed(saved.secondsElapsed || 0);
+            setStartedAt(saved.startedAt || new Date().toISOString());
+            setRestoredFromStorage(true);
+            setLoading(false);
+            return;
+          } else {
+            clearQuizStorage();
+          }
+        }
+      } catch (e) {
+        clearQuizStorage();
+      }
+    }
+
+    // 2. Fetch fresh balanced question set from backend
     try {
       const res = await fetch('/api/portal/quiz');
       const data = await res.json();
 
       if (!res.ok) {
+        if (res.status === 429 && data.error === 'COOLDOWN_ACTIVE') {
+          setCooldownRemaining(data.cooldown_remaining_seconds || 300);
+          setCooldownMessage(data.message || 'Assessment cooldown active.');
+          setLoading(false);
+          return;
+        }
+
         if (data.error === 'PRE_SURVEY_REQUIRED') {
           setPreSurveyMissing(true);
         } else {
@@ -94,8 +165,29 @@ export default function QuizPage() {
       }
 
       if (data.questions && data.questions.length > 0) {
+        const newStartTime = new Date().toISOString();
         setQuestions(data.questions);
-        setStartedAt(new Date().toISOString());
+        setSelectedAnswers({});
+        setCurrentIndex(0);
+        setSecondsElapsed(0);
+        setStartedAt(newStartTime);
+        setCooldownRemaining(0);
+
+        // Save fresh attempt to localStorage
+        try {
+          localStorage.setItem(
+            LOCAL_STORAGE_KEY,
+            JSON.stringify({
+              questions: data.questions,
+              selectedAnswers: {},
+              currentIndex: 0,
+              secondsElapsed: 0,
+              startedAt: newStartTime,
+            })
+          );
+        } catch (e) {
+          // Ignore storage quota errors
+        }
       } else {
         setError('No active questions found in the question pool.');
       }
@@ -110,69 +202,162 @@ export default function QuizPage() {
     fetchQuestions();
   }, [fetchQuestions]);
 
-  // Elapsed Timer (runs while quiz is active and not submitted)
+  // Active Elapsed Stopwatch
   useEffect(() => {
-    if (loading || preSurveyMissing || quizResult || questions.length === 0) return;
+    if (loading || preSurveyMissing || quizResult || questions.length === 0 || cooldownRemaining > 0) return;
 
     const interval = setInterval(() => {
-      setSecondsElapsed((prev) => prev + 1);
+      setSecondsElapsed((prev) => {
+        const next = prev + 1;
+        // Periodic sync to localStorage
+        if (next % 5 === 0 && typeof window !== 'undefined') {
+          try {
+            const current = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (current) {
+              const parsed = JSON.parse(current);
+              parsed.secondsElapsed = next;
+              localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(parsed));
+            }
+          } catch (e) {}
+        }
+        return next;
+      });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [loading, preSurveyMissing, quizResult, questions.length]);
+  }, [loading, preSurveyMissing, quizResult, questions.length, cooldownRemaining]);
 
+  // 5-Minute Cooldown Countdown Ticker
+  useEffect(() => {
+    if (cooldownRemaining <= 0) return;
+
+    const timer = setInterval(() => {
+      setCooldownRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [cooldownRemaining]);
+
+  // Format MM:SS helper
   const formatTimer = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);
     const secs = totalSeconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleSelectOption = (questionId: string, optionIndex: number) => {
-    setSelectedAnswers((prev) => ({
-      ...prev,
-      [questionId]: optionIndex,
-    }));
+  // Option Selection Handler (Stores both index and exact text)
+  const handleSelectOption = (questionId: string, optionIndex: number, optionText: string) => {
+    const updated = {
+      ...selectedAnswers,
+      [questionId]: {
+        index: optionIndex,
+        text: optionText,
+      },
+    };
+    setSelectedAnswers(updated);
+
+    // Save to localStorage immediately
+    if (typeof window !== 'undefined') {
+      try {
+        const savedRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (savedRaw) {
+          const parsed = JSON.parse(savedRaw);
+          parsed.selectedAnswers = updated;
+          parsed.currentIndex = currentIndex;
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(parsed));
+        }
+      } catch (e) {}
+    }
   };
 
   const currentQuestion = questions[currentIndex];
-  const totalQuestions = questions.length;
+  const totalQuestions = questions.length || 12;
   const answeredCount = Object.keys(selectedAnswers).length;
-  const isCurrentAnswered = currentQuestion && selectedAnswers[currentQuestion.id] !== undefined;
 
   const handleNext = () => {
     if (currentIndex < totalQuestions - 1) {
-      setCurrentIndex((prev) => prev + 1);
+      const nextIdx = currentIndex + 1;
+      setCurrentIndex(nextIdx);
+      if (typeof window !== 'undefined') {
+        try {
+          const savedRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
+          if (savedRaw) {
+            const parsed = JSON.parse(savedRaw);
+            parsed.currentIndex = nextIdx;
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(parsed));
+          }
+        } catch (e) {}
+      }
     }
   };
 
   const handlePrevious = () => {
     if (currentIndex > 0) {
-      setCurrentIndex((prev) => prev - 1);
+      const prevIdx = currentIndex - 1;
+      setCurrentIndex(prevIdx);
+      if (typeof window !== 'undefined') {
+        try {
+          const savedRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
+          if (savedRaw) {
+            const parsed = JSON.parse(savedRaw);
+            parsed.currentIndex = prevIdx;
+            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(parsed));
+          }
+        } catch (e) {}
+      }
     }
   };
 
+  // Submit Handler
   const handleSubmitAttempt = async () => {
     setSubmitting(true);
     setShowConfirmModal(false);
 
     try {
+      // Build answers payload: send question IDs with their chosen option text
+      const formattedAnswers: Record<string, { text: string; index: number }> = {};
+      Object.entries(selectedAnswers).forEach(([qId, ans]) => {
+        formattedAnswers[qId] = ans;
+      });
+
       const res = await fetch('/api/portal/quiz', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          answers: selectedAnswers,
+          drawn_question_ids: questions.map((q) => q.id),
+          answers: formattedAnswers,
           started_at: startedAt,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) {
+        if (res.status === 429 && data.error === 'COOLDOWN_ACTIVE') {
+          setCooldownRemaining(data.cooldown_remaining_seconds || 300);
+          setCooldownMessage(data.message || 'Assessment cooldown active.');
+          setSubmitting(false);
+          return;
+        }
         alert(data.error || 'Failed to submit quiz. Please try again.');
         setSubmitting(false);
         return;
       }
 
+      // Submission successful: clear session storage
+      clearQuizStorage();
       setQuizResult(data);
+
+      // If failed, trigger the 5-minute cooldown timer
+      if (!data.passed) {
+        setCooldownRemaining(data.cooldown_duration_seconds || 300);
+      }
+
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
       alert(`Submission error: ${err.message}`);
@@ -181,18 +366,74 @@ export default function QuizPage() {
     }
   };
 
-  // 1. Loading State
+  // 1. Loading View
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-20 text-center space-y-4">
         <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
         <h2 className="text-lg font-bold text-slate-800">Preparing Your 12-MCQ Course Assessment...</h2>
-        <p className="text-xs text-slate-500">Sampling 12 randomized questions from the master question pool.</p>
+        <p className="text-xs text-slate-500">
+          Conducting balanced category sampling and generating randomized options.
+        </p>
       </div>
     );
   }
 
-  // 2. Pre-Survey Missing Error
+  // 2. Cooldown Screen (5 minutes active)
+  if (cooldownRemaining > 0 && !quizResult) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-16 animate-fade-in">
+        <div className="bg-white border-2 border-amber-300 rounded-3xl p-8 shadow-xl text-center space-y-5">
+          <div className="w-16 h-16 bg-amber-100 text-amber-700 rounded-3xl flex items-center justify-center mx-auto shadow-sm">
+            <Hourglass className="w-8 h-8 animate-pulse" />
+          </div>
+
+          <div>
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-800 bg-amber-100 px-3 py-1 rounded-full border border-amber-300">
+              Assessment Retake Cooldown Active
+            </span>
+            <h1 className="text-2xl font-extrabold text-slate-900 mt-3">Take a Short Study Break</h1>
+            <p className="text-xs sm:text-sm text-slate-600 mt-2 max-w-md mx-auto leading-relaxed">
+              To ensure authentic learning and discourage guessing, there is a <strong>5-minute reflection period</strong> between attempts.
+              Please review your workshop slides and study notes.
+            </p>
+          </div>
+
+          {/* Large Countdown Ticker */}
+          <div className="p-5 bg-amber-50/70 border border-amber-200 rounded-2xl max-w-xs mx-auto">
+            <div className="text-[10px] uppercase font-bold text-amber-800 tracking-wider">
+              Time Until Retake Unlocks
+            </div>
+            <div className="text-3xl sm:text-4xl font-black text-amber-950 font-mono mt-1">
+              {formatTimer(cooldownRemaining)}
+            </div>
+            <p className="text-[10px] text-amber-700 mt-1">Countdown updates automatically</p>
+          </div>
+
+          <div className="pt-2 flex flex-col sm:flex-row justify-center gap-3">
+            <Link
+              href="/portal"
+              className="px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-colors flex items-center justify-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Student Portal</span>
+            </Link>
+
+            <button
+              disabled={cooldownRemaining > 0}
+              onClick={() => fetchQuestions(true)}
+              className="px-6 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>{cooldownRemaining > 0 ? 'Retake Locked' : 'Start Fresh Retake Now'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Pre-Survey Missing Error View
   if (preSurveyMissing) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-16 animate-fade-in">
@@ -224,7 +465,7 @@ export default function QuizPage() {
     );
   }
 
-  // 3. Generic Error
+  // 4. Generic Error View
   if (error) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-16 text-center space-y-4">
@@ -235,7 +476,7 @@ export default function QuizPage() {
         <p className="text-xs text-slate-600 max-w-md mx-auto">{error}</p>
         <div className="flex justify-center gap-3 pt-2">
           <button
-            onClick={fetchQuestions}
+            onClick={() => fetchQuestions(true)}
             className="px-4 py-2 bg-emerald-700 text-white text-xs font-bold rounded-xl hover:bg-emerald-800 transition-colors cursor-pointer"
           >
             Retry Loading
@@ -251,7 +492,7 @@ export default function QuizPage() {
     );
   }
 
-  // 4. Quiz Results View (Passed or Failed)
+  // 5. Quiz Results View (Passed or Failed)
   if (quizResult) {
     const isPass = quizResult.passed;
 
@@ -305,6 +546,16 @@ export default function QuizPage() {
             </div>
           </div>
 
+          {/* Cooldown notice if failed */}
+          {!isPass && cooldownRemaining > 0 && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl max-w-md mx-auto text-xs text-amber-900 flex items-center justify-center gap-2">
+              <Hourglass className="w-4 h-4 text-amber-700 animate-pulse" />
+              <span>
+                Retake cooldown: <strong>{formatTimer(cooldownRemaining)}</strong> remaining before next attempt.
+              </span>
+            </div>
+          )}
+
           {/* Action Buttons */}
           <div className="pt-4 flex flex-col sm:flex-row justify-center items-center gap-3">
             {isPass ? (
@@ -317,11 +568,16 @@ export default function QuizPage() {
               </Link>
             ) : (
               <button
-                onClick={fetchQuestions}
-                className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-xs bg-emerald-700 text-white hover:bg-emerald-800 shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                disabled={cooldownRemaining > 0}
+                onClick={() => fetchQuestions(true)}
+                className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-bold text-xs bg-emerald-700 text-white hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 <RotateCcw className="w-4 h-4" />
-                <span>Retake Assessment with 12 New Questions</span>
+                <span>
+                  {cooldownRemaining > 0 
+                    ? `Retake Available in ${formatTimer(cooldownRemaining)}` 
+                    : 'Retake Assessment with 12 New Questions'}
+                </span>
               </button>
             )}
 
@@ -380,8 +636,8 @@ export default function QuizPage() {
                     {/* Options list */}
                     <div className="mt-3 space-y-1.5">
                       {item.options.map((opt, optIdx) => {
-                        const isUserChoice = item.user_selected_index === optIdx;
-                        const isCorrectChoice = item.correct_option_index === optIdx;
+                        const isCorrectChoice = opt.trim() === item.correct_option_text?.trim();
+                        const isUserChoice = opt.trim() === item.user_selected_text?.trim();
 
                         let style = 'bg-slate-50 border-slate-200 text-slate-700';
                         if (isCorrectChoice) {
@@ -435,9 +691,25 @@ export default function QuizPage() {
     );
   }
 
-  // 5. Active Quiz Taking View
+  // 6. Active Quiz Taking View
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-6 animate-fade-in">
+      {/* Session Restored Notice */}
+      {restoredFromStorage && (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl text-xs text-blue-900 flex items-center justify-between gap-3 animate-fade-in shadow-xs">
+          <div className="flex items-center gap-2">
+            <BookmarkCheck className="w-4 h-4 text-blue-600 shrink-0" />
+            <span>Your active assessment session was restored. Progress has been preserved!</span>
+          </div>
+          <button
+            onClick={() => fetchQuestions(true)}
+            className="text-[11px] font-bold text-blue-800 hover:text-blue-950 underline cursor-pointer whitespace-nowrap"
+          >
+            Start Fresh
+          </button>
+        </div>
+      )}
+
       {/* Top Breadcrumb & Status Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <Link
@@ -473,7 +745,7 @@ export default function QuizPage() {
               12-MCQ Course Assessment
             </h1>
             <p className="text-xs sm:text-sm text-emerald-100 max-w-xl mt-1 leading-relaxed">
-              Source-grounded AI & NotebookLM comprehension exam. Answer at least 9 correctly to unlock your official verified certificate.
+              Balanced evaluation across NotebookLM Foundations, Audio Overviews, Prompt Crafting, and SDG Literacy. Answer at least 9 correctly to unlock certification.
             </p>
           </div>
 
@@ -492,7 +764,7 @@ export default function QuizPage() {
         <div className="flex justify-between items-center text-xs font-bold text-slate-600">
           <span>Question Navigator:</span>
           <span className="text-[11px] text-slate-400">
-            {answeredCount === totalQuestions ? '✅ All questions answered' : `${totalQuestions - answeredCount} remaining`}
+            {answeredCount === totalQuestions ? '✅ All 12 questions answered' : `${totalQuestions - answeredCount} remaining`}
           </span>
         </div>
 
@@ -513,7 +785,19 @@ export default function QuizPage() {
               <button
                 key={q.id}
                 type="button"
-                onClick={() => setCurrentIndex(idx)}
+                onClick={() => {
+                  setCurrentIndex(idx);
+                  if (typeof window !== 'undefined') {
+                    try {
+                      const savedRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
+                      if (savedRaw) {
+                        const parsed = JSON.parse(savedRaw);
+                        parsed.currentIndex = idx;
+                        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(parsed));
+                      }
+                    } catch (e) {}
+                  }
+                }}
                 className={`h-9 rounded-xl text-xs font-bold flex items-center justify-center transition-all cursor-pointer ${pillStyle}`}
                 title={`Jump to Question ${idx + 1}`}
               >
@@ -551,12 +835,13 @@ export default function QuizPage() {
           {/* 4 Choices */}
           <div className="space-y-3 pt-2">
             {currentQuestion.options.map((optionText, optIdx) => {
-              const isSelected = selectedAnswers[currentQuestion.id] === optIdx;
+              const currentAnswer = selectedAnswers[currentQuestion.id];
+              const isSelected = currentAnswer?.text === optionText;
 
               return (
                 <div
                   key={optIdx}
-                  onClick={() => handleSelectOption(currentQuestion.id, optIdx)}
+                  onClick={() => handleSelectOption(currentQuestion.id, optIdx, optionText)}
                   className={`group p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-3.5 ${
                     isSelected
                       ? 'bg-emerald-50/70 border-emerald-600 shadow-sm'
@@ -638,8 +923,8 @@ export default function QuizPage() {
               <p className="text-xs text-slate-600 mt-1 leading-relaxed">
                 You have answered <strong>{answeredCount} of {totalQuestions} questions</strong>.
                 {answeredCount < totalQuestions && (
-                  <span className="block text-amber-700 font-semibold mt-1">
-                    ⚠️ You have {totalQuestions - answeredCount} unanswered questions which will be marked incorrect.
+                  <span className="block text-rose-700 font-semibold mt-1">
+                    ⚠️ {totalQuestions - answeredCount} unanswered questions will be graded as 0 / incorrect.
                   </span>
                 )}
               </p>
@@ -651,7 +936,7 @@ export default function QuizPage() {
                 onClick={() => setShowConfirmModal(false)}
                 className="flex-1 px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
               >
-                Continue Reviewing
+                Review Answers
               </button>
 
               <button

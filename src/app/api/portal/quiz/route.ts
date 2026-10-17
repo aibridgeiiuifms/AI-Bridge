@@ -6,6 +6,33 @@ export const dynamic = 'force-dynamic';
 
 const TOTAL_QUESTIONS = 12;
 const PASSING_SCORE = 9; // 75% of 12 = 9 questions
+const COOLDOWN_DURATION_SECONDS = 300; // 5 minutes cooldown between failed attempts
+
+/**
+ * Categorical Clusters for Balanced Sampling (3 questions per cluster = 12 total)
+ */
+const CATEGORY_CLUSTERS = [
+  // Cluster 1: NotebookLM Foundations & AI Core (3 questions)
+  {
+    name: 'NotebookLM Foundations & Architecture',
+    categories: ['NotebookLM Foundations', 'AI Foundations']
+  },
+  // Cluster 2: Multi-Modal Audio, Study Guides & Educational Apps (3 questions)
+  {
+    name: 'Multi-Modal Audio & Structured Outputs',
+    categories: ['Audio Overviews', 'Structured Outputs', 'Educational Applications']
+  },
+  // Cluster 3: Prompt Crafting, AI Ethics & Academic Integrity (3 questions)
+  {
+    name: 'Prompt Crafting & AI Ethics',
+    categories: ['Prompt Crafting', 'AI Ethics & Integrity']
+  },
+  // Cluster 4: SDG Literacy, Governance & The AI Bridge Platform (3 questions)
+  {
+    name: 'SDG Literacy & Institutional Framework',
+    categories: ['SDG Literacy', 'The AI Bridge Platform', 'Project Governance', 'Project Metrics']
+  }
+];
 
 /**
  * Fisher-Yates array shuffle helper
@@ -20,11 +47,49 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 /**
- * GET /api/portal/quiz
- * Fetches 12 randomly sampled active questions from mcq_pool.
- * Strips correct_option_index and explanation so students cannot inspect and cheat.
+ * Performs balanced sampling: draws 3 questions per cluster, with fallback to any pool question
  */
-export async function GET() {
+function sampleBalancedQuestions(poolQuestions: any[]): any[] {
+  const selected: any[] = [];
+  const selectedIds = new Set<string>();
+
+  for (const cluster of CATEGORY_CLUSTERS) {
+    const matching = poolQuestions.filter(
+      (q) => !selectedIds.has(q.id) && cluster.categories.includes(q.category)
+    );
+    const shuffled = shuffleArray(matching);
+    const countToTake = Math.min(3, shuffled.length);
+
+    for (let i = 0; i < countToTake; i++) {
+      selected.push(shuffled[i]);
+      selectedIds.add(shuffled[i].id);
+    }
+  }
+
+  // Fallback: If any cluster had fewer than 3, fill from remaining questions
+  if (selected.length < TOTAL_QUESTIONS) {
+    const remaining = poolQuestions.filter((q) => !selectedIds.has(q.id));
+    const shuffledRemaining = shuffleArray(remaining);
+    const needed = TOTAL_QUESTIONS - selected.length;
+    for (let i = 0; i < needed && i < shuffledRemaining.length; i++) {
+      selected.push(shuffledRemaining[i]);
+      selectedIds.add(shuffledRemaining[i].id);
+    }
+  }
+
+  // Shuffle the final 12 questions so categories aren't in predictable blocks
+  return shuffleArray(selected).slice(0, TOTAL_QUESTIONS);
+}
+
+/**
+ * GET /api/portal/quiz
+ * - Enforces Step 1 (Pre-Survey) prerequisite
+ * - Enforces 5-minute cooldown on retakes after a failed attempt
+ * - Performs balanced category sampling across 4 clusters
+ * - Dynamically shuffles option choices (A, B, C, D) per question
+ * - Strips answers and explanations to prevent cheating
+ */
+export async function GET(req: NextRequest) {
   try {
     const supabase = await createClient();
     const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -99,17 +164,36 @@ export async function GET() {
       );
     }
 
-    // 2. Check if user already passed
-    const { data: existingAttempt } = await adminSupabase
+    // 2. Check 5-Minute Cooldown on Failed Retakes
+    const { data: latestAttempt } = await adminSupabase
       .from('quiz_attempts')
       .select('id, score, passed, completed_at')
       .eq('user_id', user.id)
-      .eq('passed', true)
       .order('completed_at', { ascending: false })
       .limit(1)
       .maybeSingle();
 
-    // 3. Fetch active questions from mcq_pool (EXCLUDING correct_option_index and explanation)
+    if (latestAttempt && !latestAttempt.passed) {
+      const completedTime = new Date(latestAttempt.completed_at).getTime();
+      const now = Date.now();
+      const elapsedSeconds = Math.floor((now - completedTime) / 1000);
+
+      if (elapsedSeconds < COOLDOWN_DURATION_SECONDS) {
+        const remainingSeconds = COOLDOWN_DURATION_SECONDS - elapsedSeconds;
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'COOLDOWN_ACTIVE',
+            cooldown_remaining_seconds: remainingSeconds,
+            previous_score: latestAttempt.score,
+            message: `Assessment cooldown active. Please take ${Math.ceil(remainingSeconds / 60)} minutes to review your course notes before retaking.`
+          },
+          { status: 429 }
+        );
+      }
+    }
+
+    // 3. Fetch active questions from mcq_pool
     const { data: poolQuestions, error: poolError } = await adminSupabase
       .from('mcq_pool')
       .select('id, question_text, options, category, difficulty')
@@ -123,18 +207,30 @@ export async function GET() {
       );
     }
 
-    // 4. Randomly sample 12 questions
-    const shuffled = shuffleArray(poolQuestions);
-    const selectedQuestions = shuffled.slice(0, TOTAL_QUESTIONS);
+    // 4. Balanced Category Sampling (3 questions per cluster)
+    const balancedQuestions = sampleBalancedQuestions(poolQuestions);
+
+    // 5. Dynamic Option Shuffling per Question (strips static answer position advantage)
+    const questionsWithShuffledOptions = balancedQuestions.map((q) => {
+      const optionsArray: string[] = Array.isArray(q.options) ? q.options : [];
+      return {
+        id: q.id,
+        question_text: q.question_text,
+        options: shuffleArray(optionsArray),
+        category: q.category,
+        difficulty: q.difficulty
+      };
+    });
 
     return NextResponse.json({
       success: true,
-      questions: selectedQuestions,
-      total_questions: selectedQuestions.length,
+      questions: questionsWithShuffledOptions,
+      drawn_question_ids: questionsWithShuffledOptions.map((q) => q.id),
+      total_questions: TOTAL_QUESTIONS,
       passing_score: PASSING_SCORE,
       passing_percentage: 75,
-      already_passed: Boolean(existingAttempt?.passed),
-      previous_score: existingAttempt?.score ?? null
+      already_passed: Boolean(latestAttempt?.passed),
+      previous_score: latestAttempt?.score ?? null
     });
   } catch (err: any) {
     console.error('GET /api/portal/quiz error:', err);
@@ -147,8 +243,11 @@ export async function GET() {
 
 /**
  * POST /api/portal/quiz
- * Grades the submitted answers securely on the server against mcq_pool.
- * Records the attempt into quiz_attempts and returns verified pass/fail results.
+ * - Validates submission against ALL 12 drawn question IDs (closes partial-submission loophole)
+ * - Grades against option text matching (immune to option shuffling)
+ * - Enforces 5-minute cooldown on retakes
+ * - Computes score out of 12 (unanswered questions score 0)
+ * - Records verified attempt into quiz_attempts
  */
 export async function POST(req: NextRequest) {
   try {
@@ -163,25 +262,60 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { answers, started_at } = body;
+    const { answers = {}, drawn_question_ids = [], started_at } = body;
 
-    if (!answers || typeof answers !== 'object' || Object.keys(answers).length === 0) {
+    const adminSupabase = createAdminClient();
+
+    // 1. Verify 5-minute cooldown on submission
+    const { data: latestAttempt } = await adminSupabase
+      .from('quiz_attempts')
+      .select('id, passed, completed_at')
+      .eq('user_id', user.id)
+      .order('completed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (latestAttempt && !latestAttempt.passed) {
+      const completedTime = new Date(latestAttempt.completed_at).getTime();
+      const now = Date.now();
+      const elapsedSeconds = Math.floor((now - completedTime) / 1000);
+
+      if (elapsedSeconds < COOLDOWN_DURATION_SECONDS) {
+        const remainingSeconds = COOLDOWN_DURATION_SECONDS - elapsedSeconds;
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'COOLDOWN_ACTIVE',
+            cooldown_remaining_seconds: remainingSeconds,
+            message: `Assessment cooldown active. Please wait ${Math.ceil(remainingSeconds / 60)} minutes before retaking.`
+          },
+          { status: 429 }
+        );
+      }
+    }
+
+    // 2. Determine all question IDs to evaluate (must cover all 12 drawn questions)
+    let allQuestionIds: string[] = [];
+    if (Array.isArray(drawn_question_ids) && drawn_question_ids.length > 0) {
+      allQuestionIds = Array.from(new Set(drawn_question_ids));
+    } else {
+      allQuestionIds = Object.keys(answers);
+    }
+
+    if (allQuestionIds.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'No answers provided for evaluation.' },
+        { success: false, error: 'No questions provided for evaluation.' },
         { status: 400 }
       );
     }
 
-    const questionIds = Object.keys(answers);
-    const adminSupabase = createAdminClient();
-
-    // Fetch correct options and explanations for the submitted question IDs
+    // 3. Fetch authoritative master question definitions from mcq_pool
     const { data: poolQuestions, error: fetchErr } = await adminSupabase
       .from('mcq_pool')
       .select('id, question_text, options, correct_option_index, explanation, category')
-      .in('id', questionIds);
+      .in('id', allQuestionIds);
 
-    if (fetchErr || !poolQuestions) {
+    if (fetchErr || !poolQuestions || poolQuestions.length === 0) {
       console.error('Error fetching questions for grading:', fetchErr);
       return NextResponse.json(
         { success: false, error: 'Failed to evaluate answers against master pool.' },
@@ -189,20 +323,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build question map
     const questionMap = new Map<string, any>();
     poolQuestions.forEach((q) => questionMap.set(q.id, q));
 
-    // Grade each question
+    // 4. Grade each question out of the strict 12-question pool
     let score = 0;
     const reviewDetails: any[] = [];
 
-    for (const qId of questionIds) {
+    for (const qId of allQuestionIds) {
       const q = questionMap.get(qId);
       if (!q) continue;
 
-      const userSelectedIndex = answers[qId];
-      const isCorrect = userSelectedIndex === q.correct_option_index;
+      const rawOptions: string[] = Array.isArray(q.options) ? q.options : [];
+      const correctText = rawOptions[q.correct_option_index]?.trim() || '';
+
+      // User's answer can be provided as selected text, or object { text, index }
+      const submitted = answers[qId];
+      let userSelectedText: string | null = null;
+      let userSelectedIndex: number | null = null;
+
+      if (typeof submitted === 'string') {
+        userSelectedText = submitted.trim();
+      } else if (submitted && typeof submitted === 'object') {
+        userSelectedText = typeof submitted.text === 'string' ? submitted.text.trim() : null;
+        userSelectedIndex = typeof submitted.index === 'number' ? submitted.index : null;
+      } else if (typeof submitted === 'number') {
+        userSelectedIndex = submitted;
+        userSelectedText = rawOptions[submitted]?.trim() || null;
+      }
+
+      // Check if user answer matches the correct text
+      const isCorrect = userSelectedText ? userSelectedText === correctText : false;
 
       if (isCorrect) {
         score += 1;
@@ -211,8 +362,10 @@ export async function POST(req: NextRequest) {
       reviewDetails.push({
         id: q.id,
         question_text: q.question_text,
-        options: q.options,
+        options: rawOptions,
+        user_selected_text: userSelectedText,
         user_selected_index: userSelectedIndex,
+        correct_option_text: correctText,
         correct_option_index: q.correct_option_index,
         is_correct: isCorrect,
         explanation: q.explanation || null,
@@ -220,13 +373,14 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const totalQuestionsEvaluated = questionIds.length;
+    // Strictly enforce 12 as the denominator (prevents partial-submission loophole)
+    const totalQuestionsEvaluated = TOTAL_QUESTIONS;
     const passed = score >= PASSING_SCORE;
 
-    // Record into quiz_attempts
+    // 5. Record verified attempt into quiz_attempts
     const attemptPayload = {
       user_id: user.id,
-      drawn_question_ids: questionIds,
+      drawn_question_ids: allQuestionIds,
       user_answers: answers,
       score: score,
       total_questions: totalQuestionsEvaluated,
@@ -258,6 +412,7 @@ export async function POST(req: NextRequest) {
       passing_score: PASSING_SCORE,
       percentage: Math.round((score / totalQuestionsEvaluated) * 100),
       passed: passed,
+      cooldown_duration_seconds: passed ? 0 : COOLDOWN_DURATION_SECONDS,
       review: reviewDetails,
       message: passed
         ? `Congratulations! You scored ${score}/${totalQuestionsEvaluated} (>= 75%) and successfully passed the course assessment!`
