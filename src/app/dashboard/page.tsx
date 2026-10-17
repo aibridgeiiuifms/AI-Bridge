@@ -9,6 +9,7 @@ import {
   Clock, 
   Award, 
   HelpCircle, 
+  AlertCircle,
   Calendar, 
   Filter, 
   Search, 
@@ -46,11 +47,34 @@ import {
 import { compressImageToMaxKB, uploadTeamAvatar } from '@/lib/imageCompression';
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'team' | 'team_profiles' | 'departments'>('team');
+  const [activeTab, setActiveTab] = useState<'team' | 'team_profiles' | 'departments' | 'mcqs'>('team');
   // Inline-edit state for whitelist rows
   const [editingWhitelistEmail, setEditingWhitelistEmail] = useState<string | null>(null);
   const [editWhitelistDraft, setEditWhitelistDraft] = useState<{ full_name: string; target_role: 'admin' | 'member'; assigned_tasks: string[]; notes: string }>({ full_name: '', target_role: 'member', assigned_tasks: [], notes: '' });
   const [isSavingWhitelist, setIsSavingWhitelist] = useState(false);
+
+  // Master MCQ Pool State
+  const [mcqsList, setMcqsList] = useState<any[]>([]);
+  const [loadingMcqs, setLoadingMcqs] = useState(false);
+  const [mcqSearchQuery, setMcqSearchQuery] = useState('');
+  const [mcqCategoryFilter, setMcqCategoryFilter] = useState('all');
+  const [mcqDifficultyFilter, setMcqDifficultyFilter] = useState('all');
+  const [mcqStatusFilter, setMcqStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [availableMcqCategories, setAvailableMcqCategories] = useState<string[]>([]);
+  const [showMcqModal, setShowMcqModal] = useState(false);
+  const [editingMcq, setEditingMcq] = useState<any | null>(null);
+  const [isSavingMcq, setIsSavingMcq] = useState(false);
+  const [mcqFeedbackMsg, setMcqFeedbackMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [mcqForm, setMcqForm] = useState({
+    id: '',
+    question_text: '',
+    options: ['', '', '', ''],
+    correct_option_index: 0,
+    explanation: '',
+    category: 'NotebookLM Foundations',
+    difficulty: 'intermediate',
+    is_active: true,
+  });
 
   // Department & Faculty Mappings State
   const [departmentMappings, setDepartmentMappings] = useState<any[]>([]);
@@ -166,6 +190,127 @@ export default function AdminDashboard() {
       console.error('Failed to fetch department mappings:', e);
     } finally {
       setLoadingDepts(false);
+    }
+  };
+
+  const fetchMCQs = async () => {
+    setLoadingMcqs(true);
+    try {
+      const res = await fetch('/api/admin/mcqs');
+      const data = await res.json();
+      if (data.success && data.mcqs) {
+        setMcqsList(data.mcqs);
+        setAvailableMcqCategories(data.categories || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch MCQs:', e);
+    } finally {
+      setLoadingMcqs(false);
+    }
+  };
+
+  const handleToggleMcqStatus = async (id: string, currentStatus: boolean) => {
+    setMcqsList(prev => prev.map(m => m.id === id ? { ...m, is_active: !currentStatus } : m));
+    try {
+      const res = await fetch('/api/admin/mcqs', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, is_active: !currentStatus })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setMcqFeedbackMsg({
+        text: !currentStatus ? 'Question activated for quizzes!' : 'Question deactivated (hidden from student quizzes).',
+        type: 'success'
+      });
+      setTimeout(() => setMcqFeedbackMsg(null), 3000);
+    } catch (err: any) {
+      fetchMCQs();
+      setMcqFeedbackMsg({ text: `Failed to update status: ${err.message}`, type: 'error' });
+    }
+  };
+
+  const handleOpenAddMcq = () => {
+    setEditingMcq(null);
+    setMcqForm({
+      id: '',
+      question_text: '',
+      options: ['', '', '', ''],
+      correct_option_index: 0,
+      explanation: '',
+      category: availableMcqCategories[0] || 'NotebookLM Foundations',
+      difficulty: 'intermediate',
+      is_active: true,
+    });
+    setShowMcqModal(true);
+  };
+
+  const handleOpenEditMcq = (mcq: any) => {
+    setEditingMcq(mcq);
+    const opts = Array.isArray(mcq.options) && mcq.options.length === 4
+      ? mcq.options
+      : ['', '', '', ''];
+    setMcqForm({
+      id: mcq.id,
+      question_text: mcq.question_text || '',
+      options: opts,
+      correct_option_index: Number(mcq.correct_option_index) || 0,
+      explanation: mcq.explanation || '',
+      category: mcq.category || 'NotebookLM Foundations',
+      difficulty: mcq.difficulty || 'intermediate',
+      is_active: mcq.is_active ?? true,
+    });
+    setShowMcqModal(true);
+  };
+
+  const handleSaveMcq = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mcqForm.question_text.trim()) {
+      alert('Question text is required.');
+      return;
+    }
+    if (mcqForm.options.some(opt => !opt.trim())) {
+      alert('All 4 option choices are required.');
+      return;
+    }
+
+    setIsSavingMcq(true);
+    setMcqFeedbackMsg(null);
+
+    try {
+      const res = await fetch('/api/admin/mcqs', {
+        method: mcqForm.id ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mcqForm)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      setMcqFeedbackMsg({
+        text: mcqForm.id ? 'Question updated successfully!' : 'New question added to pool!',
+        type: 'success'
+      });
+      setShowMcqModal(false);
+      await fetchMCQs();
+    } catch (err: any) {
+      setMcqFeedbackMsg({ text: `Error: ${err.message}`, type: 'error' });
+    } finally {
+      setIsSavingMcq(false);
+      setTimeout(() => setMcqFeedbackMsg(null), 4000);
+    }
+  };
+
+  const handleDeleteMcq = async (id: string, text: string) => {
+    if (!confirm(`Are you sure you want to deactivate question:\n"${text.substring(0, 80)}..."?`)) return;
+    try {
+      const res = await fetch(`/api/admin/mcqs?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setMcqFeedbackMsg({ text: 'Question deactivated safely.', type: 'success' });
+      await fetchMCQs();
+      setTimeout(() => setMcqFeedbackMsg(null), 3000);
+    } catch (err: any) {
+      setMcqFeedbackMsg({ text: `Failed to deactivate: ${err.message}`, type: 'error' });
     }
   };
 
@@ -437,6 +582,7 @@ export default function AdminDashboard() {
     fetchRolesData();
     fetchTeamData();
     fetchDepartmentMappings();
+    fetchMCQs();
   }, []);
 
   // Live Metric Cards derived from Supabase
@@ -977,6 +1123,25 @@ export default function AdminDashboard() {
             activeTab === 'departments' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
           }`}>
             {departmentMappings.length}
+          </span>
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab('mcqs');
+            fetchMCQs();
+          }}
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+            activeTab === 'mcqs'
+              ? 'bg-emerald-700 text-white shadow-sm'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <HelpCircle className="w-3.5 h-3.5" />
+          <span>MCQ Question Pool</span>
+          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+            activeTab === 'mcqs' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+          }`}>
+            {mcqsList.length}
           </span>
         </button>
       </div>
@@ -2504,7 +2669,500 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Tab Content: MCQs Pool Placeholder */}
+      {/* Tab Content: MCQs Pool */}
+      {activeTab === 'mcqs' && (
+        <div className="space-y-6 animate-fade-in">
+          {/* Feedback Toast */}
+          {mcqFeedbackMsg && (
+            <div className={`p-4 rounded-2xl border text-xs font-bold flex items-center justify-between gap-3 animate-fade-in shadow-xs ${
+              mcqFeedbackMsg.type === 'success'
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                : 'bg-rose-50 border-rose-300 text-rose-900'
+            }`}>
+              <div className="flex items-center gap-2">
+                {mcqFeedbackMsg.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                )}
+                <span>{mcqFeedbackMsg.text}</span>
+              </div>
+              <button onClick={() => setMcqFeedbackMsg(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Header Card */}
+          <div className="bg-gradient-to-br from-emerald-950 via-teal-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-emerald-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-800/80 text-emerald-200 text-xs font-bold uppercase tracking-wider mb-2 border border-emerald-600/40">
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>Assessment Evaluation Engine</span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black tracking-tight">Master MCQ Question Pool</h2>
+              <p className="text-xs text-emerald-200 mt-1 max-w-xl leading-relaxed">
+                Configure evaluation items for the 12-MCQ Course Assessment. Changes apply immediately to new quiz sessions with balanced category sampling and dynamic option shuffling.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={fetchMCQs}
+                className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                title="Refresh from database"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingMcqs ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Refresh</span>
+              </button>
+              <button
+                onClick={handleOpenAddMcq}
+                className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-amber-400 text-slate-950 hover:bg-amber-300 text-xs font-black shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span>+ Add Question</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Live Metrics Ribbon */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+              <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Total Questions in Pool</div>
+              <div className="text-2xl font-black text-slate-900 mt-0.5">{mcqsList.length}</div>
+              <div className="text-[10px] text-slate-500 mt-0.5">Across all categories</div>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+              <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active for Quizzes</div>
+              <div className="text-2xl font-black text-emerald-600 mt-0.5">
+                {mcqsList.filter((m) => m.is_active).length}
+              </div>
+              <div className="text-[10px] text-emerald-700 font-semibold mt-0.5">Eligible for live student draws</div>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+              <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Deactivated / Hidden</div>
+              <div className="text-2xl font-black text-slate-400 mt-0.5">
+                {mcqsList.filter((m) => !m.is_active).length}
+              </div>
+              <div className="text-[10px] text-slate-400 mt-0.5">Safely preserved in archive</div>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+              <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active Categories</div>
+              <div className="text-2xl font-black text-purple-600 mt-0.5">{availableMcqCategories.length}</div>
+              <div className="text-[10px] text-purple-700 font-semibold mt-0.5">4 Core academic clusters</div>
+            </div>
+          </div>
+
+          {/* Filter & Search Bar */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search questions by wording, category, or answer choice..."
+                value={mcqSearchQuery}
+                onChange={(e) => setMcqSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              />
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Category Filter */}
+              <select
+                value={mcqCategoryFilter}
+                onChange={(e) => setMcqCategoryFilter(e.target.value)}
+                className="px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white text-slate-700 font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              >
+                <option value="all">All Categories ({availableMcqCategories.length})</option>
+                {availableMcqCategories.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+
+              {/* Difficulty Filter */}
+              <select
+                value={mcqDifficultyFilter}
+                onChange={(e) => setMcqDifficultyFilter(e.target.value)}
+                className="px-3 py-2 border border-slate-300 rounded-xl text-xs bg-white text-slate-700 font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              >
+                <option value="all">All Difficulties</option>
+                <option value="easy">Easy</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+              </select>
+
+              {/* Status Filter */}
+              <div className="flex border border-slate-200 rounded-xl p-0.5 bg-slate-50 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setMcqStatusFilter('all')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
+                    mcqStatusFilter === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMcqStatusFilter('active')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
+                    mcqStatusFilter === 'active' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Active
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMcqStatusFilter('inactive')}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-colors cursor-pointer ${
+                    mcqStatusFilter === 'inactive' ? 'bg-slate-700 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  Inactive
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Questions Roster */}
+          {loadingMcqs ? (
+            <div className="bg-white border border-slate-200 rounded-3xl p-16 text-center space-y-3">
+              <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-xs text-slate-500 font-medium">Loading questions pool from Supabase...</p>
+            </div>
+          ) : (
+            (() => {
+              const filteredList = mcqsList.filter((q) => {
+                const matchesSearch =
+                  !mcqSearchQuery ||
+                  q.question_text?.toLowerCase().includes(mcqSearchQuery.toLowerCase()) ||
+                  q.category?.toLowerCase().includes(mcqSearchQuery.toLowerCase()) ||
+                  (Array.isArray(q.options) && q.options.some((o: string) => o.toLowerCase().includes(mcqSearchQuery.toLowerCase())));
+
+                const matchesCategory = mcqCategoryFilter === 'all' || q.category === mcqCategoryFilter;
+                const matchesDifficulty = mcqDifficultyFilter === 'all' || q.difficulty === mcqDifficultyFilter;
+                const matchesStatus =
+                  mcqStatusFilter === 'all' ||
+                  (mcqStatusFilter === 'active' && q.is_active) ||
+                  (mcqStatusFilter === 'inactive' && !q.is_active);
+
+                return matchesSearch && matchesCategory && matchesDifficulty && matchesStatus;
+              });
+
+              if (filteredList.length === 0) {
+                return (
+                  <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center space-y-3">
+                    <HelpCircle className="w-10 h-10 text-slate-300 mx-auto" />
+                    <h3 className="text-base font-bold text-slate-800">No questions found</h3>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      No questions matched your current filter criteria. Try clearing filters or search queries.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setMcqSearchQuery('');
+                        setMcqCategoryFilter('all');
+                        setMcqDifficultyFilter('all');
+                        setMcqStatusFilter('all');
+                      }}
+                      className="text-xs text-emerald-700 font-bold hover:underline cursor-pointer"
+                    >
+                      Reset all filters
+                    </button>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-4">
+                  <div className="text-xs font-bold text-slate-500 flex justify-between items-center px-1">
+                    <span>Showing {filteredList.length} of {mcqsList.length} questions</span>
+                    <span>12 drawn per quiz</span>
+                  </div>
+
+                  {filteredList.map((q, idx) => {
+                    const rawOptions: string[] = Array.isArray(q.options) ? q.options : [];
+                    const correctIdx = Number(q.correct_option_index) || 0;
+
+                    return (
+                      <div
+                        key={q.id}
+                        className={`bg-white border rounded-3xl p-5 sm:p-6 shadow-xs transition-all space-y-4 ${
+                          q.is_active
+                            ? 'border-slate-200 hover:border-emerald-300'
+                            : 'border-slate-200 bg-slate-50/70 opacity-75'
+                        }`}
+                      >
+                        {/* Top Metadata Row */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="w-6 h-6 rounded-full bg-slate-900 text-white text-[11px] font-extrabold flex items-center justify-center">
+                              {idx + 1}
+                            </span>
+                            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[11px] font-bold border border-emerald-200">
+                              {q.category}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-semibold capitalize">
+                              {q.difficulty}
+                            </span>
+                            {q.is_active ? (
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold flex items-center gap-1">
+                                <Check className="w-3 h-3 stroke-[3]" /> Live in Pool
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold">
+                                Deactivated
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Quick Actions */}
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleToggleMcqStatus(q.id, q.is_active)}
+                              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                q.is_active
+                                  ? 'bg-slate-100 text-slate-700 hover:bg-rose-50 hover:text-rose-700'
+                                  : 'bg-emerald-700 text-white hover:bg-emerald-800'
+                              }`}
+                            >
+                              {q.is_active ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <button
+                              onClick={() => handleOpenEditMcq(q)}
+                              className="px-3 py-1 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                              <span>Edit</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Question Text */}
+                        <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug">
+                          {q.question_text}
+                        </h3>
+
+                        {/* 4 Choices Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {rawOptions.map((opt, optIdx) => {
+                            const isCorrect = optIdx === correctIdx;
+
+                            return (
+                              <div
+                                key={optIdx}
+                                className={`p-3 rounded-2xl border text-xs flex items-start gap-2.5 ${
+                                  isCorrect
+                                    ? 'bg-emerald-50 border-emerald-400 text-emerald-950 font-bold shadow-xs'
+                                    : 'bg-slate-50 border-slate-200 text-slate-700'
+                                }`}
+                              >
+                                <span className={`w-5 h-5 rounded-full text-[10px] font-extrabold flex items-center justify-center shrink-0 ${
+                                  isCorrect ? 'bg-emerald-600 text-white' : 'bg-white border text-slate-600'
+                                }`}>
+                                  {String.fromCharCode(65 + optIdx)}
+                                </span>
+                                <span className="flex-1 leading-relaxed">{opt}</span>
+                                {isCorrect && (
+                                  <span className="text-[10px] bg-emerald-200/80 text-emerald-900 px-1.5 py-0.5 rounded-md font-bold uppercase shrink-0">
+                                    Correct Answer
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Explanation Box */}
+                        {q.explanation && (
+                          <div className="p-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs text-slate-600 flex items-start gap-2">
+                            <HelpCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                            <div className="space-y-0.5">
+                              <span className="font-bold text-slate-800">Academic Explanation:</span>
+                              <p className="text-[11px] leading-relaxed text-slate-600">{q.explanation}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()
+          )}
+
+          {/* Add / Edit MCQ Modal */}
+          {showMcqModal && (
+            <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-2xl w-full p-6 sm:p-8 space-y-6 my-6 animate-fade-in max-h-[92vh] overflow-y-auto">
+                {/* Modal Header */}
+                <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                  <div>
+                    <h3 className="font-black text-slate-900 text-lg sm:text-xl">
+                      {editingMcq ? 'Edit Course Assessment Question' : 'Add New Question to Pool'}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Ensure exactly 4 clear options and select the correct answer.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowMcqModal(false)}
+                    className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveMcq} className="space-y-4">
+                  {/* Question Statement */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">Question Statement *</label>
+                    <textarea
+                      rows={3}
+                      placeholder="e.g. What distinguishes NotebookLM from conventional generic AI chatbots?"
+                      value={mcqForm.question_text}
+                      onChange={(e) => setMcqForm({ ...mcqForm, question_text: e.target.value })}
+                      required
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none resize-none leading-relaxed"
+                    />
+                  </div>
+
+                  {/* Category & Difficulty Row */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">Topic Category *</label>
+                      <input
+                        type="text"
+                        list="categories-list"
+                        placeholder="e.g. NotebookLM Foundations"
+                        value={mcqForm.category}
+                        onChange={(e) => setMcqForm({ ...mcqForm, category: e.target.value })}
+                        required
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      />
+                      <datalist id="categories-list">
+                        {availableMcqCategories.map((c) => (
+                          <option key={c} value={c} />
+                        ))}
+                      </datalist>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-700">Cognitive Difficulty *</label>
+                      <select
+                        value={mcqForm.difficulty}
+                        onChange={(e) => setMcqForm({ ...mcqForm, difficulty: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs bg-white text-slate-700 font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      >
+                        <option value="easy">Easy (Foundations)</option>
+                        <option value="intermediate">Intermediate (Standard)</option>
+                        <option value="advanced">Advanced (Critical Application)</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* 4 Choices Inputs */}
+                  <div className="space-y-2 pt-2">
+                    <label className="text-xs font-bold text-slate-700 block">
+                      Options (Click the radio to mark the Correct Answer) *
+                    </label>
+
+                    {[0, 1, 2, 3].map((optIdx) => {
+                      const isCorrect = mcqForm.correct_option_index === optIdx;
+
+                      return (
+                        <div
+                          key={optIdx}
+                          className={`p-2.5 rounded-2xl border-2 transition-all flex items-center gap-3 ${
+                            isCorrect ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-200 bg-white'
+                          }`}
+                        >
+                          <label className="flex items-center gap-1.5 cursor-pointer shrink-0">
+                            <input
+                              type="radio"
+                              name="correct_option"
+                              checked={isCorrect}
+                              onChange={() => setMcqForm({ ...mcqForm, correct_option_index: optIdx })}
+                              className="w-4 h-4 text-emerald-600 focus:ring-emerald-500"
+                            />
+                            <span className="w-5 h-5 rounded-full bg-slate-900 text-white text-[10px] font-extrabold flex items-center justify-center">
+                              {String.fromCharCode(65 + optIdx)}
+                            </span>
+                          </label>
+
+                          <input
+                            type="text"
+                            placeholder={`Option ${String.fromCharCode(65 + optIdx)} choice text...`}
+                            value={mcqForm.options[optIdx] || ''}
+                            onChange={(e) => {
+                              const newOpts = [...mcqForm.options];
+                              newOpts[optIdx] = e.target.value;
+                              setMcqForm({ ...mcqForm, options: newOpts });
+                            }}
+                            required
+                            className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                          />
+
+                          {isCorrect && (
+                            <span className="text-[10px] font-bold text-emerald-800 bg-emerald-200/80 px-2 py-0.5 rounded-full shrink-0">
+                              Correct Choice
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Academic Explanation */}
+                  <div className="space-y-1 pt-1">
+                    <label className="text-xs font-bold text-slate-700">Academic Explanation (Optional)</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Explain why this option is correct to aid student review..."
+                      value={mcqForm.explanation}
+                      onChange={(e) => setMcqForm({ ...mcqForm, explanation: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none resize-none leading-relaxed"
+                    />
+                  </div>
+
+                  {/* Active Toggle */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="checkbox"
+                      id="mcq_is_active"
+                      checked={mcqForm.is_active}
+                      onChange={(e) => setMcqForm({ ...mcqForm, is_active: e.target.checked })}
+                      className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
+                    />
+                    <label htmlFor="mcq_is_active" className="text-xs font-bold text-slate-700 cursor-pointer">
+                      Make this question active immediately for student quiz draws
+                    </label>
+                  </div>
+
+                  {/* Modal Footer Controls */}
+                  <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowMcqModal(false)}
+                      className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSavingMcq}
+                      className="px-6 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-60"
+                    >
+                      {isSavingMcq ? 'Saving Question...' : editingMcq ? 'Save Changes' : 'Create Question'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Tab Content: Participants */}
 
