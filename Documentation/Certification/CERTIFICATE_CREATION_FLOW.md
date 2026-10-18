@@ -60,7 +60,7 @@ flowchart TD
     subgraph RAM_STAMP [" In-Memory RAM Stamping (~50-80ms) "]
         direction TB
         T1["1. Read Assets/AI_BRIDGE_Certificate_Cleaned.pdf into RAM Buffer"]:::ram
-        T2["2. Generate QR Code Matrix in Memory\nTarget: https://ai-bridge.iiu.edu.pk/verify/AIB-XXXXXXXX"]:::ram
+        T2["2. Generate QR Code Matrix in Memory\nTarget: https://ai-bridge-iiui.vercel.app/verify/AIB-XXXXXXXX"]:::ram
         T3["3. Normalize Recipient Name & Auto-Scale Font\n(Base: 56pt, Cap: 700pt width, Serif Bold, Navy #0a2756)"]:::ram
         T4["4. Stamp Name at (x=94.80, y=515.47) above gold rule"]:::ram
         T5["5. Draw White Backing Card at (x=1139.08, y=146.00)"]:::ram
@@ -76,7 +76,7 @@ flowchart TD
 
     BROWSER -.->|Student / Employer Scans QR Code| SCAN["Scan QR Matrix with Camera"]:::client
 
-    SCAN --> VERIFY_ROUTE["GET https://ai-bridge.iiu.edu.pk/verify/AIB-XXXXXXXX"]:::verify
+    SCAN --> VERIFY_ROUTE["GET https://ai-bridge-iiui.vercel.app/verify/AIB-XXXXXXXX"]:::verify
 
     VERIFY_ROUTE --> VERIFY_DB{"Query Supabase\npublic.certificates\n(Case-Insensitive ILIKE)"}:::decision
 
@@ -163,7 +163,7 @@ sequenceDiagram
     participant DB as Supabase public.certificates
 
     Recruiter->>Phone: Scans QR code on certificate
-    Phone->>Server: GET https://ai-bridge.iiu.edu.pk/verify/AIB-K7M2P9QR
+    Phone->>Server: GET https://ai-bridge-iiui.vercel.app/verify/AIB-K7M2P9QR
     Server->>DB: SELECT * FROM certificates WHERE certificate_id ILIKE 'AIB-K7M2P9QR'
     DB-->>Server: Return record (recipient_name, student_id, department, is_valid)
     

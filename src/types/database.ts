@@ -125,6 +125,7 @@ export interface Certificate {
   completion_date: string;
   is_valid: boolean;
   created_at?: string;
+  legacy_certificate_id?: string | null;
   // Legacy optional fields
   recipient_role?: string;
   course_name?: string;

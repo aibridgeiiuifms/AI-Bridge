@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
       const { data: verifiedCert, error: verifyErr } = await adminClient
         .from('certificates')
         .select('*')
-        .or(`certificate_id.ilike.${verifyId},verification_code.ilike.${verifyId}`)
+        .or(`certificate_id.ilike.${verifyId},verification_code.ilike.${verifyId},legacy_certificate_id.ilike.${verifyId}`)
         .maybeSingle();
 
       if (verifyErr || !verifiedCert) {

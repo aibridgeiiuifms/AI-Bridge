@@ -24,11 +24,11 @@ export default async function VerifyPage({ params }: VerifyPageProps) {
 
   const supabase = createAdminClient();
 
-  // Case-insensitive query against public.certificates by serial or verification UUID
+  // Case-insensitive query against public.certificates by serial, verification UUID, or legacy ID
   const { data: cert, error } = await supabase
     .from('certificates')
     .select('*')
-    .or(`certificate_id.ilike.${decodedId},verification_code.ilike.${decodedId}`)
+    .or(`certificate_id.ilike.${decodedId},verification_code.ilike.${decodedId},legacy_certificate_id.ilike.${decodedId}`)
     .maybeSingle();
 
   // 1. Not Found View

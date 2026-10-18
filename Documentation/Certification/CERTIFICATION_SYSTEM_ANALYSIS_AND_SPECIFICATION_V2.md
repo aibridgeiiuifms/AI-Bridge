@@ -23,7 +23,7 @@ The **AI Bridge Certification System** dynamically generates and verifies offici
      - `recipient_role` — Unnecessary; omitted.
      - `student_id` & `department` — **Not stamped on the certificate.** Stored in the database and shown **exclusively on the public QR Verification Page** (`/verify/[certificate_id]`).
 3. **QR Code Verification URL:**
-   - **Always points to the production domain:** `https://ai-bridge.iiu.edu.pk/verify/${certificate_id}` (even when running or testing on `localhost`).
+   - **Always points to the production domain:** `https://ai-bridge-iiui.vercel.app/verify/${certificate_id}` (even when running or testing on `localhost`).
 4. **Name Sanitization Scope:**
    - **Applies strictly to `@student.iiu.edu.pk` accounts.**
    - All other accounts (regular Gmail, faculty `@iiu.edu.pk`) preserve their name as submitted.
@@ -67,7 +67,7 @@ flowchart TD
     
     H --> I["Student Clicks 'Download PDF Certificate'"]
     
-    I --> J["On-The-Spot In-Memory Stamping Engine\n(/api/portal/certificate)\n1. Reads Assets/AI_BRIDGE_Certificate_Cleaned.pdf into RAM\n2. Generates QR buffer in memory for https://ai-bridge.iiu.edu.pk/verify/[id]\n3. Stamps Clean Name at (94.8, 515.5)\n4. Stamps QR Code at (1143, 150) in Navy Panel\n5. Streams binary PDF straight to browser in ~60ms"]
+    I --> J["On-The-Spot In-Memory Stamping Engine\n(/api/portal/certificate)\n1. Reads Assets/AI_BRIDGE_Certificate_Cleaned.pdf into RAM\n2. Generates QR buffer in memory for https://ai-bridge-iiui.vercel.app/verify/[id]\n3. Stamps Clean Name at (94.8, 515.5)\n4. Stamps QR Code at (1143, 150) in Navy Panel\n5. Streams binary PDF straight to browser in ~60ms"]
     
     J --> K["Student Receives Stamped PDF in Browser\n(Zero Disk / Zero Storage Buckets)"]
     
@@ -223,7 +223,7 @@ y  │ ──(x=94.8, y=515.5) ★ VARIABLE RECIPIENT NAME ★ (Lora-Bold / Seri
 ### 2. Dynamic QR Code (Generated in Memory)
 - **Coordinates:** $x = 1143.08\text{ pt}$, $y = 150.00\text{ pt}$.
 - **Dimensions:** $100\text{ pt} \times 100\text{ pt}$ (Square).
-- **Target URL (Enforced Production Host):** `https://ai-bridge.iiu.edu.pk/verify/${certificate_id}`.
+- **Target URL (Enforced Production Host):** `https://ai-bridge-iiui.vercel.app/verify/${certificate_id}`.
 - **High-Contrast Card:** A white rounded rectangle ($108\text{ pt} \times 108\text{ pt}$) is drawn behind the QR code at $(x=1139.08, y=146.00)$ to guarantee instant camera scanability against the dark blue sidebar.
 - **White Sub-Labels:** Stamped directly below the QR code:
   - `"Scan to verify"` at $(x=1159.56, y=130.94)$, size $11\text{ pt}$, Sans-Bold.
@@ -243,7 +243,7 @@ During edge-case stress testing, we identified **9 critical vulnerabilities** an
 | **G4** | **Post-Survey webhook latency** | Student finishes Google Form and immediately clicks "Download" before Google Sheets webhook executes. | On-demand fallback: `/api/portal/certificate` cross-checks `student_surveys` by email and auto-links the record before rejecting. |
 | **G5** | **Download filename corruption on iOS/Safari** | Special characters in names or serial IDs break HTTP headers. | Strictly sanitize HTTP response header: `attachment; filename="AI_Bridge_Certificate_${certificate_id}.pdf"`. |
 | **G6** | **Revoked certificate still downloadable** | If admin revokes a certificate (`is_valid = false`), user can still click download. | Download route strictly checks `if (!cert.is_valid) return 403 Forbidden ("Certificate revoked")`. |
-| **G7** | **QR code points to `localhost` in dev** | Using dynamic `origin` or `process.env.NEXT_PUBLIC_SITE_URL` during local dev prints `http://localhost:3000`. | Hardcode production URL base: `https://ai-bridge.iiu.edu.pk/verify/${cert.certificate_id}`. |
+| **G7** | **QR code points to `localhost` in dev** | Using dynamic `origin` or `process.env.NEXT_PUBLIC_SITE_URL` during local dev prints `http://localhost:3000`. | Hardcode production URL base: `https://ai-bridge-iiui.vercel.app/verify/${cert.certificate_id}`. |
 | **G8** | **Non-IIUI names stripped by mistake** | A teacher or guest with numbers in their designation gets their name truncated. | Condition digit-stripping strictly on `@student.iiu.edu.pk`. |
 | **G9** | **Font glyph crash on Pakistani honorifics/dashes** | Built-in PDF fonts lack UTF-8 glyphs for characters like `ā`, `ī`, or non-breaking hyphens. | Fallback replacement for unencodable characters + embed true vector serif font. |
 
@@ -427,8 +427,8 @@ export async function stampCertificatePdfOnTheSpot(input: StampingInput): Promis
     color: rgb(0.0392, 0.1530, 0.3370),
   });
 
-  // 3. Generate QR Code in memory (buffer) pointing strictly to production host
-  const verifyUrl = `https://ai-bridge.iiu.edu.pk/verify/${input.certificateId}`;
+  // 3. Generate QR Code in memory pointing to the live Vercel deployment
+  const verifyUrl = `https://ai-bridge-iiui.vercel.app/verify/${input.certificateId}`;
   const qrBuffer = await QRCode.toBuffer(verifyUrl, {
     width: 250,
     margin: 1,

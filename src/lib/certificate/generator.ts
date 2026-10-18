@@ -68,8 +68,12 @@ export async function stampCertificatePdfOnTheSpot(input: StampingInput): Promis
     color: rgb(0.0392, 0.1530, 0.3370),
   });
 
-  // 4. Generate QR Code in memory targeting the official production verification URL
-  const verifyUrl = `https://ai-bridge.iiu.edu.pk/verify/${input.certificateId}`;
+  // 4. Generate QR Code targeting the live Vercel deployment (or custom production domain)
+  const envUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  const baseUrl = (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1'))
+    ? envUrl.replace(/\/+$/, '')
+    : 'https://ai-bridge-iiui.vercel.app';
+  const verifyUrl = `${baseUrl}/verify/${input.certificateId}`;
   const qrBuffer = await QRCode.toBuffer(verifyUrl, {
     width: 250,
     margin: 1,
