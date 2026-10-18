@@ -94,6 +94,69 @@ export default function AdminDashboard() {
   const [quizConfigFeedback, setQuizConfigFeedback] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [showQuizConfig, setShowQuizConfig] = useState(false);
 
+  // Granular MCQ Access Level for current user ('none' | 'viewer' | 'moderator' | 'manager')
+  const [currentUserMcqAccess, setCurrentUserMcqAccess] = useState<'none' | 'viewer' | 'moderator' | 'manager'>('none');
+  const [mcqAuditLogs, setMcqAuditLogs] = useState<any[]>([]);
+  const [showAuditModal, setShowAuditModal] = useState(false);
+  const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
+
+  const fetchMcqAuditLogs = async () => {
+    setLoadingAuditLogs(true);
+    try {
+      const res = await fetch('/api/admin/mcqs?audit=true');
+      const data = await res.json();
+      if (data.success && data.audit_logs) {
+        setMcqAuditLogs(data.audit_logs);
+      }
+    } catch (e) {
+      console.error('Failed to fetch MCQ audit logs:', e);
+    } finally {
+      setLoadingAuditLogs(false);
+    }
+  };
+
+  const handleMcqLevelChange = async (email: string, newLevel: 'none' | 'viewer' | 'moderator' | 'manager') => {
+    const current = permissionsMap[email] || {
+      can_manage_events: false,
+      can_view_surveys: true,
+      can_verify_attendance: false,
+      can_manage_mcqs: false,
+      can_export_reports: true,
+      can_manage_team: false,
+      mcq_access_level: 'none'
+    };
+
+    const updated = {
+      ...current,
+      mcq_access_level: newLevel,
+      can_manage_mcqs: newLevel === 'manager'
+    };
+
+    setPermissionsMap(prev => ({ ...prev, [email]: updated }));
+
+    try {
+      const res = await fetch('/api/admin/roles', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, permissions: updated })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      const labels: Record<string, string> = {
+        none: 'No Access',
+        viewer: 'Viewer (Read-only)',
+        moderator: 'Moderator (Can Toggle)',
+        manager: 'Manager (Full Edit)'
+      };
+      setFeedbackMsg({ text: `MCQ Authority updated to "${labels[newLevel]}" for ${email}`, type: 'success' });
+      setTimeout(() => setFeedbackMsg(null), 3500);
+    } catch (err: any) {
+      setFeedbackMsg({ text: `Failed to update MCQ authority: ${err.message}`, type: 'error' });
+      setTimeout(() => setFeedbackMsg(null), 4000);
+    }
+  };
+
   const fetchQuizConfig = async () => {
     setLoadingQuizConfig(true);
     try {
@@ -267,6 +330,9 @@ export default function AdminDashboard() {
       if (data.success && data.mcqs) {
         setMcqsList(data.mcqs);
         setAvailableMcqCategories(data.categories || []);
+        if (data.user_access_level) {
+          setCurrentUserMcqAccess(data.user_access_level);
+        }
       }
     } catch (e) {
       console.error('Failed to fetch MCQs:', e);
@@ -513,6 +579,20 @@ export default function AdminDashboard() {
           setDbStats(data.stats);
         }
 
+        const resolveMcqLevel = (perm: any, emailStr: string): 'none' | 'viewer' | 'moderator' | 'manager' => {
+          const emailKey = (emailStr || '').toLowerCase();
+          if (data.mcq_access_levels && data.mcq_access_levels[emailKey]) {
+            return data.mcq_access_levels[emailKey];
+          }
+          if (perm?.mcq_access_level && ['none', 'viewer', 'moderator', 'manager'].includes(perm.mcq_access_level)) {
+            return perm.mcq_access_level;
+          }
+          if (perm?.can_manage_mcqs) {
+            return 'manager';
+          }
+          return 'none';
+        };
+
         const pMap: Record<string, any> = {};
         (data.profiles || []).forEach((p: any) => {
           let permObj: any = null;
@@ -523,37 +603,49 @@ export default function AdminDashboard() {
           }
 
           const wlMatch = (data.whitelist || []).find((w: any) => w.email?.toLowerCase() === p.email?.toLowerCase());
+          const mcqLevel = resolveMcqLevel(permObj, p.email);
 
           if (permObj) {
             pMap[p.email] = {
               ...permObj,
-              can_manage_team: permObj.can_manage_team ?? Boolean(wlMatch?.can_manage_team)
+              can_manage_team: permObj.can_manage_team ?? Boolean(wlMatch?.can_manage_team),
+              mcq_access_level: mcqLevel,
+              can_manage_mcqs: mcqLevel === 'manager'
             };
           } else {
             pMap[p.email] = {
               can_manage_events: false,
               can_view_surveys: true,
               can_verify_attendance: false,
-              can_manage_mcqs: false,
+              can_manage_mcqs: mcqLevel === 'manager',
               can_export_reports: true,
               can_manage_team: Boolean(wlMatch?.can_manage_team),
+              mcq_access_level: mcqLevel,
             };
           }
         });
 
         // Also ensure whitelist members without profiles yet are represented in pMap
         (data.whitelist || []).forEach((w: any) => {
+          const mcqLevel = resolveMcqLevel(null, w.email);
           if (!pMap[w.email]) {
             pMap[w.email] = {
               can_manage_events: false,
               can_view_surveys: true,
               can_verify_attendance: false,
-              can_manage_mcqs: false,
+              can_manage_mcqs: mcqLevel === 'manager',
               can_export_reports: true,
               can_manage_team: Boolean(w.can_manage_team),
+              mcq_access_level: mcqLevel,
             };
-          } else if (w.can_manage_team) {
-            pMap[w.email].can_manage_team = true;
+          } else {
+            if (w.can_manage_team) {
+              pMap[w.email].can_manage_team = true;
+            }
+            if (mcqLevel !== 'none' && (!pMap[w.email].mcq_access_level || pMap[w.email].mcq_access_level === 'none')) {
+              pMap[w.email].mcq_access_level = mcqLevel;
+              pMap[w.email].can_manage_mcqs = mcqLevel === 'manager';
+            }
           }
         });
         setPermissionsMap(pMap);
@@ -568,6 +660,12 @@ export default function AdminDashboard() {
             Boolean((data.whitelist || []).find((w: any) => w.email?.toLowerCase() === emailLower)?.can_manage_team);
           if (isSuper || hasDelegated) {
             setCanManageTeam(true);
+          }
+
+          if (isSuper) {
+            setCurrentUserMcqAccess('manager');
+          } else if (pMap[emailLower]?.mcq_access_level) {
+            setCurrentUserMcqAccess(pMap[emailLower].mcq_access_level);
           }
         }
       }
@@ -639,6 +737,19 @@ export default function AdminDashboard() {
           }
 
           setCanManageTeam(isSuperAdmin || hasDelegatedPermission);
+
+          if (isSuperAdmin) {
+            setCurrentUserMcqAccess('manager');
+          } else {
+            const permObj = Array.isArray(prof?.member_permissions)
+              ? prof?.member_permissions[0]
+              : prof?.member_permissions;
+            if (permObj?.mcq_access_level && ['none', 'viewer', 'moderator', 'manager'].includes(permObj.mcq_access_level)) {
+              setCurrentUserMcqAccess(permObj.mcq_access_level);
+            } else if (permObj?.can_manage_mcqs) {
+              setCurrentUserMcqAccess('manager');
+            }
+          }
         }
       } catch (e) {
         console.error('Error verifying user permissions:', e);
@@ -1192,25 +1303,38 @@ export default function AdminDashboard() {
             {departmentMappings.length}
           </span>
         </button>
-        <button
-          onClick={() => {
-            setActiveTab('mcqs');
-            fetchMCQs();
-          }}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
-            activeTab === 'mcqs'
-              ? 'bg-emerald-700 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <HelpCircle className="w-3.5 h-3.5" />
-          <span>MCQ Question Pool</span>
-          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-            activeTab === 'mcqs' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-          }`}>
-            {mcqsList.length}
-          </span>
-        </button>
+        {(isSuperAdmin || currentUserMcqAccess !== 'none') && (
+          <button
+            onClick={() => {
+              setActiveTab('mcqs');
+              fetchMCQs();
+            }}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              activeTab === 'mcqs'
+                ? 'bg-emerald-700 text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            <span>MCQ Question Pool</span>
+            {currentUserMcqAccess !== 'none' && !isSuperAdmin && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[9px] uppercase tracking-wider font-extrabold ${
+                currentUserMcqAccess === 'manager'
+                  ? 'bg-emerald-200 text-emerald-950'
+                  : currentUserMcqAccess === 'moderator'
+                  ? 'bg-amber-300 text-slate-950'
+                  : 'bg-sky-200 text-sky-950'
+              }`}>
+                {currentUserMcqAccess}
+              </span>
+            )}
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+              activeTab === 'mcqs' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+            }`}>
+              {mcqsList.length}
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Quick Access Banner for Delegated Team Managers */}
@@ -1758,7 +1882,7 @@ export default function AdminDashboard() {
                     <th className="text-center">Manage Events</th>
                     <th className="text-center">View Surveys</th>
                     <th className="text-center">Verify Attendance</th>
-                    <th className="text-center">Manage MCQs</th>
+                    <th className="text-center min-w-[140px]">MCQ Authority</th>
                     <th className="text-center">Export Reports</th>
                   </tr>
                 </thead>
@@ -1786,7 +1910,10 @@ export default function AdminDashboard() {
                         can_manage_mcqs: false,
                         can_export_reports: true,
                         can_manage_team: false,
+                        mcq_access_level: 'none',
                       };
+
+                      const currentMcqLevel = perms.mcq_access_level || (perms.can_manage_mcqs ? 'manager' : 'none');
 
                       return (
                         <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
@@ -1835,14 +1962,27 @@ export default function AdminDashboard() {
                             />
                           </td>
 
-                          <td className="text-center">
-                            <input
-                              type="checkbox"
+                          {/* 3-Tier Hierarchical MCQ Authority Dropdown */}
+                          <td className="text-center px-2 py-2">
+                            <select
                               disabled={!isSuperAdmin && !canManageTeam}
-                              checked={perms.can_manage_mcqs}
-                              onChange={() => togglePermission(email, 'can_manage_mcqs')}
-                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
-                            />
+                              value={currentMcqLevel}
+                              onChange={(e) => handleMcqLevelChange(email, e.target.value as any)}
+                              className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-all cursor-pointer shadow-xs disabled:opacity-50 ${
+                                currentMcqLevel === 'manager'
+                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                                  : currentMcqLevel === 'moderator'
+                                  ? 'bg-amber-50 border-amber-300 text-amber-800'
+                                  : currentMcqLevel === 'viewer'
+                                  ? 'bg-sky-50 border-sky-300 text-sky-800'
+                                  : 'bg-slate-50 border-slate-200 text-slate-500'
+                              }`}
+                            >
+                              <option value="none">None (No Access)</option>
+                              <option value="viewer">Viewer (Read Only)</option>
+                              <option value="moderator">Moderator (Can Toggle)</option>
+                              <option value="manager">Manager (Full Edit)</option>
+                            </select>
                           </td>
 
                           <td className="text-center">
@@ -2763,9 +2903,27 @@ export default function AdminDashboard() {
           {/* Header Card */}
           <div className="flex min-w-0 flex-col items-start justify-between gap-4 rounded-3xl border border-emerald-800 bg-gradient-to-br from-emerald-950 via-teal-950 to-slate-900 p-4 text-white shadow-xl sm:flex-row sm:items-center sm:p-6 lg:p-8">
             <div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-800/80 text-emerald-200 text-xs font-bold uppercase tracking-wider mb-2 border border-emerald-600/40">
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                <span>Assessment Evaluation Engine</span>
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-800/80 text-emerald-200 text-xs font-bold uppercase tracking-wider border border-emerald-600/40">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Assessment Evaluation Engine</span>
+                </div>
+                {/* User Authority Badge */}
+                <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase tracking-wider border ${
+                  isSuperAdmin || currentUserMcqAccess === 'manager'
+                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                    : currentUserMcqAccess === 'moderator'
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                    : 'bg-sky-500/20 text-sky-300 border-sky-500/40'
+                }`}>
+                  {isSuperAdmin
+                    ? 'Super Admin (Full Manager)'
+                    : currentUserMcqAccess === 'manager'
+                    ? 'Manager Authority (Full Edit)'
+                    : currentUserMcqAccess === 'moderator'
+                    ? 'Moderator Authority (Can Toggle)'
+                    : 'Viewer Authority (Read Only)'}
+                </span>
               </div>
               <h2 className="text-xl sm:text-2xl font-black tracking-tight">Master MCQ Question Pool</h2>
               <p className="text-xs text-emerald-200 mt-1 max-w-xl leading-relaxed">
@@ -2783,14 +2941,45 @@ export default function AdminDashboard() {
                 <span className="hidden sm:inline">Refresh</span>
               </button>
               <button
-                onClick={handleOpenAddMcq}
-                className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-amber-400 text-slate-950 hover:bg-amber-300 text-xs font-black shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                onClick={() => {
+                  setShowAuditModal(true);
+                  fetchMcqAuditLogs();
+                }}
+                className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/20 transition-all flex items-center gap-1.5 cursor-pointer"
+                title="View audit trail"
               >
-                <PlusCircle className="w-4 h-4" />
-                <span>+ Add Question</span>
+                <History className="w-3.5 h-3.5 text-amber-300" />
+                <span className="hidden sm:inline">Audit Log</span>
               </button>
+              {(isSuperAdmin || currentUserMcqAccess === 'manager') && (
+                <button
+                  onClick={handleOpenAddMcq}
+                  className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-amber-400 text-slate-950 hover:bg-amber-300 text-xs font-black shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>+ Add Question</span>
+                </button>
+              )}
             </div>
           </div>
+
+          {/* Access Level Helper Banner */}
+          {currentUserMcqAccess === 'viewer' && !isSuperAdmin && (
+            <div className="bg-sky-50 border border-sky-200 text-sky-900 px-4 py-3 rounded-2xl flex items-center gap-2.5 text-xs">
+              <Eye className="w-4 h-4 text-sky-600 shrink-0" />
+              <span>
+                <strong>Viewer Access Active:</strong> You can review questions, answer choices, and explanations. To activate/deactivate questions or create new ones, request Moderator or Manager permission from the Admin.
+              </span>
+            </div>
+          )}
+          {currentUserMcqAccess === 'moderator' && !isSuperAdmin && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 rounded-2xl flex items-center gap-2.5 text-xs">
+              <CheckCircle2 className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>
+                <strong>Moderator Access Active:</strong> You can activate or deactivate questions for live student quizzes. Adding new questions or modifying quiz distribution quotas requires Manager permission.
+              </span>
+            </div>
+          )}
 
           {/* Live Metrics Ribbon */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -2891,11 +3080,12 @@ export default function AdminDashboard() {
                           type="number"
                           min={1}
                           max={50}
+                          disabled={!isSuperAdmin && currentUserMcqAccess !== 'manager'}
                           value={quizConfigDraft.total_questions}
                           onChange={(e) =>
                             setQuizConfigDraft((d) => d ? { ...d, total_questions: Number(e.target.value) } : d)
                           }
-                          className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                          className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500"
                         />
                       </div>
                       <div>
@@ -2906,11 +3096,12 @@ export default function AdminDashboard() {
                           type="number"
                           min={1}
                           max={quizConfigDraft.total_questions}
+                          disabled={!isSuperAdmin && currentUserMcqAccess !== 'manager'}
                           value={quizConfigDraft.passing_score}
                           onChange={(e) =>
                             setQuizConfigDraft((d) => d ? { ...d, passing_score: Number(e.target.value) } : d)
                           }
-                          className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                          className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500"
                         />
                         <p className="text-[10px] text-slate-400 mt-1">
                           = {quizConfigDraft.total_questions > 0 ? Math.round((quizConfigDraft.passing_score / quizConfigDraft.total_questions) * 100) : 0}% pass rate
@@ -2924,11 +3115,12 @@ export default function AdminDashboard() {
                           type="number"
                           min={0}
                           max={3600}
+                          disabled={!isSuperAdmin && currentUserMcqAccess !== 'manager'}
                           value={quizConfigDraft.cooldown_seconds}
                           onChange={(e) =>
                             setQuizConfigDraft((d) => d ? { ...d, cooldown_seconds: Number(e.target.value) } : d)
                           }
-                          className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                          className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500"
                         />
                         <p className="text-[10px] text-slate-400 mt-1">
                           {Math.floor(quizConfigDraft.cooldown_seconds / 60)}m {quizConfigDraft.cooldown_seconds % 60}s after failed attempt
@@ -2968,6 +3160,7 @@ export default function AdminDashboard() {
                               type="number"
                               min={0}
                               max={20}
+                              disabled={!isSuperAdmin && currentUserMcqAccess !== 'manager'}
                               value={entry.count}
                               onChange={(e) => {
                                 const val = Number(e.target.value);
@@ -2978,7 +3171,7 @@ export default function AdminDashboard() {
                                   return { ...d, categories: cats };
                                 });
                               }}
-                              className="w-14 px-2 py-1.5 border border-slate-300 rounded-lg text-sm font-bold text-center text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                              className="w-14 px-2 py-1.5 border border-slate-300 rounded-lg text-sm font-bold text-center text-slate-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:bg-slate-200 disabled:text-slate-500"
                             />
                           </div>
                         ))}
@@ -2990,30 +3183,39 @@ export default function AdminDashboard() {
                       </p>
                     </div>
 
-                    {/* Save / Discard Buttons */}
-                    <div className="flex items-center justify-end gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (quizConfig) setQuizConfigDraft(JSON.parse(JSON.stringify(quizConfig)));
-                        }}
-                        className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
-                      >
-                        Discard Changes
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleSaveQuizConfig}
-                        disabled={savingQuizConfig}
-                        className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-palette-haiti text-xs font-bold shadow-sm transition-colors flex items-center gap-2 disabled:opacity-60 cursor-pointer"
-                      >
-                        {savingQuizConfig ? (
-                          <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving…</>
-                        ) : (
-                          <><Check className="w-3.5 h-3.5" /> Save Quiz Settings</>
-                        )}
-                      </button>
-                    </div>
+                    {/* Save / Discard Controls */}
+                    {(isSuperAdmin || currentUserMcqAccess === 'manager') ? (
+                      <div className="flex items-center justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (quizConfig) setQuizConfigDraft(JSON.parse(JSON.stringify(quizConfig)));
+                          }}
+                          className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                        >
+                          Discard Changes
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleSaveQuizConfig}
+                          disabled={savingQuizConfig}
+                          className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-2 disabled:opacity-60 cursor-pointer"
+                        >
+                          {savingQuizConfig ? (
+                            <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving…</>
+                          ) : (
+                            <><Check className="w-3.5 h-3.5" /> Save Quiz Settings</>
+                          )}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                        <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500">
+                          <Lock className="w-3.5 h-3.5 text-slate-400" />
+                          View-Only: Quiz category counts and pass criteria can only be modified with Manager authority.
+                        </span>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="text-xs text-slate-400 py-4">Could not load configuration. <button onClick={fetchQuizConfig} className="text-indigo-600 underline cursor-pointer">Retry</button></div>
@@ -3188,23 +3390,31 @@ export default function AdminDashboard() {
 
                           {/* Quick Actions */}
                           <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={() => handleToggleMcqStatus(q.id, q.is_active)}
-                              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                q.is_active
-                                  ? 'bg-slate-100 text-slate-700 hover:bg-rose-50 hover:text-rose-700'
-                                  : 'bg-emerald-700 text-white hover:bg-emerald-800'
-                              }`}
-                            >
-                              {q.is_active ? 'Deactivate' : 'Activate'}
-                            </button>
-                            <button
-                              onClick={() => handleOpenEditMcq(q)}
-                              className="px-3 py-1 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                              <span>Edit</span>
-                            </button>
+                            {(isSuperAdmin || currentUserMcqAccess === 'moderator' || currentUserMcqAccess === 'manager') ? (
+                              <button
+                                onClick={() => handleToggleMcqStatus(q.id, q.is_active)}
+                                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                  q.is_active
+                                    ? 'bg-slate-100 text-slate-700 hover:bg-rose-50 hover:text-rose-700'
+                                    : 'bg-emerald-700 text-white hover:bg-emerald-800'
+                                }`}
+                              >
+                                {q.is_active ? 'Deactivate' : 'Activate'}
+                              </button>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-xl bg-slate-100 text-slate-400 text-[11px] font-semibold flex items-center gap-1">
+                                <Lock className="w-3 h-3" /> View Only
+                              </span>
+                            )}
+                            {(isSuperAdmin || currentUserMcqAccess === 'manager') && (
+                              <button
+                                onClick={() => handleOpenEditMcq(q)}
+                                className="px-3 py-1 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                <span>Edit</span>
+                              </button>
+                            )}
                           </div>
                         </div>
 
@@ -3251,6 +3461,17 @@ export default function AdminDashboard() {
                               <span className="font-bold text-slate-800">Academic Explanation:</span>
                               <p className="text-[11px] leading-relaxed text-slate-600">{q.explanation}</p>
                             </div>
+                          </div>
+                        )}
+
+                        {/* Audit Trail Stamp */}
+                        {q.last_updated_by && (
+                          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 pt-1 border-t border-slate-100">
+                            <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span>Last updated by <strong className="text-slate-600 font-semibold">{q.last_updated_by}</strong></span>
+                            {q.updated_at && (
+                              <span>• {new Date(q.updated_at).toLocaleDateString()} {new Date(q.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            )}
                           </div>
                         )}
                       </div>
@@ -3427,6 +3648,82 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {/* MCQ Activity & Audit History Modal */}
+          {showAuditModal && (
+            <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4 animate-fade-in">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <History className="w-5 h-5 text-indigo-600" />
+                      <h3 className="font-extrabold text-base text-slate-900">MCQ Pool Audit & Activity Log</h3>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Live record of question deactivations, edits, and additions
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowAuditModal(false)}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {loadingAuditLogs ? (
+                  <div className="py-12 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Loading audit trail…
+                  </div>
+                ) : mcqAuditLogs.length === 0 ? (
+                  <div className="py-12 text-center text-xs text-slate-400 space-y-2">
+                    <CheckCircle2 className="w-8 h-8 text-slate-300 mx-auto" />
+                    <p className="font-semibold text-slate-700">No audit records yet</p>
+                    <p className="text-[11px] text-slate-400">All future changes by moderators and managers will be logged here.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5 max-h-[60vh] overflow-y-auto pr-1">
+                    {mcqAuditLogs.map((log: any) => (
+                      <div key={log.id} className="p-3 rounded-2xl border border-slate-200 bg-slate-50/70 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                              log.action === 'toggle_status'
+                                ? 'bg-amber-100 text-amber-800'
+                                : log.action === 'create_question'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : log.action === 'deactivate_question'
+                                ? 'bg-rose-100 text-rose-800'
+                                : 'bg-indigo-100 text-indigo-800'
+                            }`}>
+                              {log.action.replace('_', ' ')}
+                            </span>
+                            <span className="font-semibold text-slate-800">{log.question_snippet}</span>
+                          </div>
+                          <div className="text-[11px] text-slate-500">
+                            By: <strong className="text-slate-700">{log.performed_by}</strong>
+                          </div>
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono sm:text-right shrink-0">
+                          {new Date(log.performed_at).toLocaleString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="pt-3 border-t border-slate-100 flex justify-end">
+                  <button
+                    onClick={() => setShowAuditModal(false)}
+                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-bold text-slate-700 cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           )}

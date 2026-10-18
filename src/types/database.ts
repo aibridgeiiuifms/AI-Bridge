@@ -14,6 +14,8 @@ export interface Profile {
   updated_at: string;
 }
 
+export type MCQAccessLevel = 'none' | 'viewer' | 'moderator' | 'manager';
+
 export interface MemberPermissions {
   member_id: string;
   can_manage_events: boolean;
@@ -22,6 +24,7 @@ export interface MemberPermissions {
   can_manage_mcqs: boolean;
   can_export_reports: boolean;
   can_manage_team?: boolean;
+  mcq_access_level?: MCQAccessLevel;
   updated_at: string;
 }
 
@@ -39,6 +42,8 @@ export interface RoleWhitelistEntry {
   assigned_tasks?: string[];
   full_name?: string | null;
   notes?: string | null;
+  can_manage_team?: boolean;
+  mcq_access_level?: MCQAccessLevel;
   created_at?: string;
   updated_at?: string;
 }
@@ -69,6 +74,18 @@ export interface MCQQuestion {
   difficulty: 'easy' | 'intermediate' | 'advanced';
   is_active: boolean;
   created_at: string;
+  updated_at?: string;
+  last_updated_by?: string;
+}
+
+export interface MCQAuditLogEntry {
+  id: string;
+  mcq_id: string;
+  question_snippet: string;
+  action: 'toggle_status' | 'edit_question' | 'create_question' | 'deactivate_question';
+  performed_by: string;
+  performed_at: string;
+  details?: Record<string, any>;
 }
 
 export interface SurveyResponse {

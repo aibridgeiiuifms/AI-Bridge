@@ -39,21 +39,12 @@ export async function GET(req: NextRequest) {
   try {
     const access = await requireAmbassadorPortalAccess();
     if (access instanceof NextResponse) return access;
-    const { role, userId } = access;
 
-    // Check MCQ permission for members
-    const adminSupabase = createAdminClient();
-    if (role === 'member') {
-      const { data: perm } = await adminSupabase
-        .from('member_permissions')
-        .select('can_manage_mcqs')
-        .eq('member_id', userId)
-        .maybeSingle();
-      if (!perm?.can_manage_mcqs) {
-        return NextResponse.json({ success: false, error: 'MCQ management permission required.' }, { status: 403 });
-      }
+    if (!access.canViewMCQs) {
+      return NextResponse.json({ success: false, error: 'MCQ access permission required.' }, { status: 403 });
     }
 
+    const adminSupabase = createAdminClient();
     const { data, error } = await adminSupabase
       .from('system_settings')
       .select('value')
@@ -82,21 +73,15 @@ export async function POST(req: NextRequest) {
   try {
     const access = await requireAmbassadorPortalAccess();
     if (access instanceof NextResponse) return access;
-    const { role, userId } = access;
+
+    if (!access.canEditMCQs) {
+      return NextResponse.json(
+        { success: false, error: 'MCQ Manager permission required to configure quiz settings.' },
+        { status: 403 }
+      );
+    }
 
     const adminSupabase = createAdminClient();
-
-    // Check MCQ permission for members
-    if (role === 'member') {
-      const { data: perm } = await adminSupabase
-        .from('member_permissions')
-        .select('can_manage_mcqs')
-        .eq('member_id', userId)
-        .maybeSingle();
-      if (!perm?.can_manage_mcqs) {
-        return NextResponse.json({ success: false, error: 'MCQ management permission required.' }, { status: 403 });
-      }
-    }
 
 
     const body = await req.json();

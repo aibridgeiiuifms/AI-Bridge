@@ -105,11 +105,27 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // 5. Fetch mcq_access_levels map from system_settings
+    let mcqAccessLevels: Record<string, string> = {};
+    try {
+      const { data: levelsRow } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'mcq_access_levels')
+        .maybeSingle();
+      if (levelsRow?.value && typeof levelsRow.value === 'object') {
+        mcqAccessLevels = levelsRow.value;
+      }
+    } catch {
+      // Fallback silently
+    }
+
     return NextResponse.json({
       success: true,
       tasks: tasks || [],
       whitelist: whitelist || [],
       profiles: profiles || [],
+      mcq_access_levels: mcqAccessLevels,
       stats: {
         totalProfiles: totalProfiles || 0,
         preSurveysCount: preSurveysCount || 0,
@@ -278,18 +294,50 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Team management access is required.' }, { status: 403 });
       }
 
+      const normalizedEmail = email ? email.trim().toLowerCase() : '';
+
+      // Synchronize mcq_access_level with can_manage_mcqs
+      if (permissions.mcq_access_level !== undefined) {
+        const valid = ['none', 'viewer', 'moderator', 'manager'];
+        const level = valid.includes(permissions.mcq_access_level) ? permissions.mcq_access_level : 'none';
+        permissions.mcq_access_level = level;
+        permissions.can_manage_mcqs = level === 'manager';
+
+        // Persist to system_settings mcq_access_levels map for 100% resilience
+        if (normalizedEmail) {
+          try {
+            const { data: existingLevels } = await supabase
+              .from('system_settings')
+              .select('value')
+              .eq('key', 'mcq_access_levels')
+              .maybeSingle();
+
+            const map = (existingLevels?.value && typeof existingLevels.value === 'object')
+              ? { ...existingLevels.value }
+              : {};
+            map[normalizedEmail] = level;
+
+            await supabase
+              .from('system_settings')
+              .upsert({ key: 'mcq_access_levels', value: map, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+          } catch (err) {
+            console.warn('Could not save mcq_access_levels to system_settings:', err);
+          }
+        }
+      }
+
       let targetId = userId;
-      if (!targetId && email) {
+      if (!targetId && normalizedEmail) {
         const { data: prof } = await supabase
           .from('profiles')
           .select('id')
-          .eq('email', email.trim().toLowerCase())
+          .eq('email', normalizedEmail)
           .maybeSingle();
         targetId = prof?.id;
       }
 
       if (targetId) {
-        const { error: permError } = await supabase
+        let { error: permError } = await supabase
           .from('member_permissions')
           .upsert({
             member_id: targetId,
@@ -297,20 +345,46 @@ export async function PATCH(req: NextRequest) {
             updated_at: new Date().toISOString(),
           });
 
+        // Resilient retry if mcq_access_level column doesn't exist yet in member_permissions
+        if (permError && permError.message?.includes('mcq_access_level')) {
+          const { mcq_access_level, ...safePermissions } = permissions;
+          const retry = await supabase
+            .from('member_permissions')
+            .upsert({
+              member_id: targetId,
+              ...safePermissions,
+              updated_at: new Date().toISOString(),
+            });
+          permError = retry.error;
+        }
+
         if (permError) {
           return NextResponse.json({ success: false, error: permError.message }, { status: 400 });
         }
       }
 
-      // Also ensure can_manage_team is persisted to role_whitelist for this email
-      if (email && permissions.can_manage_team !== undefined) {
-        await supabase
+      // Also ensure can_manage_team and mcq_access_level are persisted to role_whitelist for this email
+      if (normalizedEmail) {
+        const wlUpdates: Record<string, any> = { updated_at: new Date().toISOString() };
+        if (permissions.can_manage_team !== undefined) {
+          wlUpdates.can_manage_team = Boolean(permissions.can_manage_team);
+        }
+        if (permissions.mcq_access_level !== undefined) {
+          wlUpdates.mcq_access_level = permissions.mcq_access_level;
+        }
+
+        let { error: wlErr } = await supabase
           .from('role_whitelist')
-          .update({
-            can_manage_team: Boolean(permissions.can_manage_team),
-            updated_at: new Date().toISOString()
-          })
-          .eq('email', email.trim().toLowerCase());
+          .update(wlUpdates)
+          .eq('email', normalizedEmail);
+
+        if (wlErr && wlErr.message?.includes('mcq_access_level')) {
+          delete wlUpdates.mcq_access_level;
+          await supabase
+            .from('role_whitelist')
+            .update(wlUpdates)
+            .eq('email', normalizedEmail);
+        }
       }
     }
 

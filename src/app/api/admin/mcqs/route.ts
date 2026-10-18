@@ -5,16 +5,75 @@ import { requireAmbassadorPortalAccess } from '@/lib/ambassador-access';
 export const dynamic = 'force-dynamic';
 
 /**
- * Administrative API endpoint for Master MCQ Question Pool Management
- * Allows Admins (and authorized SDG Ambassadors) to search, create, update, and toggle questions.
+ * Append an entry to the persistent MCQ audit log in system_settings
+ */
+async function recordMCQAudit(supabase: any, entry: {
+  mcq_id: string;
+  question_snippet: string;
+  action: 'toggle_status' | 'edit_question' | 'create_question' | 'deactivate_question';
+  performed_by: string;
+  details?: Record<string, any>;
+}) {
+  try {
+    const { data: existing } = await supabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'mcq_audit_logs')
+      .maybeSingle();
+
+    const logs: any[] = Array.isArray(existing?.value) ? existing.value : [];
+    const newEntry = {
+      id: crypto.randomUUID(),
+      ...entry,
+      performed_at: new Date().toISOString(),
+    };
+
+    // Keep the most recent 100 entries for fast loading
+    const updated = [newEntry, ...logs].slice(0, 100);
+
+    await supabase
+      .from('system_settings')
+      .upsert({ key: 'mcq_audit_logs', value: updated, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+  } catch (err) {
+    console.warn('MCQ audit logging warning:', err);
+  }
+}
+
+/**
+ * GET /api/admin/mcqs
+ * Allows Admins, Managers, Moderators, and Viewers to search and view questions.
+ * If ?audit=true, returns the recent audit trail.
  */
 export async function GET(req: NextRequest) {
   const access = await requireAmbassadorPortalAccess();
   if (access instanceof NextResponse) return access;
 
+  // Level 1 Requirement: Must have at least Viewer access
+  if (!access.canViewMCQs) {
+    return NextResponse.json(
+      { success: false, error: 'MCQ Question Pool viewing access is restricted.' },
+      { status: 403 }
+    );
+  }
+
   try {
     const supabase = createAdminClient();
     const { searchParams } = new URL(req.url);
+
+    // Return audit logs if requested
+    if (searchParams.get('audit') === 'true') {
+      const { data: auditRow } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'mcq_audit_logs')
+        .maybeSingle();
+
+      return NextResponse.json({
+        success: true,
+        audit_logs: Array.isArray(auditRow?.value) ? auditRow.value : [],
+      });
+    }
+
     const search = searchParams.get('search')?.trim().toLowerCase() || '';
     const category = searchParams.get('category')?.trim() || '';
     const difficulty = searchParams.get('difficulty')?.trim() || '';
@@ -69,6 +128,9 @@ export async function GET(req: NextRequest) {
       total_count: (questions || []).length,
       filtered_count: filtered.length,
       categories: Array.from(categoriesSet).sort(),
+      user_access_level: access.mcqAccessLevel,
+      can_toggle: access.canToggleMCQs,
+      can_edit: access.canEditMCQs,
     });
   } catch (err: any) {
     console.error('GET /api/admin/mcqs error:', err);
@@ -81,11 +143,19 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/admin/mcqs
- * Create a new question in the mcq_pool
+ * Create a new question in the mcq_pool.
+ * Level 3 Requirement: Only Managers and Admins can create questions.
  */
 export async function POST(req: NextRequest) {
   const access = await requireAmbassadorPortalAccess();
   if (access instanceof NextResponse) return access;
+
+  if (!access.canEditMCQs) {
+    return NextResponse.json(
+      { success: false, error: 'MCQ Manager permission required to add new questions to the pool.' },
+      { status: 403 }
+    );
+  }
 
   try {
     const body = await req.json();
@@ -119,7 +189,9 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = createAdminClient();
-    const payload = {
+    const nowIso = new Date().toISOString();
+
+    const basePayload: Record<string, any> = {
       question_text: question_text.trim(),
       options: cleanedOptions,
       correct_option_index: correctIndex,
@@ -129,16 +201,41 @@ export async function POST(req: NextRequest) {
       is_active: Boolean(is_active),
     };
 
-    const { data: created, error } = await supabase
+    // Attempt insert with audit fields
+    let { data: created, error } = await supabase
       .from('mcq_pool')
-      .insert(payload)
+      .insert({
+        ...basePayload,
+        last_updated_by: access.userEmail,
+        updated_at: nowIso,
+      })
       .select()
       .single();
+
+    // Resilient fallback if audit columns don't exist yet
+    if (error && (error.message?.includes('last_updated_by') || error.message?.includes('updated_at'))) {
+      const fallbackResult = await supabase
+        .from('mcq_pool')
+        .insert(basePayload)
+        .select()
+        .single();
+      created = fallbackResult.data;
+      error = fallbackResult.error;
+    }
 
     if (error) {
       console.error('Insert mcq error:', error);
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
+
+    // Record persistent audit log
+    await recordMCQAudit(supabase, {
+      mcq_id: created.id,
+      question_snippet: question_text.substring(0, 70),
+      action: 'create_question',
+      performed_by: access.userEmail,
+      details: { category, difficulty },
+    });
 
     return NextResponse.json({
       success: true,
@@ -156,7 +253,9 @@ export async function POST(req: NextRequest) {
 
 /**
  * PATCH /api/admin/mcqs
- * Update an existing question (or toggle active status)
+ * Update an existing question (or toggle active status).
+ * - Toggling status only (is_active) requires Level 2 (Moderator or Manager).
+ * - Editing question content requires Level 3 (Manager or Admin).
  */
 export async function PATCH(req: NextRequest) {
   const access = await requireAmbassadorPortalAccess();
@@ -170,9 +269,29 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Question ID is required.' }, { status: 400 });
     }
 
-    const supabase = createAdminClient();
+    // Determine if this is purely a status toggle
+    const updateKeys = Object.keys(updates);
+    const isStatusToggleOnly = updateKeys.length === 1 && updateKeys[0] === 'is_active';
 
-    // Prepare update payload
+    if (isStatusToggleOnly) {
+      // Level 2 Requirement: Moderator or Manager
+      if (!access.canToggleMCQs) {
+        return NextResponse.json(
+          { success: false, error: 'MCQ Moderator or Manager access required to activate/deactivate questions.' },
+          { status: 403 }
+        );
+      }
+    } else {
+      // Level 3 Requirement: Manager or Admin for content edits
+      if (!access.canEditMCQs) {
+        return NextResponse.json(
+          { success: false, error: 'MCQ Manager access required to modify question content.' },
+          { status: 403 }
+        );
+      }
+    }
+
+    const supabase = createAdminClient();
     const updatePayload: Record<string, any> = {};
 
     if (updates.is_active !== undefined) {
@@ -212,21 +331,54 @@ export async function PATCH(req: NextRequest) {
         : 'intermediate';
     }
 
-    const { data: updated, error } = await supabase
+    const nowIso = new Date().toISOString();
+
+    // Attempt update with audit tracking fields
+    let { data: updated, error } = await supabase
       .from('mcq_pool')
-      .update(updatePayload)
+      .update({
+        ...updatePayload,
+        last_updated_by: access.userEmail,
+        updated_at: nowIso,
+      })
       .eq('id', id)
       .select()
       .single();
+
+    // Resilient fallback if audit columns don't exist yet
+    if (error && (error.message?.includes('last_updated_by') || error.message?.includes('updated_at'))) {
+      const fallbackResult = await supabase
+        .from('mcq_pool')
+        .update(updatePayload)
+        .eq('id', id)
+        .select()
+        .single();
+      updated = fallbackResult.data;
+      error = fallbackResult.error;
+    }
 
     if (error) {
       console.error('Update mcq error:', error);
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
+    // Record audit entry
+    await recordMCQAudit(supabase, {
+      mcq_id: id,
+      question_snippet: updated?.question_text ? updated.question_text.substring(0, 70) : id,
+      action: isStatusToggleOnly ? 'toggle_status' : 'edit_question',
+      performed_by: access.userEmail,
+      details: {
+        is_active: updated?.is_active,
+        modified_fields: updateKeys,
+      },
+    });
+
     return NextResponse.json({
       success: true,
-      message: 'Question updated successfully.',
+      message: isStatusToggleOnly
+        ? (updated.is_active ? 'Question activated for quizzes.' : 'Question deactivated safely.')
+        : 'Question updated successfully.',
       mcq: updated,
     });
   } catch (err: any) {
@@ -240,7 +392,8 @@ export async function PATCH(req: NextRequest) {
 
 /**
  * DELETE /api/admin/mcqs
- * Safe deactivation of a question (or delete if safe)
+ * Safe deactivation requires Level 2 (Moderator).
+ * Permanent deletion requires Level 3 (Manager or Admin).
  */
 export async function DELETE(req: NextRequest) {
   const access = await requireAmbassadorPortalAccess();
@@ -255,21 +408,68 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Question ID required.' }, { status: 400 });
     }
 
+    if (permanent) {
+      // Level 3 Requirement: Manager only
+      if (!access.canEditMCQs) {
+        return NextResponse.json({ success: false, error: 'MCQ Manager permission required to permanently delete.' }, { status: 403 });
+      }
+    } else {
+      // Level 2 Requirement: Moderator can deactivate
+      if (!access.canToggleMCQs) {
+        return NextResponse.json({ success: false, error: 'MCQ Moderator permission required to deactivate questions.' }, { status: 403 });
+      }
+    }
+
     const supabase = createAdminClient();
 
     if (permanent) {
-      // Hard delete
       const { error } = await supabase.from('mcq_pool').delete().eq('id', id);
       if (error) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
       }
+
+      await recordMCQAudit(supabase, {
+        mcq_id: id,
+        question_snippet: `Permanent Delete (${id})`,
+        action: 'deactivate_question',
+        performed_by: access.userEmail,
+        details: { permanent: true },
+      });
+
       return NextResponse.json({ success: true, message: 'Question permanently deleted.' });
     } else {
       // Safe deactivation
-      const { error } = await supabase.from('mcq_pool').update({ is_active: false }).eq('id', id);
+      const nowIso = new Date().toISOString();
+      let { data: deactivated, error } = await supabase
+        .from('mcq_pool')
+        .update({ is_active: false, last_updated_by: access.userEmail, updated_at: nowIso })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error && (error.message?.includes('last_updated_by') || error.message?.includes('updated_at'))) {
+        const fallback = await supabase
+          .from('mcq_pool')
+          .update({ is_active: false })
+          .eq('id', id)
+          .select()
+          .single();
+        deactivated = fallback.data;
+        error = fallback.error;
+      }
+
       if (error) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
       }
+
+      await recordMCQAudit(supabase, {
+        mcq_id: id,
+        question_snippet: deactivated?.question_text ? deactivated.question_text.substring(0, 70) : id,
+        action: 'deactivate_question',
+        performed_by: access.userEmail,
+        details: { is_active: false },
+      });
+
       return NextResponse.json({ success: true, message: 'Question deactivated safely.' });
     }
   } catch (err: any) {
