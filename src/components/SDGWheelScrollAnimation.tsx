@@ -117,7 +117,7 @@ export default function SDGWheelScrollAnimation({ className = '' }: SDGWheelScro
         scrollTrigger: {
           trigger: container,
           start: 'top top',
-          end: '+=600',
+          end: '+=420',
           scrub: true,
           pin: true,
           anticipatePin: 1,
