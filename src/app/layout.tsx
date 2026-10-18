@@ -4,7 +4,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
 export const metadata: Metadata = {
-  title: 'The AI Bridge | IIUI FMS - Hum Hain Pakistan SDG Youth Campaign',
+  title: 'The AI Bridge | FMS IIUI - Hum Hain Pakistan SDG Youth Campaign',
   description: 'Empowering and bridging the gap for non-IT educators and learners through source-grounded AI tools and NotebookLM.',
 };
 

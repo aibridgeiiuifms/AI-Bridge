@@ -1,5 +1,33 @@
 import type { Config } from "tailwindcss";
 
+const paletteScale = {
+  50: "#F7F5E9",
+  100: "#FAD8B9",
+  200: "#FAD8B9",
+  300: "#F5AA66",
+  400: "#F5AA66",
+  500: "#EF6959",
+  600: "#EF6959",
+  700: "#220F38",
+  800: "#220F38",
+  900: "#220F38",
+  950: "#220F38",
+};
+
+const neutralScale = {
+  50: "#F7F5E9",
+  100: "#FAD8B9",
+  200: "#FAD8B9",
+  300: "#F5AA66",
+  400: "#220F38",
+  500: "#220F38",
+  600: "#220F38",
+  700: "#220F38",
+  800: "#220F38",
+  900: "#220F38",
+  950: "#220F38",
+};
+
 const config: Config = {
   darkMode: ["class"],
   content: [
@@ -12,24 +40,29 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
-        brand: {
-          50: "#ecfdf5",
-          100: "#d1fae5",
-          200: "#a7f3d0",
-          300: "#6ee7b7",
-          400: "#34d399",
-          500: "#10b981",
-          600: "#059669",
-          700: "#047857",
-          800: "#065f46",
-          900: "#064e3b",
-          950: "#022c22",
+        palette: {
+          haiti: "#220F38",
+          sienna: "#EF6959",
+          sandy: "#F5AA66",
+          cream: "#FAD8B9",
+          ecru: "#F7F5E9",
         },
-        gold: {
-          400: "#fbbf24",
-          500: "#f59e0b",
-          600: "#d97706",
-        },
+        white: "#F7F5E9",
+        black: "#220F38",
+        slate: neutralScale,
+        gray: neutralScale,
+        emerald: paletteScale,
+        teal: paletteScale,
+        amber: paletteScale,
+        blue: paletteScale,
+        indigo: paletteScale,
+        purple: paletteScale,
+        red: paletteScale,
+        rose: paletteScale,
+        pink: paletteScale,
+        cyan: paletteScale,
+        brand: paletteScale,
+        gold: paletteScale,
       },
     },
   },

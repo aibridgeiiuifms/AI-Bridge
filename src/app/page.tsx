@@ -32,7 +32,7 @@ export default async function HomePage() {
     <div className="space-y-8 pb-8 sm:space-y-16 sm:pb-16 lg:space-y-20 lg:pb-20">
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-emerald-900 via-emerald-950 to-slate-900 px-3 py-3 text-white sm:px-6 sm:py-6 md:py-8 lg:px-8 lg:py-10">
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#34d399_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none"></div>
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#EF6959_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none"></div>
         <div className="relative z-10 mx-auto grid min-w-0 max-w-6xl grid-cols-1 items-center gap-3.5 sm:gap-6 md:grid-cols-2 md:gap-8 lg:gap-10">
           {/* Left Column: Logos, Content, CTAs, Metrics */}
           <div className="flex min-w-0 flex-col space-y-2 sm:space-y-4 text-center md:text-left">
@@ -145,7 +145,7 @@ export default async function HomePage() {
 
           {/* Step 2 */}
           <div className="bg-white border-2 border-emerald-500 rounded-xl p-4 shadow-md relative flex flex-col justify-between sm:rounded-2xl sm:p-7">
-            <div className="absolute -top-3.5 left-4 bg-emerald-600 text-white text-[9px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider sm:left-6 sm:px-3 sm:text-[11px]">
+            <div className="absolute -top-3.5 left-4 bg-emerald-600 text-palette-haiti text-[9px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider sm:left-6 sm:px-3 sm:text-[11px]">
               Core Evaluation
             </div>
             <div>

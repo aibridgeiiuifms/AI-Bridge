@@ -37,64 +37,68 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-[58vh] items-center justify-center bg-[linear-gradient(135deg,#fbfcf8_0%,#e9f4ec_48%,#f7f1dc_100%)] px-4 py-8">
-      <section className="group w-full max-w-md rounded-2xl border border-[#d8e7dc] border-t-4 border-t-[#36b879] bg-[#fffefa] px-6 py-6 shadow-[0_16px_48px_-28px_rgba(21,61,49,0.35)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_56px_-28px_rgba(21,61,49,0.48)] sm:px-8">
-        <div className="mb-5 flex justify-center overflow-hidden rounded-2xl border border-[#d8e7dc] bg-[#02080d] p-3 shadow-inner shadow-cyan-500/10">
+    <div className="flex min-h-[calc(100svh-4.25rem)] items-center justify-center bg-[linear-gradient(135deg,#F7F5E9_0%,#FAD8B9_55%,#F5AA66_100%)] px-3 py-3 sm:px-4 sm:py-4">
+      <section className="group w-full max-w-sm rounded-2xl border border-palette-cream border-t-4 border-t-palette-sienna bg-palette-ecru px-4 py-4 shadow-[0_16px_48px_-28px_rgba(34,15,56,0.35)] transition-all duration-300 hover:shadow-[0_24px_56px_-28px_rgba(34,15,56,0.48)] sm:px-6 sm:py-5">
+        <div className="mb-3 flex justify-center overflow-hidden rounded-2xl border border-palette-cream bg-palette-haiti p-1.5 shadow-inner shadow-palette-sienna/10">
           <Image
             src={sdgLogo}
             alt="Sustainable Development Goals emblem"
             width={180}
             height={180}
             priority
-            className="h-auto w-[150px] object-contain sm:w-[170px]"
+            className="h-auto w-full max-w-[9rem] object-contain sm:max-w-[10rem]"
           />
         </div>
 
-        <div className="mb-5 grid grid-cols-2 gap-3 border-b border-[#e2ece4] pb-4">
-          <div className="flex min-w-0 items-center gap-2 border-r border-[#e2ece4] pr-3">
+        <div className="mb-3 grid grid-cols-2 gap-2 border-b border-palette-cream pb-2.5">
+          <div className="flex min-w-0 items-center gap-1.5 border-r border-palette-cream pr-2">
             <Image
               src={iiuiLogo}
               alt="International Islamic University Islamabad logo"
               width={56}
               height={56}
-              className="h-11 w-11 shrink-0 rounded-full object-contain transition-transform duration-300 group-hover:scale-105"
+              className="h-9 w-9 shrink-0 rounded-full object-contain transition-transform duration-300 group-hover:scale-105"
               priority
             />
-            <span className="text-[9px] font-bold leading-[1.35] text-[#173d31] sm:text-[10px]">
+            <span className="text-[9px] font-bold leading-[1.35] text-palette-haiti sm:text-[10px]">
               International Islamic<br />University Islamabad
             </span>
           </div>
-          <div className="flex min-w-0 flex-col items-center justify-center gap-1">
+          <div className="flex min-w-0 flex-col items-center justify-center gap-0.5">
             <div className="flex items-center gap-1.5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-palette-cream bg-white shadow-sm transition-transform duration-300 group-hover:scale-105">
+                <Image
+                  src={bridgeLogo}
+                  alt="The AI Bridge logo"
+                  width={48}
+                  height={48}
+                  className="h-full w-full rounded-full object-cover"
+                  priority
+                />
+              </span>
+              <span className="text-xs font-bold leading-tight text-palette-haiti">The AI Bridge</span>
+            </div>
+            <span className="overflow-hidden rounded-xl border border-palette-cream bg-white p-1 shadow-sm transition-transform duration-300 group-hover:scale-[1.03]">
               <Image
-                src={bridgeLogo}
-                alt="The AI Bridge logo"
-                width={48}
-                height={48}
-                className="h-9 w-9 shrink-0 object-contain transition-transform duration-300 group-hover:scale-105"
+                src={hhpLogo}
+                alt="Hum Hain Pakistan campaign logo"
+                width={152}
+                height={85}
+                className="h-auto w-[104px] rounded-lg object-contain sm:w-[116px]"
                 priority
               />
-              <span className="text-xs font-bold leading-tight text-[#173d31]">The AI Bridge</span>
-            </div>
-            <Image
-              src={hhpLogo}
-              alt="Hum Hain Pakistan campaign logo"
-              width={128}
-              height={72}
-              className="h-10 w-full max-w-[152px] object-contain transition-transform duration-300 group-hover:scale-[1.03]"
-              priority
-            />
+            </span>
           </div>
         </div>
 
-        <div className="mb-5">
-          <p className="mb-2 text-[9px] font-bold uppercase text-[#4e8064]">IIUI · Faculty of Management Sciences</p>
-          <span className="inline-flex items-center gap-1.5 border border-[#dcebe0] bg-[#eef7f0] px-2.5 py-1 text-[10px] font-semibold text-[#285c43]">
-            <ShieldCheck className="h-3.5 w-3.5 text-[#21a968]" />
+        <div className="mb-3">
+          <p className="mb-1.5 text-[9px] font-bold uppercase text-palette-haiti">IIUI · Faculty of Management Sciences</p>
+          <span className="inline-flex items-center gap-1 border border-palette-cream bg-palette-cream px-2 py-0.5 text-[10px] font-semibold text-palette-haiti">
+            <ShieldCheck className="h-3 w-3 text-palette-sienna" />
             Secure single sign-on
           </span>
-          <h2 className="mt-3 text-2xl font-bold leading-tight text-[#173d31]">Welcome back</h2>
-          <p className="mt-1.5 text-xs leading-5 text-[#65776c]">
+          <h2 className="mt-2 text-xl font-bold leading-tight text-palette-haiti">Welcome back</h2>
+          <p className="mt-1 text-[11px] leading-4 text-palette-haiti/80">
             Sign in with your Google account to access your certification dashboard and verified certificates. Ambassador access is available to whitelisted members.
           </p>
         </div>
@@ -113,7 +117,7 @@ export default function LoginPage() {
           type="button"
           onClick={handleGoogleLogin}
           disabled={loading}
-          className="group flex w-full items-center gap-3 rounded-xl border border-[#cfe0d4] bg-[#fffefa] px-3.5 py-3 text-left text-sm font-semibold text-[#193d31] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#35cf87] hover:bg-[#f2fbf4] hover:shadow-[0_0_0_3px_rgba(53,207,135,0.12),0_0_24px_rgba(53,207,135,0.32)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#35cf87] focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-sm"
+          className="group flex w-full items-center gap-3 rounded-xl border border-palette-cream bg-palette-ecru px-3 py-2.5 text-left text-sm font-semibold text-palette-haiti shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-palette-sienna hover:bg-palette-cream hover:shadow-[0_0_0_3px_rgba(239,105,89,0.12),0_0_24px_rgba(239,105,89,0.32)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-palette-sienna focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60 disabled:hover:translate-y-0 disabled:hover:shadow-sm"
         >
           {loading ? (
           <Image
@@ -131,26 +135,26 @@ export default function LoginPage() {
             </svg>
           )}
           <span>{loading ? 'Connecting to Google...' : 'Continue with Google'}</span>
-          <ArrowRight className="ml-auto h-4 w-4 text-[#789181] transition-transform group-hover:translate-x-1 group-hover:text-[#168d58]" />
+          <ArrowRight className="ml-auto h-4 w-4 text-palette-sienna transition-transform group-hover:translate-x-1 group-hover:text-palette-haiti" />
         </button>
 
-        <div className="mt-5 border-t border-[#e3ece5] pt-4 text-[11px] text-[#5c7063]">
+        <div className="mt-3 border-t border-palette-cream pt-2.5 text-[11px] text-palette-haiti/80">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-[#22a96a]" />
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-palette-sienna" />
             <span>Student profile & survey linkage</span>
           </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-center gap-3 border-t border-[#e3ece5] pt-3">
+        <div className="mt-2.5 flex items-center justify-center gap-4 border-t border-palette-cream pt-2">
           <a
             href="https://www.facebook.com/profile.php?id=61594783725793"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Visit The AI Bridge on Facebook"
             title="Facebook"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[#4267B2] transition-colors hover:bg-[#4267B2] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4267B2] focus-visible:ring-offset-2"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-palette-sienna transition-colors hover:bg-palette-sienna hover:text-palette-haiti focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-palette-sienna focus-visible:ring-offset-2"
           >
-            <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] fill-current" aria-hidden="true">
+            <svg viewBox="0 0 24 24" className="h-6 w-6 fill-current" aria-hidden="true">
               <path d="M13.4 21v-8.2h2.8l.4-3.2h-3.2v-2c0-.9.3-1.5 1.6-1.5h1.7V3.2c-.3 0-1.3-.2-2.5-.2-2.5 0-4.2 1.5-4.2 4.3v2.4H7.2v3.2H10V21h3.4Z" />
             </svg>
           </a>
@@ -160,9 +164,9 @@ export default function LoginPage() {
             rel="noopener noreferrer"
             aria-label="Visit The AI Bridge on X"
             title="X"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[#202124] transition-colors hover:bg-[#202124] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#202124] focus-visible:ring-offset-2"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-palette-sienna transition-colors hover:bg-palette-sienna hover:text-palette-haiti focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-palette-sienna focus-visible:ring-offset-2"
           >
-            <svg viewBox="0 0 24 24" className="h-[17px] w-[17px] fill-current" aria-hidden="true">
+            <svg viewBox="0 0 24 24" className="h-6 w-6 fill-current" aria-hidden="true">
               <path d="M18.9 2H22l-6.8 7.8L23.2 22h-6.3L12 14.6 5.5 22H2.3l7.3-8.4L1.8 2h6.5l4.5 6.8L18.9 2Zm-1.1 17.9h1.7L7.3 3.9H5.5l12.3 16Z" />
             </svg>
           </a>
@@ -172,9 +176,9 @@ export default function LoginPage() {
             rel="noopener noreferrer"
             aria-label="Visit The AI Bridge on LinkedIn"
             title="LinkedIn"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[#0A66C2] transition-colors hover:bg-[#0A66C2] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0A66C2] focus-visible:ring-offset-2"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-palette-sienna transition-colors hover:bg-palette-sienna hover:text-palette-haiti focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-palette-sienna focus-visible:ring-offset-2"
           >
-            <svg viewBox="0 0 24 24" className="h-[18px] w-[18px] fill-current" aria-hidden="true">
+            <svg viewBox="0 0 24 24" className="h-6 w-6 fill-current" aria-hidden="true">
               <path d="M5.2 3a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4ZM3.3 9h3.8v12H3.3V9Zm6.2 0h3.6v1.6h.1c.5-.9 1.7-2 3.6-2 3.9 0 4.6 2.5 4.6 5.7V21h-3.8v-5.9c0-1.4 0-3.2-2-3.2s-2.3 1.5-2.3 3.1V21H9.5V9Z" />
             </svg>
           </a>

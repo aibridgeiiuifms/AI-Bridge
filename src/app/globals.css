@@ -3,14 +3,14 @@
 @tailwind utilities;
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --card-foreground: #0f172a;
-  --primary: #047857;
-  --primary-foreground: #ffffff;
-  --accent: #f59e0b;
-  --border: #e2e8f0;
+  --background: #F7F5E9;
+  --foreground: #220F38;
+  --card: #FAD8B9;
+  --card-foreground: #220F38;
+  --primary: #EF6959;
+  --primary-foreground: #220F38;
+  --accent: #F5AA66;
+  --border: #FAD8B9;
 }
 
 body {
@@ -23,5 +23,29 @@ body {
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  @media (max-width: 639px) {
+    .dashboard-page [class~="text-[9px]"],
+    .dashboard-page [class~="text-[10px]"] {
+      font-size: 0.6875rem;
+      line-height: 1rem;
+    }
+
+    .dashboard-page [class~="text-[11px]"] {
+      font-size: 0.75rem;
+      line-height: 1.125rem;
+    }
+
+    .dashboard-page [class~="text-xs"] {
+      font-size: 0.8125rem;
+      line-height: 1.25rem;
+    }
+
+    .dashboard-page input,
+    .dashboard-page select,
+    .dashboard-page textarea {
+      font-size: 16px !important;
+    }
   }
 }
