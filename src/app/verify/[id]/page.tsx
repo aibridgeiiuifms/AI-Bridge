@@ -74,7 +74,7 @@ export default async function VerifyPage({ params }: VerifyPageProps) {
                 Troubleshooting Checklist:
               </div>
               <ul className="list-disc pl-5 space-y-1">
-                <li>Ensure the serial ID matches the format: <span className="font-mono text-slate-700">AIB-2026-XXXX</span>.</li>
+                <li>Ensure the serial ID matches the format: <span className="font-mono text-slate-700">AIB-XXXXXXXX</span> (e.g. AIB-K7M2P9QR).</li>
                 <li>Verify you scanned the authentic QR code on an issued certificate.</li>
                 <li>If you completed all 3 evaluation steps recently, log into the Student Portal to generate your credential.</li>
               </ul>

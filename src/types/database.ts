@@ -116,20 +116,22 @@ export interface QuizAttempt {
 
 export interface Certificate {
   id: string;
-  certificate_id: string; // e.g. AIB-2025-0001
+  certificate_id: string; // e.g. AIB-K7M2P9QR (8-char non-guessable alphanumeric)
   verification_code: string;
   user_id: string;
   recipient_name: string;
-  recipient_role: string;
   student_id: string | null;
   department: string | null;
-  course_name: string;
   completion_date: string;
-  pdf_url: string | null;
-  qr_code_url: string | null;
   is_valid: boolean;
-  issued_by: string;
-  issued_at: string;
+  created_at?: string;
+  // Legacy optional fields
+  recipient_role?: string;
+  course_name?: string;
+  pdf_url?: string | null;
+  qr_code_url?: string | null;
+  issued_by?: string;
+  issued_at?: string;
 }
 
 export interface UserProgressStatus {

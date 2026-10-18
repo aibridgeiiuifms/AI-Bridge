@@ -3,8 +3,43 @@
 -- The AI Bridge — Complete Automated Certification Engine (On-The-Spot Stamping)
 -- ==============================================================================
 
--- 1. Create a dedicated sequence for sequential certificate IDs (Format: AIB-2026-XXXX)
-CREATE SEQUENCE IF NOT EXISTS public.certificate_id_seq START 1;
+-- 1. Function: Generate short, non-guessable, 100% unique Certificate ID
+-- Format: AIB-XXXXXXXX (8 random alphanumeric characters from 36 chars = 2.8 trillion combinations)
+CREATE OR REPLACE FUNCTION public.generate_short_certificate_id()
+RETURNS TEXT AS $$
+DECLARE
+    chars CONSTANT TEXT := '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    v_bytes BYTEA;
+    v_id TEXT;
+    v_exists BOOLEAN;
+    i INT;
+BEGIN
+    LOOP
+        v_id := 'AIB-';
+        BEGIN
+            -- Cryptographically secure random bytes
+            v_bytes := gen_random_bytes(8);
+            FOR i IN 0..7 LOOP
+                v_id := v_id || substr(chars, (get_byte(v_bytes, i) % 36) + 1, 1);
+            END LOOP;
+        EXCEPTION WHEN OTHERS THEN
+            -- Safe fallback to random() if gen_random_bytes is not available
+            FOR i IN 1..8 LOOP
+                v_id := v_id || substr(chars, floor(random() * 36)::int + 1, 1);
+            END LOOP;
+        END;
+
+        -- Guarantee 100% uniqueness: ensure ID does not already exist
+        SELECT EXISTS (
+            SELECT 1 FROM public.certificates WHERE certificate_id = v_id
+        ) INTO v_exists;
+
+        IF NOT v_exists THEN
+            RETURN v_id;
+        END IF;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql VOLATILE;
 
 -- 2. Ensure certificates table structure supports on-the-spot generation
 -- (Make obsolete storage/static columns nullable so older databases don't throw NOT NULL errors)
@@ -214,6 +249,10 @@ BEGIN
         SELECT 1 FROM public.teacher_surveys 
         WHERE (user_id = p_user_id OR LOWER(teacher_email) = LOWER(v_profile.email)) 
           AND survey_type = 'pre'
+        UNION ALL
+        SELECT 1 FROM public.surveys 
+        WHERE (user_id = p_user_id OR LOWER(respondent_email) = LOWER(v_profile.email)) 
+          AND survey_type = 'pre'
     ) INTO v_has_pre;
 
     -- Validate Gate 2: Passed Quiz (at least one passing attempt)
@@ -231,6 +270,10 @@ BEGIN
         SELECT 1 FROM public.teacher_surveys 
         WHERE (user_id = p_user_id OR LOWER(teacher_email) = LOWER(v_profile.email)) 
           AND survey_type = 'post'
+        UNION ALL
+        SELECT 1 FROM public.surveys 
+        WHERE (user_id = p_user_id OR LOWER(respondent_email) = LOWER(v_profile.email)) 
+          AND survey_type = 'post'
     ) INTO v_has_post;
 
     -- Gate check guard
@@ -242,22 +285,28 @@ BEGIN
         );
     END IF;
 
-    -- Generate Next Serial ID: AIB-2026-XXXX
-    v_cert_id := 'AIB-' || to_char(CURRENT_DATE, 'YYYY') || '-' || lpad(nextval('public.certificate_id_seq')::text, 4, '0');
+    -- Generate Next Short Non-Guessable ID: AIB-XXXXXXXX (Base36, 2.8 trillion combinations, 100% unique)
+    v_cert_id := public.generate_short_certificate_id();
     v_clean_name := public.sanitize_iiui_name(v_profile.full_name, v_profile.email);
 
     -- Resolve Student ID (Roll No) with fallbacks
     v_student_id := COALESCE(
-        v_profile.student_id,
-        (SELECT registration_no FROM public.student_surveys WHERE (user_id = p_user_id OR LOWER(student_email) = LOWER(v_profile.email)) AND registration_no IS NOT NULL LIMIT 1),
-        (SELECT substring(v_profile.full_name from '\d+.*$'))
+        NULLIF(TRIM(v_profile.student_id), ''),
+        (SELECT reg_no FROM public.student_surveys WHERE (user_id = p_user_id OR LOWER(student_email) = LOWER(v_profile.email)) AND reg_no IS NOT NULL LIMIT 1),
+        substring(v_profile.full_name from '\d+.*$')
     );
 
     -- Resolve Department with fallbacks
     v_dept := COALESCE(
-        v_profile.department,
-        (SELECT department_name FROM public.student_surveys WHERE (user_id = p_user_id OR LOWER(student_email) = LOWER(v_profile.email)) AND department_name IS NOT NULL LIMIT 1),
-        (SELECT faculty_department FROM public.teacher_surveys WHERE (user_id = p_user_id OR LOWER(teacher_email) = LOWER(v_profile.email)) AND faculty_department IS NOT NULL LIMIT 1),
+        NULLIF(TRIM(v_profile.department), ''),
+        (SELECT m.standard_dept_name 
+         FROM public.student_surveys s 
+         JOIN public.department_mappings m ON m.code = s.dept_code 
+         WHERE (s.user_id = p_user_id OR LOWER(s.student_email) = LOWER(v_profile.email)) AND s.dept_code IS NOT NULL LIMIT 1),
+        (SELECT s.dept_code 
+         FROM public.student_surveys s 
+         WHERE (s.user_id = p_user_id OR LOWER(s.student_email) = LOWER(v_profile.email)) AND s.dept_code IS NOT NULL LIMIT 1),
+        (SELECT department_name FROM public.teacher_surveys WHERE (user_id = p_user_id OR LOWER(teacher_email) = LOWER(v_profile.email)) AND department_name IS NOT NULL LIMIT 1),
         'Faculty of Management Sciences (FMS)'
     );
 
@@ -304,6 +353,7 @@ CREATE POLICY "Admins can manage certificates"
 ON public.certificates FOR ALL
 USING (public.get_user_role() = 'admin');
 
--- Grant execute on issuance procedure
+-- Grant execute on issuance procedure and helper functions
+GRANT EXECUTE ON FUNCTION public.generate_short_certificate_id() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.issue_certificate_for_user(UUID) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.sanitize_iiui_name(TEXT, TEXT) TO authenticated, anon, service_role;

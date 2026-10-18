@@ -637,7 +637,13 @@ export default function StudentPortal() {
             {certificateReady ? (
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link
-                  href={`/verify/${certificate?.certificate_id || 'AIB-2026-0001'}`}
+                  href={certificate?.certificate_id ? `/verify/${certificate.certificate_id}` : '#'}
+                  onClick={(e) => {
+                    if (!certificate?.certificate_id) {
+                      e.preventDefault();
+                      handleDownloadCertificate();
+                    }
+                  }}
                   className="px-5 py-3 rounded-xl font-bold text-xs bg-white text-emerald-950 hover:bg-emerald-50 shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   <ShieldCheck className="w-4 h-4 text-emerald-700" />

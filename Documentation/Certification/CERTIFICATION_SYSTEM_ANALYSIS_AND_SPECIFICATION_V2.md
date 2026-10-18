@@ -63,7 +63,7 @@ flowchart TD
     E --> F{"All 3 Gates Validated?"}
     F -- No --> G["Portal: Certificate Card Locked\n(Shows Remaining Steps)"]
     
-    F -- Yes --> H["Automated Issuance Engine\n- Generates certificate_id: AIB-2026-XXXX\n- Inserts metadata into public.certificates\n(Stores metadata only - NO PDF/QR files)"]
+    F -- Yes --> H["Automated Issuance Engine\n- Generates short unique certificate_id: AIB-XXXXXXXX\n- Inserts metadata into public.certificates\n(Stores metadata only - NO PDF/QR files)"]
     
     H --> I["Student Clicks 'Download PDF Certificate'"]
     
@@ -140,7 +140,7 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 | Column Name | Data Type | Nullable | Source / Logic | Purpose / Explanation |
 |---|---|---|---|---|
 | `id` | `UUID` | No | `gen_random_uuid()` | Internal unique primary key. |
-| `certificate_id` | `TEXT` | No | `AIB-2026-XXXX` | Human-readable public serial number (encoded into QR code). |
+| `certificate_id` | `TEXT` | No | `AIB-XXXXXXXX` | Human-readable short non-guessable serial number (Base36, encoded into QR code). |
 | `verification_code` | `TEXT` | No | `gen_random_uuid()` | Cryptographic slug for URL security. |
 | `user_id` | `UUID` | No | `profiles.id` | Foreign key referencing user (`UNIQUE` constraint prevents duplicate issuance). |
 | `recipient_name` | `TEXT` | No | `sanitize_iiui_name(profiles.full_name, email)` | Clean name **stamped onto the certificate PDF on the fly**. |
@@ -341,8 +341,8 @@ BEGIN
         );
     END IF;
 
-    -- Generate Next Serial ID: AIB-2026-XXXX
-    v_cert_id := 'AIB-' || to_char(CURRENT_DATE, 'YYYY') || '-' || lpad(nextval('public.certificate_id_seq')::text, 4, '0');
+    -- Generate Next Short Non-Guessable ID: AIB-XXXXXXXX (Base36: 2.8 trillion combinations)
+    v_cert_id := public.generate_short_certificate_id();
     v_clean_name := public.sanitize_iiui_name(v_profile.full_name, v_profile.email);
 
     v_student_id := COALESCE(
