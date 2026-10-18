@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { Sparkles, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Sparkles, ChevronLeft, ChevronRight, X, Hand } from 'lucide-react';
 
 const slides = [
   { src: '/highlights/p1.webp', alt: 'AI Bridge Campaign Highlight 1' },
@@ -32,24 +32,40 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(0);
   const [previewTouchStartX, setPreviewTouchStartX] = useState<number | null>(null);
+  const [showSwipeHint, setShowSwipeHint] = useState(true);
 
   // ── Preview helpers ───────────────────────────────────────────────────────
   const openPreview = (index: number) => {
     setPreviewIndex(index);
     setPreviewOpen(true);
+    setShowSwipeHint(true);
   };
 
-  const closePreview = () => setPreviewOpen(false);
+  const closePreview = useCallback(() => setPreviewOpen(false), []);
 
-  const handlePrevPreview = () =>
+  const handlePrevPreview = useCallback(() => {
     setPreviewIndex((prev) => (prev - 1 + slides.length) % slides.length);
+    setShowSwipeHint(false);
+  }, []);
 
-  const handleNextPreview = () =>
+  const handleNextPreview = useCallback(() => {
     setPreviewIndex((prev) => (prev + 1) % slides.length);
+    setShowSwipeHint(false);
+  }, []);
+
+  // ── Auto-hide swipe hint after 3 seconds on mobile ───────────────────────
+  useEffect(() => {
+    if (!previewOpen) return;
+    const timer = setTimeout(() => {
+      setShowSwipeHint(false);
+    }, 3200);
+    return () => clearTimeout(timer);
+  }, [previewOpen]);
 
   // ── Preview swipe handlers ────────────────────────────────────────────────
-  const handlePreviewTouchStart = (e: React.TouchEvent) =>
+  const handlePreviewTouchStart = (e: React.TouchEvent) => {
     setPreviewTouchStartX(e.touches[0].clientX);
+  };
 
   const handlePreviewTouchEnd = (e: React.TouchEvent) => {
     if (previewTouchStartX === null) return;
@@ -75,7 +91,7 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
       document.body.style.overflow = '';
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [previewOpen, previewIndex]);
+  }, [previewOpen, handlePrevPreview, handleNextPreview, closePreview]);
 
   // ── Main carousel helpers ─────────────────────────────────────────────────
   const goToSlide = useCallback((index: number) => {
@@ -207,33 +223,50 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
       ──────────────────────────────────────────────────────────────────────── */}
       {previewOpen && (
         <div
-          className="fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-sm overflow-hidden"
+          className="fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-md overflow-hidden select-none"
           role="dialog"
           aria-modal="true"
           aria-label="Highlight preview"
           onTouchStart={handlePreviewTouchStart}
           onTouchEnd={handlePreviewTouchEnd}
         >
-          {/* Counter */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 rounded-full bg-slate-900/80 px-3 py-1 text-xs font-semibold text-white border border-white/20 pointer-events-none">
+          {/* Explicit backdrop layers: clicking the top or bottom outer padding triggers close */}
+          <div
+            className="absolute inset-x-0 top-0 h-16 cursor-pointer z-10"
+            onClick={closePreview}
+            aria-hidden="true"
+          />
+          <div
+            className="absolute inset-x-0 bottom-0 h-20 cursor-pointer z-10"
+            onClick={closePreview}
+            aria-hidden="true"
+          />
+
+          {/* Top Counter */}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 rounded-full bg-slate-900/80 px-3.5 py-1 text-xs font-semibold text-white border border-white/20 pointer-events-none shadow-md backdrop-blur-sm">
             {previewIndex + 1} / {slides.length}
           </div>
 
-          {/* Close (X) */}
+          {/* Close (X) Button */}
           <button
             type="button"
             onClick={closePreview}
             aria-label="Close preview"
-            className="absolute right-4 top-4 z-30 rounded-full border border-white/25 bg-slate-900/90 p-2 text-white shadow-lg hover:bg-slate-800 hover:text-gray-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300"
+            className="absolute right-4 top-4 z-30 rounded-full border border-white/25 bg-slate-900/90 p-2 text-white shadow-lg hover:bg-slate-800 hover:text-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 transition-colors"
           >
             <X className="h-6 w-6" />
           </button>
 
-          {/* Image strip — translateX moves between pre-loaded images instantly */}
-          <div
-            className="absolute inset-x-12 top-16 bottom-20 sm:inset-x-16"
-            onClick={closePreview}
-          >
+          {/* Mobile Swipe Guidance Badge */}
+          {showSwipeHint && (
+            <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 sm:hidden flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/90 border border-emerald-400/40 text-[11px] font-medium text-emerald-200 shadow-lg animate-fade-in pointer-events-none">
+              <Hand className="w-3.5 h-3.5 animate-pulse text-amber-300" />
+              <span>Swipe left or right to browse</span>
+            </div>
+          )}
+
+          {/* Image Stage Container — Clicking black margins inside here DOES NOT close preview */}
+          <div className="absolute inset-x-12 top-16 bottom-20 sm:inset-x-16">
             <div
               className="flex h-full transition-transform duration-200 ease-out will-change-transform"
               style={{ transform: `translateX(-${previewIndex * 100}%)` }}
@@ -241,8 +274,7 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
               {slides.map((slide, index) => (
                 <div
                   key={slide.src}
-                  className="relative h-full w-full shrink-0"
-                  onClick={(e) => e.stopPropagation()}
+                  className="relative h-full w-full shrink-0 flex items-center justify-center"
                 >
                   <Image
                     src={slide.src}
@@ -250,7 +282,7 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
                     fill
                     sizes="100vw"
                     priority={index === previewIndex}
-                    className="object-contain"
+                    className="object-contain pointer-events-none"
                   />
                 </div>
               ))}
@@ -262,7 +294,7 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
             type="button"
             onClick={handlePrevPreview}
             aria-label="Previous highlight"
-            className="absolute left-2 top-1/2 z-30 -translate-y-1/2 rounded-full border border-white/25 bg-slate-900/80 p-2 text-white shadow-lg hover:bg-slate-800 hover:text-emerald-200 sm:left-4"
+            className="absolute left-2 top-1/2 z-30 -translate-y-1/2 rounded-full border border-white/25 bg-slate-900/80 p-2 text-white shadow-lg hover:bg-slate-800 hover:text-emerald-200 sm:left-4 transition-transform active:scale-95"
           >
             <ChevronLeft className="h-8 w-8" />
           </button>
@@ -272,16 +304,16 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
             type="button"
             onClick={handleNextPreview}
             aria-label="Next highlight"
-            className="absolute right-2 top-1/2 z-30 -translate-y-1/2 rounded-full border border-white/25 bg-slate-900/80 p-2 text-white shadow-lg hover:bg-slate-800 hover:text-emerald-200 sm:right-4"
+            className="absolute right-2 top-1/2 z-30 -translate-y-1/2 rounded-full border border-white/25 bg-slate-900/80 p-2 text-white shadow-lg hover:bg-slate-800 hover:text-emerald-200 sm:right-4 transition-transform active:scale-95"
           >
             <ChevronRight className="h-8 w-8" />
           </button>
 
-          {/* Go Back */}
+          {/* Go Back (Closes instantly) */}
           <button
             type="button"
             onClick={closePreview}
-            className="absolute bottom-6 left-6 z-30 flex items-center gap-2 rounded-full border border-white/30 bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-xl hover:bg-slate-800 hover:text-emerald-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 sm:left-16"
+            className="absolute bottom-6 left-6 z-30 flex items-center gap-2 rounded-full border border-white/30 bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-xl hover:bg-slate-800 hover:text-emerald-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 sm:left-16 transition-all active:scale-95"
           >
             ← Go Back
           </button>

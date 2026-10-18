@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { hasAmbassadorPortalRole } from '@/lib/access';
 import HighlightsCarousel from '@/components/HighlightsCarousel';
+import SDGWheelScrollAnimation from '@/components/SDGWheelScrollAnimation';
 import humHainPakistanLogo from '../../Assets/hum hain pak logo.jpg';
 import sdgLogo from '../../Assets/SDG Logo.png';
 import { 
@@ -109,82 +110,92 @@ export default async function HomePage() {
       </section>
 
       {/* 3-Step Certification Lifecycle Section */}
-      <section className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="mb-6 space-y-2 text-center sm:mb-12 sm:space-y-3">
+      <section className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
+        <div className="mb-4 space-y-1.5 text-center sm:mb-10 sm:space-y-3">
           <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full sm:px-3 sm:text-xs">
             Certification Workflow
           </span>
-          <h2 className="text-balance text-xl font-extrabold text-slate-900 tracking-tight sm:text-3xl">
+          <h2 className="text-balance text-lg font-extrabold text-slate-900 tracking-tight sm:text-3xl">
             3-Step Rigorous Evaluation & Direct Download
           </h2>
-          <p className="text-slate-600 max-w-2xl mx-auto text-xs leading-relaxed sm:text-sm">
+          <p className="text-slate-600 max-w-2xl mx-auto text-[11px] leading-relaxed sm:text-sm">
             To maintain academic integrity and verifiable outcomes, certificates are earned through our 3-stage system and downloaded securely via the personal student portal.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:gap-6 md:grid-cols-3 md:gap-8">
+        {/* 3 Steps in a single horizontal row across all viewports (mobile, tablet, desktop) */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-5 md:gap-8 items-stretch">
           {/* Step 1 */}
-          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow relative flex flex-col justify-between sm:rounded-2xl sm:p-7">
+          <div className="bg-white border border-slate-200 rounded-xl p-2.5 sm:p-5 md:p-7 shadow-xs hover:shadow-md transition-shadow relative flex flex-col justify-between sm:rounded-2xl">
             <div>
-              <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-800 font-black text-base flex items-center justify-center mb-3 sm:mb-5 sm:h-12 sm:w-12 sm:rounded-xl sm:text-lg">
+              <div className="w-6 h-6 sm:w-10 sm:h-10 rounded-md sm:rounded-xl bg-emerald-100 text-emerald-800 font-black text-[11px] sm:text-base flex items-center justify-center mb-1.5 sm:mb-4">
                 01
               </div>
-              <h3 className="text-base font-bold text-slate-900 mb-1.5 sm:mb-2 sm:text-lg">Step 1: Pre-Training Assessment Survey</h3>
-              <p className="text-xs text-slate-600 leading-relaxed mb-3 sm:mb-4 sm:text-sm">
-                Establishes your baseline curriculum bottlenecks, text-heavy preparation hours, and AI familiarity. Student & Teacher forms available for pre-training evaluation.
+              <h3 className="text-[11px] sm:text-base font-bold text-slate-900 mb-1 leading-snug sm:mb-2">
+                <span className="block sm:hidden">Pre-Survey</span>
+                <span className="hidden sm:inline">Step 1: Pre-Training Assessment Survey</span>
+              </h3>
+              <p className="text-[9.5px] sm:text-xs text-slate-600 leading-normal mb-2 sm:mb-4 line-clamp-3 sm:line-clamp-none">
+                Establishes your baseline curriculum bottlenecks, preparation hours, and AI familiarity.
               </p>
             </div>
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-[10px] font-semibold text-emerald-700 sm:pt-4 sm:text-xs">
-              <Link href="/portal/pre-survey" className="hover:underline flex items-center gap-1">
-                <span>Open Pre-Survey Form</span>
+            <div className="pt-2 sm:pt-3 border-t border-slate-100 flex items-center justify-between gap-1 text-[9px] sm:text-xs font-semibold text-emerald-700">
+              <Link href="/portal/pre-survey" className="hover:underline flex items-center gap-0.5 truncate">
+                <span className="truncate">Open Form</span>
                 <span>→</span>
               </Link>
-              <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-emerald-600" />
+              <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 text-emerald-600" />
             </div>
           </div>
 
           {/* Step 2 */}
-          <div className="bg-white border-2 border-emerald-500 rounded-xl p-4 shadow-md relative flex flex-col justify-between sm:rounded-2xl sm:p-7">
-            <div className="absolute -top-3.5 left-4 bg-emerald-600 text-palette-haiti text-[9px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider sm:left-6 sm:px-3 sm:text-[11px]">
-              Core Evaluation
+          <div className="bg-white border-2 border-emerald-500 rounded-xl p-2.5 sm:p-5 md:p-7 shadow-sm relative flex flex-col justify-between sm:rounded-2xl">
+            <div className="absolute -top-2.5 sm:-top-3.5 left-2 sm:left-6 bg-emerald-600 text-white text-[8px] sm:text-[11px] font-bold px-1.5 sm:px-3 py-0.5 rounded-full uppercase tracking-wider">
+              Core Exam
             </div>
             <div>
-              <div className="w-10 h-10 rounded-lg bg-amber-100 text-amber-800 font-black text-base flex items-center justify-center mb-3 sm:mb-5 sm:h-12 sm:w-12 sm:rounded-xl sm:text-lg">
+              <div className="w-6 h-6 sm:w-10 sm:h-10 rounded-md sm:rounded-xl bg-amber-100 text-amber-800 font-black text-[11px] sm:text-base flex items-center justify-center mb-1.5 sm:mb-4">
                 02
               </div>
-              <h3 className="text-base font-bold text-slate-900 mb-1.5 sm:mb-2 sm:text-lg">Step 2: 30-MCQ Assessment</h3>
-              <p className="text-xs text-slate-600 leading-relaxed mb-3 sm:mb-4 sm:text-sm">
-                Our custom assessment engine dynamically draws 30 randomized questions from a certified 50-MCQ question pool. Tests source-grounding, Audio Overviews, and AI ethics.
+              <h3 className="text-[11px] sm:text-base font-bold text-slate-900 mb-1 leading-snug sm:mb-2">
+                <span className="block sm:hidden">12-MCQ Quiz</span>
+                <span className="hidden sm:inline">Step 2: 12-MCQ Assessment</span>
+              </h3>
+              <p className="text-[9.5px] sm:text-xs text-slate-600 leading-normal mb-2 sm:mb-4 line-clamp-3 sm:line-clamp-none">
+                Dynamic exam from question pool testing source-grounding, Audio Overviews, and AI ethics.
               </p>
             </div>
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-[10px] font-semibold text-amber-700 sm:pt-4 sm:text-xs">
-              <span>70% Passing Benchmark (21/30)</span>
-              <FileCheck2 className="w-4 h-4 flex-shrink-0 text-amber-600" />
+            <div className="pt-2 sm:pt-3 border-t border-slate-100 flex items-center justify-between gap-1 text-[9px] sm:text-xs font-semibold text-amber-700">
+              <span className="truncate">75% Benchmark</span>
+              <FileCheck2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 text-amber-600" />
             </div>
           </div>
 
           {/* Step 3 */}
-          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow relative flex flex-col justify-between sm:rounded-2xl sm:p-7">
+          <div className="bg-white border border-slate-200 rounded-xl p-2.5 sm:p-5 md:p-7 shadow-xs hover:shadow-md transition-shadow relative flex flex-col justify-between sm:rounded-2xl">
             <div>
-              <div className="w-10 h-10 rounded-lg bg-teal-100 text-teal-800 font-black text-base flex items-center justify-center mb-3 sm:mb-5 sm:h-12 sm:w-12 sm:rounded-xl sm:text-lg">
+              <div className="w-6 h-6 sm:w-10 sm:h-10 rounded-md sm:rounded-xl bg-teal-100 text-teal-800 font-black text-[11px] sm:text-base flex items-center justify-center mb-1.5 sm:mb-4">
                 03
               </div>
-              <h3 className="text-base font-bold text-slate-900 mb-1.5 sm:mb-2 sm:text-lg">Step 3: Post-Training Assessment Survey</h3>
-              <p className="text-xs text-slate-600 leading-relaxed mb-3 sm:mb-4 sm:text-sm">
-                Quantifies actual hours saved and comprehension boost after training. Unlocks an official PDF certificate with embedded QR verification.
+              <h3 className="text-[11px] sm:text-base font-bold text-slate-900 mb-1 leading-snug sm:mb-2">
+                <span className="block sm:hidden">Post-Survey</span>
+                <span className="hidden sm:inline">Step 3: Post-Training Assessment Survey</span>
+              </h3>
+              <p className="text-[9.5px] sm:text-xs text-slate-600 leading-normal mb-2 sm:mb-4 line-clamp-3 sm:line-clamp-none">
+                Quantifies hours saved and comprehension boost. Unlocks verified PDF certificate.
               </p>
             </div>
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-[10px] font-semibold text-teal-700 sm:pt-4 sm:text-xs">
-              <Link href="/portal/post-survey" className="hover:underline flex items-center gap-1">
-                <span>Open Post-Survey Form</span>
+            <div className="pt-2 sm:pt-3 border-t border-slate-100 flex items-center justify-between gap-1 text-[9px] sm:text-xs font-semibold text-teal-700">
+              <Link href="/portal/post-survey" className="hover:underline flex items-center gap-0.5 truncate">
+                <span className="truncate">Open Form</span>
                 <span>→</span>
               </Link>
-              <Award className="w-4 h-4 flex-shrink-0 text-teal-600" />
+              <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 text-teal-600" />
             </div>
           </div>
         </div>
 
-        <div className="mt-6 text-center sm:mt-10">
+        <div className="mt-4 sm:mt-8 text-center">
           <Link
             href="/portal"
             className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 underline underline-offset-4 sm:gap-2 sm:text-sm"
@@ -194,58 +205,9 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* SDG Alignment Section */}
-      <section className="border-y border-slate-200 bg-slate-100/70 py-8 sm:py-16">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-          <div className="mb-6 space-y-2 text-center sm:mb-12">
-            <h2 className="text-balance text-lg font-bold text-slate-900 sm:text-2xl">United Nations Sustainable Development Goals</h2>
-            <p className="text-xs leading-relaxed text-slate-600 sm:text-sm max-w-xl mx-auto">
-              How The AI Bridge addresses regional educational challenges under the Hum Hain Pakistan campaign.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 sm:gap-6 lg:grid-cols-4">
-            <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:space-y-3 sm:rounded-xl sm:p-6">
-              <div className="w-7 h-7 rounded-lg bg-red-100 text-red-700 font-bold flex items-center justify-center text-xs sm:h-8 sm:w-8 sm:text-sm">
-                4
-              </div>
-              <h3 className="font-bold text-slate-900 text-xs sm:text-sm">SDG 4: Quality Education</h3>
-              <p className="text-[11px] text-slate-600 leading-relaxed sm:text-xs">
-                Empowers non-IT humanities classrooms (Sharia, Arabic, Urdu, Usuluddin) with source-grounded Audio Overviews and study guides.
-              </p>
-            </div>
-
-            <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:space-y-3 sm:rounded-xl sm:p-6">
-              <div className="w-7 h-7 rounded-lg bg-red-900 text-red-100 font-bold flex items-center justify-center text-xs sm:h-8 sm:w-8 sm:text-sm">
-                8
-              </div>
-              <h3 className="font-bold text-slate-900 text-xs sm:text-sm">SDG 8: Decent Work</h3>
-              <p className="text-[11px] text-slate-600 leading-relaxed sm:text-xs">
-                Directly combats educator burnout by reducing repetitive manual lecture preparation and administrative formatting by 3–5 hours weekly.
-              </p>
-            </div>
-
-            <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:space-y-3 sm:rounded-xl sm:p-6">
-              <div className="w-7 h-7 rounded-lg bg-pink-100 text-pink-700 font-bold flex items-center justify-center text-xs sm:h-8 sm:w-8 sm:text-sm">
-                10
-              </div>
-              <h3 className="font-bold text-slate-900 text-xs sm:text-sm">SDG 10: Reduced Inequalities</h3>
-              <p className="text-[11px] text-slate-600 leading-relaxed sm:text-xs">
-                Democratizes AI tools beyond computer science labs, ensuring religious, legal, and linguistic scholars have equal modern capabilities.
-              </p>
-            </div>
-
-            <div className="space-y-2 rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:space-y-3 sm:rounded-xl sm:p-6">
-              <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs sm:h-8 sm:w-8 sm:text-sm">
-                17
-              </div>
-              <h3 className="font-bold text-slate-900 text-xs sm:text-sm">SDG 17: Partnerships</h3>
-              <p className="text-[11px] text-slate-600 leading-relaxed sm:text-xs">
-                Builds institutional bridges connecting FMS ambassadors, participating faculties, and national youth campaign platforms.
-              </p>
-            </div>
-          </div>
-        </div>
+      {/* Interactive GSAP ScrollTrigger SDG Wheel Section */}
+      <section className="border-y border-slate-200/80 bg-[#F7F5E9]">
+        <SDGWheelScrollAnimation />
       </section>
 
       {canAccessAmbassadorPortal && (
