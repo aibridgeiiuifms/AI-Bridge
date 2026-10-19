@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
@@ -128,9 +129,11 @@ export default function Navbar() {
           {/* Brand Logo with Official AI Bridge Logo */}
           <Link href="/" className="group flex min-w-0 flex-1 items-center gap-1.5 sm:gap-3 lg:flex-none">
             <div className="relative h-9 w-9 shrink-0 rounded-xl overflow-hidden bg-white border border-slate-200/90 shadow-2xs flex items-center justify-center group-hover:shadow-md group-hover:scale-105 transition-all p-0.5 sm:h-11 sm:w-11">
-              <img
+              <Image
                 src="/logo.jpg"
                 alt="The AI Bridge Logo"
+                width={44}
+                height={44}
                 className="w-full h-full object-contain rounded-lg"
               />
             </div>
@@ -144,7 +147,7 @@ export default function Navbar() {
                 </span>
               </div>
               <div className="hidden items-center gap-1.5 text-[10px] sm:flex sm:text-[11px] text-slate-500 font-medium leading-none mt-0.5">
-                <img src="/iiui-logo.jpg" alt="IIUI" className="w-3 h-3 object-contain rounded-full inline-block" />
+                <Image src="/iiui-logo.jpg" alt="IIUI" width={12} height={12} className="w-3 h-3 object-contain rounded-full inline-block" />
                 <span>Dept. of Tech & PM • FMS IIUI</span>
               </div>
             </div>
