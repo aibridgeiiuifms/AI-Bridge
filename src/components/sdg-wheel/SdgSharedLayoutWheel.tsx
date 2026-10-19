@@ -18,6 +18,7 @@
  */
 
 import React, { useRef, useState, useEffect, useCallback, type RefObject } from 'react';
+import Image from 'next/image';
 import {
   motion,
   useInView,
@@ -333,6 +334,23 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
     });
   });
 
+  const toggleGoalsDocking = useCallback(() => {
+    const section = containerRef.current;
+    if (!section) return;
+
+    const shouldReturnToWheel = smoothProgress.get() >= typingRangeByGoal[4][0];
+    const targetProgress = shouldReturnToWheel ? 0 : typingRangeByGoal[17][1];
+    const sectionTop = section.getBoundingClientRect().top + window.scrollY;
+    const scrollDistance = section.offsetHeight - window.innerHeight;
+    const targetScrollY = sectionTop + targetProgress * Math.max(0, scrollDistance);
+    const maxScrollY = document.documentElement.scrollHeight - window.innerHeight;
+
+    window.scrollTo({
+      top: Math.min(targetScrollY, maxScrollY),
+      behavior: 'smooth',
+    });
+  }, []);
+
   return (
     <div
       ref={containerRef}
@@ -379,6 +397,16 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
                   deltas={deltas}
                 />
               )}
+              <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 flex aspect-square w-[38%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white bg-white p-[2%] shadow-md ring-1 ring-slate-200/80">
+                <Image
+                  src="/sdg-logo-for-wheel.webp"
+                  alt="Sustainable Development Goals"
+                  width={1311}
+                  height={776}
+                  className="h-full w-full object-contain"
+                  priority
+                />
+              </div>
             </div>
 
             {/* Status indicator pill */}
@@ -402,9 +430,16 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
             className="relative z-0 grid w-full max-w-xl flex-1 grid-cols-2 items-stretch gap-1.5 sm:gap-4"
           >
             {TARGET_SDGS.map((target) => (
-              <div
+              <button
                 key={target.num}
-                className={`group relative flex h-full min-w-0 flex-row items-start gap-1.5 rounded-xl border bg-white/95 p-1.5 text-left shadow-xs backdrop-blur-sm transition-all sm:gap-3 sm:rounded-2xl sm:p-4 ${
+                type="button"
+                onClick={toggleGoalsDocking}
+                aria-label={
+                  isScrolled
+                    ? `Animate SDG ${target.num} back into the wheel`
+                    : `Animate SDG ${target.num} out of the wheel and into its card`
+                }
+                className={`group relative flex h-full min-w-0 cursor-pointer flex-row items-start gap-1.5 rounded-xl border bg-white/95 p-1.5 text-left shadow-xs backdrop-blur-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 sm:gap-3 sm:rounded-2xl sm:p-4 ${
                   isScrolled
                     ? 'border-slate-300 shadow-md ring-1 ring-slate-200'
                     : 'border-slate-200/80 hover:border-slate-300'
@@ -466,7 +501,7 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
                     />
                   </p>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
 
