@@ -17,13 +17,20 @@
  * 6. Hardware-accelerated GPU transforms (x, y, scale, rotate) with spring physics.
  */
 
-import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { motion, useScroll, useSpring, useTransform } from 'framer-motion';
+import React, { useRef, useState, useEffect, useCallback, type RefObject } from 'react';
+import {
+  motion,
+  useInView,
+  useMotionValueEvent,
+  useScroll,
+  useSpring,
+  useTransform,
+  type MotionValue,
+} from 'framer-motion';
 import { TARGET_SDGS } from './sdg-data';
-import { STATIC_SLICES, TARGET_SLICES } from './sdg-slices-config';
+import { STATIC_SLICES, TARGET_SLICES, type SdgSliceConfig } from './sdg-slices-config';
 
-// Natural spring physics configuration for detachment and return
-const springTransition = {
+const desktopSpring = {
   type: 'spring' as const,
   stiffness: 220,
   damping: 28,
@@ -31,6 +38,17 @@ const springTransition = {
   restDelta: 0.01,
   restSpeed: 0.01,
 };
+
+const typingRangeByGoal: Record<number, [number, number]> = {
+  4: [0.35, 0.55],
+  8: [0.45, 0.65],
+  10: [0.55, 0.75],
+  17: [0.65, 0.85],
+};
+const wheelRotationRange: [number, number] = [0, 0.2];
+const wheelRotationDegrees = 45;
+const dockMeasurementTrigger = typingRangeByGoal[4][0] - 0.05;
+const dockMeasurementReset = dockMeasurementTrigger - 0.05;
 
 const orderedStaticSlices = [...STATIC_SLICES].sort((a, b) => a.thetaMid - b.thetaMid);
 const balancedRotationByNum = orderedStaticSlices.reduce<Record<number, number>>(
@@ -45,56 +63,198 @@ const balancedRotationByNum = orderedStaticSlices.reduce<Record<number, number>>
   {},
 );
 
+interface StaticSliceProps {
+  slice: SdgSliceConfig;
+  progress: MotionValue<number>;
+}
+
+const StaticSdgSlice = React.memo(function StaticSdgSlice({
+  slice,
+  progress,
+}: StaticSliceProps) {
+  const rotation = useTransform(
+    progress,
+    [typingRangeByGoal[4][0], typingRangeByGoal[17][1]],
+    [0, balancedRotationByNum[slice.num]],
+    { clamp: true },
+  );
+
+  return (
+    <motion.div
+      initial={false}
+      style={{
+        left: `${slice.leftPct}%`,
+        top: `${slice.topPct}%`,
+        width: `${slice.widthPct}%`,
+        height: `${slice.heightPct}%`,
+        transformOrigin: `${((50 - slice.leftPct) / slice.widthPct) * 100}% ${((50 - slice.topPct) / slice.heightPct) * 100}%`,
+        rotate: rotation,
+        z: 0,
+        backfaceVisibility: 'hidden',
+        touchAction: 'pan-y',
+      }}
+      className="absolute transform-gpu will-change-transform pointer-events-none select-none"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={slice.src}
+        alt={slice.title}
+        className="h-full w-full object-contain pointer-events-none select-none filter-none md:drop-shadow-md"
+        loading="eager"
+        style={slice.num === 1 || slice.num === 17 ? { transform: 'scale(1.02)' } : undefined}
+      />
+    </motion.div>
+  );
+});
+
+interface TargetSliceProps {
+  slice: SdgSliceConfig;
+  delta: { x: number; y: number; scale: number } | undefined;
+  progress: MotionValue<number>;
+}
+
+const TargetSdgSlice = React.memo(function TargetSdgSlice({
+  slice,
+  delta,
+  progress,
+}: TargetSliceProps) {
+  const range = typingRangeByGoal[slice.num];
+  const x = useTransform(progress, range, [0, delta?.x ?? 0], { clamp: true });
+  const y = useTransform(progress, range, [0, delta?.y ?? 0], { clamp: true });
+  const rotate = useTransform(progress, range, [0, slice.targetRotation - wheelRotationDegrees], {
+    clamp: true,
+  });
+  const scale = useTransform(progress, range, [1, delta?.scale ?? 1], { clamp: true });
+
+  return (
+    <motion.div
+      style={{
+        left: `${slice.leftPct}%`,
+        top: `${slice.topPct}%`,
+        width: `${slice.widthPct}%`,
+        height: `${slice.heightPct}%`,
+        transformOrigin: `${slice.localCenterXPct}% ${slice.localCenterYPct}%`,
+        x,
+        y,
+        rotate,
+        scale,
+        zIndex: 50,
+        z: 0,
+        backfaceVisibility: 'hidden',
+        touchAction: 'pan-y',
+      }}
+      className="absolute transform-gpu will-change-transform pointer-events-none"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={slice.src}
+        alt={slice.title}
+        className="pointer-events-none h-full w-full object-contain filter-none md:drop-shadow-md"
+      />
+    </motion.div>
+  );
+});
+
+interface ScrollTypewriterProps {
+  text: string;
+  progress: MotionValue<number>;
+  range: [number, number];
+}
+
+function ScrollTypewriter({ text, progress, range }: ScrollTypewriterProps) {
+  const rawCharIndex = useTransform(progress, range, [0, text.length], { clamp: true });
+  const charIndex = useTransform(rawCharIndex, (index) => Math.floor(index));
+  const [visibleCharIndex, setVisibleCharIndex] = useState(() => charIndex.get());
+
+  useMotionValueEvent(charIndex, 'change', (index) => {
+    setVisibleCharIndex((current) => (current === index ? current : index));
+  });
+
+  const isComplete = visibleCharIndex >= text.length;
+
+  return (
+    <span aria-label={text}>
+      <span className="grid">
+        <span aria-hidden="true" className="invisible col-start-1 row-start-1">
+          {text}
+        </span>
+        <span aria-hidden="true" className="col-start-1 row-start-1">
+          {text.slice(0, visibleCharIndex)}
+          <motion.span
+            aria-hidden="true"
+            animate={{ opacity: isComplete ? 0 : 1 }}
+            transition={{ duration: 0.12 }}
+            className={`ml-px inline-block ${isComplete ? '' : 'animate-pulse'}`}
+          >
+            |
+          </motion.span>
+        </span>
+      </span>
+    </span>
+  );
+}
+
+interface AnimatedWheelLayersProps {
+  scrollProgress: MotionValue<number>;
+  deltas: Record<number, { x: number; y: number; scale: number }>;
+}
+
+function AnimatedWheelLayers({
+  scrollProgress,
+  deltas,
+}: AnimatedWheelLayersProps) {
+  const rotationTarget = useTransform(
+    scrollProgress,
+    wheelRotationRange,
+    [0, wheelRotationDegrees],
+    { clamp: true },
+  );
+  const wheelRotation = useSpring(rotationTarget, desktopSpring);
+
+  return (
+    <motion.div
+      className="absolute inset-0 transform-gpu will-change-transform"
+      style={{
+        rotate: wheelRotation,
+        transformOrigin: 'center',
+        z: 0,
+        zIndex: 20,
+        backfaceVisibility: 'hidden',
+        touchAction: 'pan-y',
+      }}
+    >
+      {STATIC_SLICES.map((slice) => (
+        <StaticSdgSlice key={slice.num} slice={slice} progress={scrollProgress} />
+      ))}
+      {TARGET_SLICES.map((slice) => (
+        <TargetSdgSlice
+          key={slice.num}
+          slice={slice}
+          delta={deltas[slice.num]}
+          progress={scrollProgress}
+        />
+      ))}
+    </motion.div>
+  );
+}
+
 export default function SdgSharedLayoutWheel({ className = '' }: { className?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wheelRef = useRef<HTMLDivElement>(null);
-  const detailsTriggerRef = useRef<HTMLDivElement>(null);
+  const cardsRef = useRef<HTMLDivElement>(null);
   const cardSlotRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   // Dynamic screen offsets from wheel slots to card landing docks
   const [deltas, setDeltas] = useState<Record<number, { x: number; y: number; scale: number }>>({});
-
-  const [isScrolled, setIsScrolled] = useState(false);
-
-  useEffect(() => {
-    const trigger = detailsTriggerRef.current;
-    if (!trigger) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.intersectionRatio >= 0.5) {
-          setIsScrolled(true);
-        } else if (entry.intersectionRatio <= 0.1) {
-          setIsScrolled(false);
-        }
-      },
-      {
-        rootMargin: '0px 0px -10% 0px',
-        threshold: [0, 0.1, 0.5],
-      },
-    );
-
-    observer.observe(trigger);
-    return () => observer.disconnect();
-  }, []);
-
-  const { scrollYProgress } = useScroll({
+  const isWheelInView = useInView(wheelRef, { amount: 0.1 });
+  const areCardsInView = useInView(cardsRef, { amount: 0.1 });
+  const { scrollYProgress: smoothProgress } = useScroll({
     target: containerRef,
     offset: ['start start', 'end end'],
   });
-  const rotationTarget = useTransform(
-    scrollYProgress,
-    [0, 0.75],
-    isScrolled ? [0, 0] : [0, 45],
-    { clamp: true },
-  );
-  const wheelRotation = useSpring(rotationTarget, {
-    stiffness: 220,
-    damping: 28,
-    mass: 0.8,
-    restDelta: 0.01,
-    restSpeed: 0.01,
-  });
+
+  const [isScrolled, setIsScrolled] = useState(false);
+  const shouldMeasureDeltasRef = useRef(true);
 
   // 2. Measure pinpoint screen translation vectors from wheel slots to card slots
   const measureDeltas = useCallback(() => {
@@ -108,7 +268,7 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
       if (!cardEl) return;
       const cardRect = cardEl.getBoundingClientRect();
 
-      // Screen coordinates of this slice's visual center in the wheel
+      // Wheel coordinates of the slice center before the wheel's 45° rotation.
       const sliceLeft = wheelRect.left + (slice.leftPct / 100) * wheelRect.width;
       const sliceTop = wheelRect.top + (slice.topPct / 100) * wheelRect.height;
       const sliceWidth = (slice.widthPct / 100) * wheelRect.width;
@@ -117,9 +277,16 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
       const sliceCenterX = sliceLeft + (slice.localCenterXPct / 100) * sliceWidth;
       const sliceCenterY = sliceTop + (slice.localCenterYPct / 100) * sliceHeight;
 
-      // Screen coordinates of the destination card dock's center
+      // Convert the card center into the rotated wheel layer's local coordinates.
       const cardCenterX = cardRect.left + cardRect.width / 2;
       const cardCenterY = cardRect.top + cardRect.height / 2;
+      const targetX = cardCenterX - wheelRect.left - wheelRect.width / 2;
+      const targetY = cardCenterY - wheelRect.top - wheelRect.height / 2;
+      const radians = (-wheelRotationDegrees * Math.PI) / 180;
+      const targetLocalX = targetX * Math.cos(radians) - targetY * Math.sin(radians);
+      const targetLocalY = targetX * Math.sin(radians) + targetY * Math.cos(radians);
+      const sourceLocalX = sliceCenterX - wheelRect.left - wheelRect.width / 2;
+      const sourceLocalY = sliceCenterY - wheelRect.top - wheelRect.height / 2;
 
       // Target scale factor: fit the slice comfortably into the card slot
       const maxSliceDim = Math.max(sliceWidth, sliceHeight);
@@ -127,8 +294,8 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
       const scale = Math.min(1.4, Math.max(0.6, targetDim / maxSliceDim));
 
       newDeltas[slice.num] = {
-        x: cardCenterX - sliceCenterX,
-        y: cardCenterY - sliceCenterY,
+        x: targetLocalX - sourceLocalX,
+        y: targetLocalY - sourceLocalY,
         scale,
       };
     });
@@ -136,17 +303,35 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
     setDeltas(newDeltas);
   }, []);
 
-  // Compute on mount and recompute on window resize/scroll
+  // The wheel and its card docks share a sticky stage, so scrolling does not
+  // change their relative positions; remeasure only when the layout resizes.
   useEffect(() => {
     measureDeltas();
-    const handleResize = () => measureDeltas();
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('scroll', handleResize, { passive: true });
+    const resizeObserver = new ResizeObserver(measureDeltas);
+    if (wheelRef.current) resizeObserver.observe(wheelRef.current);
+    if (cardsRef.current) resizeObserver.observe(cardsRef.current);
+    Object.values(cardSlotRefs.current).forEach((slot) => {
+      if (slot) resizeObserver.observe(slot);
+    });
     return () => {
-      window.removeEventListener('resize', handleResize);
-      window.removeEventListener('scroll', handleResize);
+      resizeObserver.disconnect();
     };
   }, [measureDeltas]);
+
+  useMotionValueEvent(smoothProgress, 'change', (progress) => {
+    if (progress >= dockMeasurementTrigger && shouldMeasureDeltasRef.current) {
+      shouldMeasureDeltasRef.current = false;
+      measureDeltas();
+    } else if (progress <= dockMeasurementReset) {
+      shouldMeasureDeltasRef.current = true;
+    }
+
+    setIsScrolled((current) => {
+      if (progress >= typingRangeByGoal[4][0]) return true;
+      if (progress <= typingRangeByGoal[4][0] - 0.05) return false;
+      return current;
+    });
+  });
 
   return (
     <div
@@ -180,109 +365,20 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
             <div
               ref={wheelRef}
               className="relative aspect-square w-[220px] transform-gpu will-change-transform sm:w-[320px] md:w-[360px] lg:w-[410px]"
-              style={{ backfaceVisibility: 'hidden' }}
+              style={{
+                // Paint containment would clip target slices as they travel to the cards.
+                contain: 'layout size',
+                transform: 'translate3d(0, 0, 0)',
+                backfaceVisibility: 'hidden',
+                touchAction: 'pan-y',
+              }}
             >
-              <motion.div
-                className="absolute inset-0 transform-gpu will-change-transform"
-                style={{
-                  rotate: wheelRotation,
-                  transformOrigin: 'center',
-                  zIndex: 20,
-                  backfaceVisibility: 'hidden',
-                }}
-              >
-              {/*
-               * ── 1A. The 13 Remaining SDG Slices (SVGs) ──────────────────
-               * Their offsets close the gaps while the four target slices dock.
-               */}
-              {STATIC_SLICES.map((slice) => {
-                const transformOriginX =
-                  ((50 - slice.leftPct) / slice.widthPct) * 100;
-                const transformOriginY =
-                  ((50 - slice.topPct) / slice.heightPct) * 100;
-
-                return (
-                  <motion.div
-                    key={slice.num}
-                    initial={false}
-                    animate={{
-                      rotate: isScrolled ? balancedRotationByNum[slice.num] : 0,
-                    }}
-                    transition={springTransition}
-                    style={{
-                      left: `${slice.leftPct}%`,
-                      top: `${slice.topPct}%`,
-                      width: `${slice.widthPct}%`,
-                      height: `${slice.heightPct}%`,
-                      transformOrigin: `${transformOriginX}% ${transformOriginY}%`,
-                      backfaceVisibility: 'hidden',
-                    }}
-                    className="absolute transform-gpu will-change-transform pointer-events-none select-none"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={slice.src}
-                      alt={slice.title}
-                      className="h-full w-full object-contain pointer-events-none select-none filter-none md:drop-shadow-md"
-                      loading="eager"
-                      style={slice.num === 1 || slice.num === 17 ? { transform: 'scale(1.02)' } : undefined}
-                    />
-                  </motion.div>
-                );
-              })}
-
-              {/*
-               * ── 1D. The 4 Separable Slices (SVGs: SDGs 4, 8, 10, 17) ─────────
-               * Sits pixel-perfectly in the wheel when !isScrolled (offset 0).
-               * Smoothly separates, scales, and rotates upright into the cards when isScrolled!
-               */}
-              {TARGET_SLICES.map((slice) => {
-                const delta = deltas[slice.num];
-
-                return (
-                  <motion.div
-                    key={`slice-${slice.num}`}
-                    initial={false}
-                    animate={
-                      isScrolled && delta
-                        ? {
-                            x: delta.x,
-                            y: delta.y,
-                            rotate: slice.targetRotation,
-                            scale: delta.scale,
-                            zIndex: 50,
-                          }
-                        : {
-                            x: 0,
-                            y: 0,
-                            rotate: 0,
-                            scale: 1,
-                            zIndex: 30,
-                          }
-                    }
-                    transition={springTransition}
-                    style={{
-                      left: `${slice.leftPct}%`,
-                      top: `${slice.topPct}%`,
-                      width: `${slice.widthPct}%`,
-                      height: `${slice.heightPct}%`,
-                      transformOrigin: `${slice.localCenterXPct}% ${slice.localCenterYPct}%`,
-                      backfaceVisibility: 'hidden',
-                    }}
-                    className="absolute transform-gpu will-change-transform pointer-events-none"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={slice.src}
-                      alt={slice.title}
-                      className="pointer-events-auto h-full w-full cursor-pointer object-contain filter-none transition-transform hover:scale-[1.03] active:scale-95 md:drop-shadow-md"
-                      onClick={() => setIsScrolled(!isScrolled)}
-                      title={`Click to ${isScrolled ? 'return' : 'separate'} SDG ${slice.num}`}
-                    />
-                  </motion.div>
-                );
-              })}
-              </motion.div>
+              {(isWheelInView || areCardsInView) && (
+                <AnimatedWheelLayers
+                  scrollProgress={smoothProgress}
+                  deltas={deltas}
+                />
+              )}
             </div>
 
             {/* Status indicator pill */}
@@ -301,12 +397,14 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
           </div>
 
           {/* ── 2. The 4 Target Details Cards (2x2 grid on mobile and desktop) ─ */}
-          <div className="relative z-0 grid w-full max-w-xl flex-1 grid-cols-2 items-stretch gap-1.5 sm:gap-4">
+          <div
+            ref={cardsRef}
+            className="relative z-0 grid w-full max-w-xl flex-1 grid-cols-2 items-stretch gap-1.5 sm:gap-4"
+          >
             {TARGET_SDGS.map((target) => (
               <div
                 key={target.num}
-                onClick={() => setIsScrolled(!isScrolled)}
-                className={`group relative flex h-full min-w-0 cursor-pointer flex-row items-start gap-1.5 rounded-xl border bg-white/95 p-1.5 text-left shadow-xs backdrop-blur-sm transition-all sm:gap-3 sm:rounded-2xl sm:p-4 ${
+                className={`group relative flex h-full min-w-0 flex-row items-start gap-1.5 rounded-xl border bg-white/95 p-1.5 text-left shadow-xs backdrop-blur-sm transition-all sm:gap-3 sm:rounded-2xl sm:p-4 ${
                   isScrolled
                     ? 'border-slate-300 shadow-md ring-1 ring-slate-200'
                     : 'border-slate-200/80 hover:border-slate-300'
@@ -361,7 +459,11 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
                   </h3>
 
                   <p className="mt-0.5 break-words text-[9px] leading-[1.25] text-slate-600 sm:mt-1 sm:text-[11px] sm:leading-relaxed">
-                    {target.description}
+                    <ScrollTypewriter
+                      text={target.description}
+                      progress={smoothProgress}
+                      range={typingRangeByGoal[target.num]}
+                    />
                   </p>
                 </div>
               </div>
@@ -372,14 +474,6 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
 
       </div>
 
-      {/* ──────────────────────────────────────────────────────────────────
-          Scroll Trigger Sentinel: Placed down the runway to toggle separation
-      ────────────────────────────────────────────────────────────────── */}
-      <div
-        ref={detailsTriggerRef}
-        className="absolute bottom-24 h-10 w-full pointer-events-none opacity-0"
-        aria-hidden="true"
-      />
     </div>
   );
 }
