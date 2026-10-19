@@ -1,0 +1,291 @@
+/**
+ * sdg-slices-config.ts
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Complete geometric configuration for all 17 UN SDG slices.
+ *
+ * Calculated from the authentic vector artboard coordinates:
+ * - Center: (0, 0)
+ * - Outer radius: 770.61
+ * - Inner radius: 361.055
+ * - Sector angle: 360 / 17 = 21.1765 degrees per slice
+ * - Container viewBox: -800 to +800 (1600x1600 normalized system)
+ */
+
+import { SDG_COLOR, SDG_SHORT_LABEL } from './sdg-data';
+
+export interface SdgSliceConfig {
+  num: number;
+  leftPct: number;
+  topPct: number;
+  widthPct: number;
+  heightPct: number;
+  localCenterXPct: number;
+  localCenterYPct: number;
+  thetaMid: number;
+  color: string;
+  title: string;
+  src: string;
+  isTarget: boolean;
+  targetRotation: number;
+}
+
+export const SDG_SLICES_CONFIG: readonly SdgSliceConfig[] = [
+  {
+    num: 1,
+    leftPct: 50.0,
+    topPct: 1.8369,
+    widthPct: 17.375,
+    heightPct: 27.125,
+    localCenterXPct: 38.01,
+    localCenterYPct: 47.33,
+    thetaMid: 10.59,
+    color: SDG_COLOR[1],
+    title: SDG_SHORT_LABEL[1],
+    src: '/sdg-slices/sdg-1.svg',
+    isTarget: false,
+    targetRotation: -10.59,
+  },
+  {
+    num: 2,
+    leftPct: 58.1518,
+    topPct: 5.0892,
+    widthPct: 24.3125,
+    heightPct: 28.1875,
+    localCenterXPct: 44.29,
+    localCenterYPct: 50.93,
+    thetaMid: 31.76,
+    color: SDG_COLOR[2],
+    title: SDG_SHORT_LABEL[2],
+    src: '/sdg-slices/sdg-2.svg',
+    isTarget: false,
+    targetRotation: -31.76,
+  },
+  {
+    num: 3,
+    leftPct: 65.2026,
+    topPct: 14.407,
+    widthPct: 27.9375,
+    heightPct: 25.5625,
+    localCenterXPct: 48.24,
+    localCenterYPct: 54.52,
+    thetaMid: 52.94,
+    color: SDG_COLOR[3],
+    title: SDG_SHORT_LABEL[3],
+    src: '/sdg-slices/sdg-3.svg',
+    isTarget: false,
+    targetRotation: -52.94,
+  },
+  {
+    num: 4,
+    leftPct: 70.2002,
+    topPct: 28.5318,
+    widthPct: 27.75,
+    heightPct: 19.4375,
+    localCenterXPct: 51.77,
+    localCenterYPct: 59.85,
+    thetaMid: 74.12,
+    color: SDG_COLOR[4],
+    title: SDG_SHORT_LABEL[4],
+    src: '/sdg-slices/sdg-4.svg',
+    isTarget: true,
+    targetRotation: -74.12, // Counter-rotate to stand perfectly upright in card
+  },
+  {
+    num: 5,
+    leftPct: 71.7073,
+    topPct: 45.5561,
+    widthPct: 26.375,
+    heightPct: 17.625,
+    localCenterXPct: 53.37,
+    localCenterYPct: 44.03,
+    thetaMid: 95.29,
+    color: SDG_COLOR[5],
+    title: SDG_SHORT_LABEL[5],
+    src: '/sdg-slices/sdg-5.svg',
+    isTarget: false,
+    targetRotation: -95.29,
+  },
+  {
+    num: 6,
+    leftPct: 68.0143,
+    topPct: 56.1755,
+    widthPct: 28.4375,
+    heightPct: 22.9375,
+    localCenterXPct: 49.78,
+    localCenterYPct: 42.91,
+    thetaMid: 116.47,
+    color: SDG_COLOR[6],
+    title: SDG_SHORT_LABEL[6],
+    src: '/sdg-slices/sdg-6.svg',
+    isTarget: false,
+    targetRotation: -116.47,
+  },
+  {
+    num: 7,
+    leftPct: 61.8883,
+    topPct: 63.599,
+    widthPct: 26.5625,
+    heightPct: 27.4375,
+    localCenterXPct: 46.39,
+    localCenterYPct: 47.23,
+    thetaMid: 137.65,
+    color: SDG_COLOR[7],
+    title: SDG_SHORT_LABEL[7],
+    src: '/sdg-slices/sdg-7.svg',
+    isTarget: false,
+    targetRotation: -137.65,
+  },
+  {
+    num: 8,
+    leftPct: 54.1567,
+    topPct: 69.1859,
+    widthPct: 21.3125,
+    heightPct: 28.25,
+    localCenterXPct: 41.41,
+    localCenterYPct: 50.71,
+    thetaMid: 158.82,
+    color: SDG_COLOR[8],
+    title: SDG_SHORT_LABEL[8],
+    src: '/sdg-slices/sdg-8.svg',
+    isTarget: true,
+    targetRotation: -158.82, // Counter-rotate to stand perfectly upright in card
+  },
+  {
+    num: 9,
+    leftPct: 41.1719,
+    topPct: 72.1817,
+    widthPct: 17.75,
+    heightPct: 25.9375,
+    localCenterXPct: 49.74,
+    localCenterYPct: 53.03,
+    thetaMid: 180.0,
+    color: SDG_COLOR[9],
+    title: SDG_SHORT_LABEL[9],
+    src: '/sdg-slices/sdg-9.svg',
+    isTarget: false,
+    targetRotation: -180.0,
+  },
+  {
+    num: 10,
+    leftPct: 24.6643,
+    topPct: 69.1914,
+    widthPct: 21.3125,
+    heightPct: 28.25,
+    localCenterXPct: 57.96,
+    localCenterYPct: 50.69,
+    thetaMid: 201.18,
+    color: SDG_COLOR[10],
+    title: SDG_SHORT_LABEL[10],
+    src: '/sdg-slices/sdg-10.svg',
+    isTarget: true,
+    targetRotation: 158.82, // Counter-rotate (360 - 201.18 = 158.82) to stand upright in card
+  },
+  {
+    num: 11,
+    leftPct: 11.5784,
+    topPct: 63.6073,
+    widthPct: 26.6875,
+    heightPct: 27.4375,
+    localCenterXPct: 53.25,
+    localCenterYPct: 47.2,
+    thetaMid: 222.35,
+    color: SDG_COLOR[11],
+    title: SDG_SHORT_LABEL[11],
+    src: '/sdg-slices/sdg-11.svg',
+    isTarget: false,
+    targetRotation: 137.65,
+  },
+  {
+    num: 12,
+    leftPct: 3.6816,
+    topPct: 56.1855,
+    widthPct: 28.5,
+    heightPct: 22.9375,
+    localCenterXPct: 49.64,
+    localCenterYPct: 42.87,
+    thetaMid: 243.53,
+    color: SDG_COLOR[12],
+    title: SDG_SHORT_LABEL[12],
+    src: '/sdg-slices/sdg-12.svg',
+    isTarget: false,
+    targetRotation: 116.47,
+  },
+  {
+    num: 13,
+    leftPct: 1.8369,
+    topPct: 45.5782,
+    widthPct: 26.375,
+    heightPct: 17.625,
+    localCenterXPct: 46.93,
+    localCenterYPct: 43.9,
+    thetaMid: 264.71,
+    color: SDG_COLOR[13],
+    title: SDG_SHORT_LABEL[13],
+    src: '/sdg-slices/sdg-13.svg',
+    isTarget: false,
+    targetRotation: 95.29,
+  },
+  {
+    num: 14,
+    leftPct: 2.0423,
+    topPct: 28.5518,
+    widthPct: 27.8125,
+    heightPct: 19.3125,
+    localCenterXPct: 48.15,
+    localCenterYPct: 60.13,
+    thetaMid: 285.88,
+    color: SDG_COLOR[14],
+    title: SDG_SHORT_LABEL[14],
+    src: '/sdg-slices/sdg-14.svg',
+    isTarget: false,
+    targetRotation: 74.12,
+  },
+  {
+    num: 15,
+    leftPct: 6.8861,
+    topPct: 14.422,
+    widthPct: 28.0,
+    heightPct: 25.5625,
+    localCenterXPct: 51.55,
+    localCenterYPct: 54.46,
+    thetaMid: 307.06,
+    color: SDG_COLOR[15],
+    title: SDG_SHORT_LABEL[15],
+    src: '/sdg-slices/sdg-15.svg',
+    isTarget: false,
+    targetRotation: 52.94,
+  },
+  {
+    num: 16,
+    leftPct: 17.5527,
+    topPct: 5.0973,
+    widthPct: 24.25,
+    heightPct: 28.1875,
+    localCenterXPct: 55.79,
+    localCenterYPct: 50.9,
+    thetaMid: 328.24,
+    color: SDG_COLOR[16],
+    title: SDG_SHORT_LABEL[16],
+    src: '/sdg-slices/sdg-16.svg',
+    isTarget: false,
+    targetRotation: 31.76,
+  },
+  {
+    num: 17,
+    leftPct: 32.6015,
+    topPct: 1.8369,
+    widthPct: 17.375,
+    heightPct: 27.125,
+    localCenterXPct: 62.13,
+    localCenterYPct: 47.33,
+    thetaMid: 349.41,
+    color: SDG_COLOR[17],
+    title: SDG_SHORT_LABEL[17],
+    src: '/sdg-slices/sdg-17.svg',
+    isTarget: true,
+    targetRotation: 10.59, // Counter-rotate (360 - 349.41 = 10.59) to stand upright in card
+  },
+] as const;
+
+export const STATIC_SLICES = SDG_SLICES_CONFIG.filter((s) => !s.isTarget);
+export const TARGET_SLICES = SDG_SLICES_CONFIG.filter((s) => s.isTarget);

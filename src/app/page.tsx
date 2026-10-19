@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { hasAmbassadorPortalRole } from '@/lib/access';
 import HighlightsCarousel from '@/components/HighlightsCarousel';
-import SDGWheelScrollAnimation from '@/components/SDGWheelScrollAnimation';
+import SdgSharedLayoutWheel from '@/components/sdg-wheel/SdgSharedLayoutWheel';
 import humHainPakistanLogo from '../../Assets/hum hain pak logo.jpg';
 import sdgLogo from '../../Assets/SDG Logo.png';
 import { 
@@ -205,9 +205,9 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Interactive GSAP ScrollTrigger SDG Wheel Section */}
+      {/* Interactive Framer Motion Shared Layout SDG Wheel Section */}
       <section className="border-y border-slate-200/80 bg-[#F7F5E9]">
-        <SDGWheelScrollAnimation />
+        <SdgSharedLayoutWheel />
       </section>
 
       {canAccessAmbassadorPortal && (
