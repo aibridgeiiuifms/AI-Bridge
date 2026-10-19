@@ -18,13 +18,16 @@ const slides = [
   { src: '/highlights/p11.webp', alt: 'AI Bridge Campaign Highlight 11' },
 ];
 
+// The slide visible on first paint — only this one is eagerly loaded.
+const INITIAL_SLIDE = 4;
+
 interface HighlightsCarouselProps {
   className?: string;
 }
 
 export default function HighlightsCarousel({ className = '' }: HighlightsCarouselProps) {
   // ── Main carousel state ──────────────────────────────────────────────────
-  const [activeSlide, setActiveSlide] = useState(4);
+  const [activeSlide, setActiveSlide] = useState(INITIAL_SLIDE);
   const [isPaused, setIsPaused] = useState(false);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
@@ -152,32 +155,33 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
           className="flex transition-transform duration-500 ease-out will-change-transform"
           style={{ transform: `translateX(-${activeSlide * 100}%)` }}
         >
-          {slides.map((slide, index) => (
-            <article
-              key={slide.src}
-              className="relative aspect-video w-full shrink-0 overflow-hidden bg-slate-950 flex items-center justify-center"
-              aria-label={`Highlight ${index + 1} of ${slides.length}`}
-            >
-              <Image
-                src={slide.src}
-                alt=""
-                fill
-                aria-hidden="true"
-                sizes="(max-width: 768px) 100vw, 40vw"
-                className="object-cover blur-2xl scale-110 opacity-30 pointer-events-none"
-              />
-              <Image
-                src={slide.src}
-                alt={slide.alt}
-                fill
-                priority={index === 0}
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 40vw"
-                onClick={() => openPreview(index)}
-                className="object-cover w-full h-full z-10 cursor-pointer"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-black/20 pointer-events-none z-10" />
-            </article>
-          ))}
+          {slides.map((slide, index) => {
+            // Only mount the image for the active slide and its immediate
+            // neighbours. The rest stay as empty placeholders so the
+            // translateX strip animation keeps working without triggering a
+            // request for every off-screen image.
+            const isInWindow = Math.abs(index - activeSlide) <= 1;
+            return (
+              <article
+                key={slide.src}
+                className="relative aspect-video w-full shrink-0 overflow-hidden bg-slate-950 flex items-center justify-center"
+                aria-label={`Highlight ${index + 1} of ${slides.length}`}
+              >
+                {isInWindow && (
+                  <Image
+                    src={slide.src}
+                    alt={slide.alt}
+                    fill
+                    priority={index === INITIAL_SLIDE}
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 40vw"
+                    onClick={() => openPreview(index)}
+                    className="object-cover w-full h-full z-10 cursor-pointer"
+                  />
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-black/20 pointer-events-none z-10" />
+              </article>
+            );
+          })}
         </div>
 
         {/* Prev / Next arrows */}

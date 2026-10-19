@@ -20,9 +20,11 @@ export default async function Footer() {
           <div className="col-span-2 space-y-3 sm:space-y-4 lg:col-span-1">
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="w-10 h-10 rounded-xl bg-white border border-slate-700/80 p-0.5 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-sm">
-                <img
+                <Image
                   src="/logo.jpg"
                   alt="The AI Bridge logo"
+                  width={40}
+                  height={40}
                   className="w-full h-full object-contain rounded-lg"
                 />
               </div>
@@ -41,11 +43,11 @@ export default async function Footer() {
               </span>
               <div className="flex items-center gap-2 pt-1">
                 <div className="flex items-center gap-1.5 bg-slate-800/80 px-2 py-1 rounded border border-slate-700/60 text-[10px] text-palette-ecru">
-                  <img src="/iiui-logo.jpg" alt="IIUI Logo" className="w-4 h-4 object-contain rounded-full bg-white" />
+                  <Image src="/iiui-logo.jpg" alt="IIUI Logo" width={16} height={16} className="w-4 h-4 object-contain rounded-full bg-white" />
                   <span>IIUI FMS</span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-slate-800/80 px-2 py-1 rounded border border-slate-700/60 text-[10px] text-palette-ecru">
-                  <img src="/hhp-logo.jpeg" alt="HHP Logo" className="w-4 h-4 object-contain rounded-full bg-white" />
+                  <Image src="/hhp-logo.jpeg" alt="HHP Logo" width={16} height={16} className="w-4 h-4 object-contain rounded-full bg-white" />
                   <span>HHP Youth</span>
                 </div>
               </div>
