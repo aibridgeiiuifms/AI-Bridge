@@ -1,4 +1,7 @@
-export type UserRole = 'admin' | 'member' | 'student';
+export type UserRole = 'admin' | 'team-member' | 'student' | 'teacher' | 'guest';
+
+/** Team / invite role stored on the `members` table. */
+export type TeamRole = 'admin' | 'team-member';
 
 export interface Profile {
   id: string;
@@ -9,22 +12,30 @@ export interface Profile {
   department: string | null;
   phone: string | null;
   avatar_url: string | null;
-  assigned_tasks?: string[];
   created_at: string;
   updated_at: string;
 }
 
 export type MCQAccessLevel = 'none' | 'viewer' | 'moderator' | 'manager';
 
-export interface MemberPermissions {
-  member_id: string;
-  can_manage_events: boolean;
-  can_view_surveys: boolean;
-  can_verify_attendance: boolean;
-  can_manage_mcqs: boolean;
-  can_export_reports: boolean;
-  can_manage_team?: boolean;
-  mcq_access_level?: MCQAccessLevel;
+/** Consolidated team roster row (merges role_whitelist + team_members + member_permissions). */
+export interface Member {
+  id: string;
+  profile_id: string | null;
+  email: string | null;
+  full_name: string;
+  team_role: TeamRole;
+  designation: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+  team_tag: string | null;
+  assigned_tasks: string[];
+  linkedin_url: string | null;
+  position_order: number;
+  is_published: boolean;
+  can_manage_team: boolean;
+  mcq_access_level: MCQAccessLevel;
+  created_at: string;
   updated_at: string;
 }
 
@@ -33,19 +44,6 @@ export interface CampaignTask {
   title: string;
   description: string | null;
   created_at: string;
-}
-
-export interface RoleWhitelistEntry {
-  email: string;
-  target_role: UserRole;
-  team_tag?: 'awareness' | 'workshops' | 'analyzing' | 'general';
-  assigned_tasks?: string[];
-  full_name?: string | null;
-  notes?: string | null;
-  can_manage_team?: boolean;
-  mcq_access_level?: MCQAccessLevel;
-  created_at?: string;
-  updated_at?: string;
 }
 
 export interface EventItem {
@@ -100,22 +98,6 @@ export interface SurveyResponse {
   sheet_row_number?: number | null;
   submitted_at: string;
   updated_at: string;
-}
-
-export interface SurveyAuditLog {
-  id: string;
-  survey_id: string | null;
-  user_id: string | null;
-  user_email: string;
-  survey_type: 'pre' | 'post' | null;
-  action: 'INSERT' | 'UPDATE' | 'DELETE';
-  source: 'google_sheets' | 'web_portal' | 'api' | 'database' | 'admin_override';
-  sheet_row_number: number | null;
-  performed_by: string | null;
-  old_data: Record<string, any> | null;
-  new_data: Record<string, any> | null;
-  changed_fields: string[];
-  created_at: string;
 }
 
 export interface QuizAttempt {

@@ -48,9 +48,9 @@ import { compressImageToMaxKB, uploadTeamAvatar } from '@/lib/imageCompression';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'team' | 'team_profiles' | 'departments' | 'mcqs'>('team');
-  // Inline-edit state for whitelist rows
+  // Inline-edit state for team roster rows
   const [editingWhitelistEmail, setEditingWhitelistEmail] = useState<string | null>(null);
-  const [editWhitelistDraft, setEditWhitelistDraft] = useState<{ full_name: string; target_role: 'admin' | 'member'; assigned_tasks: string[]; notes: string }>({ full_name: '', target_role: 'member', assigned_tasks: [], notes: '' });
+  const [editWhitelistDraft, setEditWhitelistDraft] = useState<{ full_name: string; team_role: 'admin' | 'team-member'; assigned_tasks: string[]; notes: string }>({ full_name: '', team_role: 'team-member', assigned_tasks: [], notes: '' });
   const [isSavingWhitelist, setIsSavingWhitelist] = useState(false);
 
   // Master MCQ Pool State
@@ -117,19 +117,13 @@ export default function AdminDashboard() {
 
   const handleMcqLevelChange = async (email: string, newLevel: 'none' | 'viewer' | 'moderator' | 'manager') => {
     const current = permissionsMap[email] || {
-      can_manage_events: false,
-      can_view_surveys: true,
-      can_verify_attendance: false,
-      can_manage_mcqs: false,
-      can_export_reports: true,
       can_manage_team: false,
       mcq_access_level: 'none'
     };
 
     const updated = {
       ...current,
-      mcq_access_level: newLevel,
-      can_manage_mcqs: newLevel === 'manager'
+      mcq_access_level: newLevel
     };
 
     setPermissionsMap(prev => ({ ...prev, [email]: updated }));
@@ -227,9 +221,9 @@ export default function AdminDashboard() {
     faculty_code: ''
   });
 
-  // Whitelist Form State
+  // Team Roster Form State
   const [newEmail, setNewEmail] = useState('');
-  const [newRole, setNewRole] = useState<'admin' | 'member'>('member');
+  const [newRole, setNewRole] = useState<'admin' | 'team-member'>('team-member');
   const [newName, setNewName] = useState('');
   const [newNotes, setNewNotes] = useState('');
   const [isSubmittingWhitelist, setIsSubmittingWhitelist] = useState(false);
@@ -245,11 +239,11 @@ export default function AdminDashboard() {
 
   // Current User Identity & Delegation Permissions
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
-  const [currentUserRole, setCurrentUserRole] = useState<string>('member');
+  const [currentUserRole, setCurrentUserRole] = useState<string>('guest');
   const [canManageTeam, setCanManageTeam] = useState<boolean>(false);
 
   // Live Supabase Database State (Zero Hardcoded Data)
-  const [whitelist, setWhitelist] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
   const [permissionsMap, setPermissionsMap] = useState<Record<string, any>>({});
   const [registeredProfiles, setRegisteredProfiles] = useState<any[]>([]);
   const [loadingRoles, setLoadingRoles] = useState(true);
@@ -264,7 +258,6 @@ export default function AdminDashboard() {
   // Public Team Profiles & Positioning State
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [loadingTeam, setLoadingTeam] = useState(false);
-  const [isSyncingTeam, setIsSyncingTeam] = useState(false);
   const [isSavingTeamMember, setIsSavingTeamMember] = useState(false);
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [editingMember, setEditingMember] = useState<any | null>(null);
@@ -571,7 +564,7 @@ export default function AdminDashboard() {
       const res = await fetch('/api/admin/roles');
       const data = await res.json();
       if (data.success) {
-        setWhitelist(data.whitelist || []);
+        setMembers(data.members || []);
         setRegisteredProfiles(data.profiles || []);
         setTasks(data.tasks || []);
 
@@ -579,75 +572,40 @@ export default function AdminDashboard() {
           setDbStats(data.stats);
         }
 
-        const resolveMcqLevel = (perm: any, emailStr: string): 'none' | 'viewer' | 'moderator' | 'manager' => {
+        const resolveMcqLevel = (member: any, emailStr: string): 'none' | 'viewer' | 'moderator' | 'manager' => {
           const emailKey = (emailStr || '').toLowerCase();
+          if (member?.mcq_access_level && ['none', 'viewer', 'moderator', 'manager'].includes(member.mcq_access_level)) {
+            return member.mcq_access_level;
+          }
           if (data.mcq_access_levels && data.mcq_access_levels[emailKey]) {
             return data.mcq_access_levels[emailKey];
-          }
-          if (perm?.mcq_access_level && ['none', 'viewer', 'moderator', 'manager'].includes(perm.mcq_access_level)) {
-            return perm.mcq_access_level;
-          }
-          if (perm?.can_manage_mcqs) {
-            return 'manager';
           }
           return 'none';
         };
 
+        // Build the permissions map (Manage Team + MCQ authority) from the members table
         const pMap: Record<string, any> = {};
+        (data.members || []).forEach((m: any) => {
+          const emailKey = (m.email || '').toLowerCase();
+          if (!emailKey) return;
+          pMap[emailKey] = {
+            can_manage_team: Boolean(m.can_manage_team),
+            mcq_access_level: resolveMcqLevel(m, emailKey),
+          };
+        });
+
+        // Include registered profiles that already have a linked members row
         (data.profiles || []).forEach((p: any) => {
-          let permObj: any = null;
-          if (Array.isArray(p.member_permissions) && p.member_permissions.length > 0) {
-            permObj = p.member_permissions[0];
-          } else if (p.member_permissions && typeof p.member_permissions === 'object') {
-            permObj = p.member_permissions;
-          }
-
-          const wlMatch = (data.whitelist || []).find((w: any) => w.email?.toLowerCase() === p.email?.toLowerCase());
-          const mcqLevel = resolveMcqLevel(permObj, p.email);
-
-          if (permObj) {
-            pMap[p.email] = {
-              ...permObj,
-              can_manage_team: permObj.can_manage_team ?? Boolean(wlMatch?.can_manage_team),
-              mcq_access_level: mcqLevel,
-              can_manage_mcqs: mcqLevel === 'manager'
-            };
-          } else {
-            pMap[p.email] = {
-              can_manage_events: false,
-              can_view_surveys: true,
-              can_verify_attendance: false,
-              can_manage_mcqs: mcqLevel === 'manager',
-              can_export_reports: true,
-              can_manage_team: Boolean(wlMatch?.can_manage_team),
-              mcq_access_level: mcqLevel,
-            };
-          }
+          const emailKey = (p.email || '').toLowerCase();
+          if (!emailKey) return;
+          const rawMember = Array.isArray(p.members) ? p.members[0] : p.members;
+          if (!rawMember) return;
+          pMap[emailKey] = {
+            can_manage_team: Boolean(rawMember.can_manage_team),
+            mcq_access_level: resolveMcqLevel(rawMember, emailKey),
+          };
         });
 
-        // Also ensure whitelist members without profiles yet are represented in pMap
-        (data.whitelist || []).forEach((w: any) => {
-          const mcqLevel = resolveMcqLevel(null, w.email);
-          if (!pMap[w.email]) {
-            pMap[w.email] = {
-              can_manage_events: false,
-              can_view_surveys: true,
-              can_verify_attendance: false,
-              can_manage_mcqs: mcqLevel === 'manager',
-              can_export_reports: true,
-              can_manage_team: Boolean(w.can_manage_team),
-              mcq_access_level: mcqLevel,
-            };
-          } else {
-            if (w.can_manage_team) {
-              pMap[w.email].can_manage_team = true;
-            }
-            if (mcqLevel !== 'none' && (!pMap[w.email].mcq_access_level || pMap[w.email].mcq_access_level === 'none')) {
-              pMap[w.email].mcq_access_level = mcqLevel;
-              pMap[w.email].can_manage_mcqs = mcqLevel === 'manager';
-            }
-          }
-        });
         setPermissionsMap(pMap);
 
         // Cross-verify whether current user has delegated management permission
@@ -656,8 +614,7 @@ export default function AdminDashboard() {
         if (user?.email) {
           const emailLower = user.email.toLowerCase();
           const isSuper = emailLower === 'ai.bridge.iiui.fms@gmail.com';
-          const hasDelegated = Boolean(pMap[emailLower]?.can_manage_team) ||
-            Boolean((data.whitelist || []).find((w: any) => w.email?.toLowerCase() === emailLower)?.can_manage_team);
+          const hasDelegated = Boolean(pMap[emailLower]?.can_manage_team);
           if (isSuper || hasDelegated) {
             setCanManageTeam(true);
           }
@@ -696,59 +653,22 @@ export default function AdminDashboard() {
 
           const { data: prof } = await supabase
             .from('profiles')
-            .select('role, member_permissions(*)')
+            .select('role, members(can_manage_team, mcq_access_level)')
             .eq('id', user.id)
             .maybeSingle();
 
           const isSuperAdmin = emailLower === 'ai.bridge.iiui.fms@gmail.com' || prof?.role === 'admin';
-          setCurrentUserRole(prof?.role || 'member');
+          setCurrentUserRole(prof?.role || 'guest');
 
-          let hasDelegatedPermission = false;
-          if (prof?.member_permissions) {
-            if (Array.isArray(prof.member_permissions) && prof.member_permissions.length > 0) {
-              hasDelegatedPermission = Boolean(prof.member_permissions[0]?.can_manage_team);
-            } else if (typeof prof.member_permissions === 'object') {
-              hasDelegatedPermission = Boolean((prof.member_permissions as any)?.can_manage_team);
-            }
-          }
-
-          // Direct check on member_permissions table if join was blocked or empty
-          if (!hasDelegatedPermission && user.id) {
-            const { data: directPerm } = await supabase
-              .from('member_permissions')
-              .select('can_manage_team')
-              .eq('member_id', user.id)
-              .maybeSingle();
-            if (directPerm?.can_manage_team) {
-              hasDelegatedPermission = true;
-            }
-          }
-
-          // Whitelist check
-          if (!hasDelegatedPermission) {
-            const { data: wl } = await supabase
-              .from('role_whitelist')
-              .select('can_manage_team')
-              .eq('email', emailLower)
-              .maybeSingle();
-            if (wl?.can_manage_team) {
-              hasDelegatedPermission = true;
-            }
-          }
+          const rawMember = Array.isArray(prof?.members) ? prof?.members[0] : prof?.members;
+          const hasDelegatedPermission = Boolean(rawMember?.can_manage_team);
 
           setCanManageTeam(isSuperAdmin || hasDelegatedPermission);
 
           if (isSuperAdmin) {
             setCurrentUserMcqAccess('manager');
-          } else {
-            const permObj = Array.isArray(prof?.member_permissions)
-              ? prof?.member_permissions[0]
-              : prof?.member_permissions;
-            if (permObj?.mcq_access_level && ['none', 'viewer', 'moderator', 'manager'].includes(permObj.mcq_access_level)) {
-              setCurrentUserMcqAccess(permObj.mcq_access_level);
-            } else if (permObj?.can_manage_mcqs) {
-              setCurrentUserMcqAccess('manager');
-            }
+          } else if (rawMember?.mcq_access_level && ['none', 'viewer', 'moderator', 'manager'].includes(rawMember.mcq_access_level)) {
+            setCurrentUserMcqAccess(rawMember.mcq_access_level);
           }
         }
       } catch (e) {
@@ -775,27 +695,6 @@ export default function AdminDashboard() {
   const isSuperAdmin = currentUserEmail === 'ai.bridge.iiui.fms@gmail.com' || currentUserRole === 'admin';
 
   // Team Profiles & Positioning Handlers
-  const handleSyncWhitelistToTeam = async () => {
-    setIsSyncingTeam(true);
-    setFeedbackMsg(null);
-    try {
-      const res = await fetch('/api/team', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'sync_from_whitelist' })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setFeedbackMsg({ text: `✅ ${data.message}`, type: 'success' });
-      await fetchTeamData();
-    } catch (err: any) {
-      setFeedbackMsg({ text: `❌ ${err.message}`, type: 'error' });
-    } finally {
-      setIsSyncingTeam(false);
-      setTimeout(() => setFeedbackMsg(null), 4000);
-    }
-  };
-
   const handleOpenAddMember = () => {
     const nextPos = teamMembers.length > 0 
       ? Math.max(...teamMembers.map(m => m.position_order || 0)) + 1 
@@ -862,7 +761,7 @@ export default function AdminDashboard() {
   const handleAutofillFromWhitelist = (selectedEmail: string) => {
     setAutofillEmailSelected(selectedEmail);
     if (!selectedEmail) return;
-    const foundUser = whitelist.find(w => w.email.toLowerCase() === selectedEmail.toLowerCase());
+    const foundUser = members.find(w => w.email?.toLowerCase() === selectedEmail.toLowerCase());
     const profile = registeredProfiles.find(p => p.email?.toLowerCase() === selectedEmail.toLowerCase());
 
     const displayName = profile?.full_name || foundUser?.full_name || '';
@@ -1086,13 +985,9 @@ export default function AdminDashboard() {
   };
 
   const togglePermission = async (email: string, key: string) => {
-    const current = permissionsMap[email] || { 
-      can_manage_events: false, 
-      can_view_surveys: true, 
-      can_verify_attendance: false, 
-      can_manage_mcqs: false, 
-      can_export_reports: true,
-      can_manage_team: false
+    const current = permissionsMap[email] || {
+      can_manage_team: false,
+      mcq_access_level: 'none'
     };
     const updated = { ...current, [key]: !current[key] };
     setPermissionsMap(prev => ({ ...prev, [email]: updated }));
@@ -1127,12 +1022,11 @@ export default function AdminDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: emailNormalized,
-          // Only Super Admin can pick 'admin'. Permitted members always add as 'member'!
-          target_role: isSuperAdmin ? newRole : 'member',
+          // Only Super Admin can pick 'admin'. Permitted members always add as 'team-member'!
+          team_role: isSuperAdmin ? newRole : 'team-member',
           assigned_tasks: selectedTasks,
           full_name: newName.trim(),
-          notes: newNotes.trim(),
-          isRequesterAdmin: isSuperAdmin
+          notes: newNotes.trim()
         })
       });
       const data = await res.json();
@@ -1143,7 +1037,7 @@ export default function AdminDashboard() {
       setNewName('');
       setNewNotes('');
       setSelectedTasks([]);
-      setFeedbackMsg({ text: `✅ Saved ${emailNormalized} as ${isSuperAdmin ? newRole : 'member'} with ${selectedTasks.length} task(s)!`, type: 'success' });
+      setFeedbackMsg({ text: `✅ Saved ${emailNormalized} as ${isSuperAdmin ? newRole : 'team-member'} with ${selectedTasks.length} task(s)!`, type: 'success' });
     } catch (err: any) {
       setFeedbackMsg({ text: `❌ Error saving to Supabase: ${err.message}`, type: 'error' });
     } finally {
@@ -1157,7 +1051,7 @@ export default function AdminDashboard() {
       alert('Cannot remove the Primary App Development Super Admin account.');
       return;
     }
-    if (!confirm(`Are you sure you want to delete ${email} from Supabase role_whitelist?`)) return;
+    if (!confirm(`Are you sure you want to remove ${email} from the team roster?`)) return;
 
     try {
       const res = await fetch(`/api/admin/roles?email=${encodeURIComponent(email)}`, { method: 'DELETE' });
@@ -1173,14 +1067,14 @@ export default function AdminDashboard() {
     }
   };
 
-  // ── Inline-edit helpers for whitelist rows ──────────────────────────────
+  // ── Inline-edit helpers for team roster rows ────────────────────────────
   const startEditWhitelist = (w: any) => {
     setEditingWhitelistEmail(w.email);
     setEditWhitelistDraft({
       full_name: w.full_name || w.name || '',
-      target_role: w.target_role || w.role || 'member',
+      team_role: w.team_role === 'admin' ? 'admin' : 'team-member',
       assigned_tasks: Array.isArray(w.assigned_tasks) ? w.assigned_tasks : [],
-      notes: w.notes || '',
+      notes: w.bio || w.designation || '',
     });
   };
 
@@ -1193,11 +1087,10 @@ export default function AdminDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: editingWhitelistEmail,
-          target_role: editWhitelistDraft.target_role,
+          team_role: editWhitelistDraft.team_role,
           full_name: editWhitelistDraft.full_name,
           assigned_tasks: editWhitelistDraft.assigned_tasks,
           notes: editWhitelistDraft.notes,
-          isRequesterAdmin: isSuperAdmin,
         }),
       });
       const data = await res.json();
@@ -1261,7 +1154,7 @@ export default function AdminDashboard() {
           }`}
         >
           <ShieldCheck className="w-3.5 h-3.5" />
-          <span>Role and Whitelist</span>
+          <span>Team Roles & Roster</span>
           {canManageTeam && !isSuperAdmin && (
             <span className="ml-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-300">
               Manager Access
@@ -1346,7 +1239,7 @@ export default function AdminDashboard() {
             </div>
             <div>
               <p className="font-bold text-slate-900">Delegated Team Manager Access Active</p>
-              <p className="text-slate-600 text-[11px]">The Lead Admin has authorized your account to manage team profiles, assign tasks, and maintain whitelist roles.</p>
+              <p className="text-slate-600 text-[11px]">The Lead Admin has authorized your account to manage team profiles and assign roster roles.</p>
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -1362,7 +1255,7 @@ export default function AdminDashboard() {
               className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl cursor-pointer transition-all shadow-sm flex items-center gap-1.5"
             >
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Whitelist & Tasks</span>
+              <span>Roster & Tasks</span>
             </button>
           </div>
         </div>
@@ -1604,7 +1497,7 @@ export default function AdminDashboard() {
           <div className="min-w-0 space-y-2 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-col items-start justify-between gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:p-6">
               <div>
-                <h3 className="font-bold text-slate-900 text-sm">Team Roster & Dynamic Tasks ({whitelist.length})</h3>
+                <h3 className="font-bold text-slate-900 text-sm">Team Roster & Dynamic Tasks ({members.length})</h3>
                 <p className="text-xs text-slate-500">
                   Data loaded live from Supabase. Tasks assigned here are automatically reflected in each member&apos;s profile.
                 </p>
@@ -1640,7 +1533,7 @@ export default function AdminDashboard() {
                         </div>
                       </td>
                     </tr>
-                  ) : whitelist.length === 0 ? (
+                  ) : members.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-12 text-center text-slate-400">
                         <p className="font-bold text-slate-700 text-sm">No team members found in Supabase.</p>
@@ -1650,10 +1543,10 @@ export default function AdminDashboard() {
                       </td>
                     </tr>
                   ) : (
-                    whitelist.map((w, idx) => {
+                    members.map((w, idx) => {
                       const email = w.email;
-                      const name = w.full_name || w.name || email.split('@')[0];
-                      const role = w.target_role || w.role || 'member';
+                      const name = w.full_name || w.name || (email || '').split('@')[0];
+                      const role = w.team_role || 'team-member';
                       const assignedList: string[] = Array.isArray(w.assigned_tasks) ? w.assigned_tasks : [];
                       const canManage = permissionsMap[email]?.can_manage_team || false;
                       const isEditing = editingWhitelistEmail === email;
@@ -1667,7 +1560,7 @@ export default function AdminDashboard() {
                               {/* Header info */}
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-xs font-bold text-slate-800">Editing Whitelist Entry:</span>
+                                  <span className="text-xs font-bold text-slate-800">Editing Team Member:</span>
                                   <span className="font-mono text-xs text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded font-semibold">{email}</span>
                                 </div>
                                 <span className="text-[11px] text-slate-500">Live sync to database on save</span>
@@ -1689,18 +1582,18 @@ export default function AdminDashboard() {
                                   <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">Role</label>
                                   {isSuperAdmin && !isProtected ? (
                                     <select
-                                      value={editWhitelistDraft.target_role}
-                                      onChange={e => setEditWhitelistDraft(d => ({ ...d, target_role: e.target.value as 'admin' | 'member' }))}
+                                      value={editWhitelistDraft.team_role}
+                                      onChange={e => setEditWhitelistDraft(d => ({ ...d, team_role: e.target.value as 'admin' | 'team-member' }))}
                                       className="w-full px-3 py-1.5 rounded-xl border border-emerald-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white font-semibold"
                                     >
-                                      <option value="member">Member</option>
+                                      <option value="team-member">Team Member</option>
                                       <option value="admin">Admin</option>
                                     </select>
                                   ) : (
                                     <input
                                       type="text"
                                       disabled
-                                      value={isProtected ? 'Admin (Super)' : editWhitelistDraft.target_role}
+                                      value={isProtected ? 'Admin (Super)' : editWhitelistDraft.team_role}
                                       className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-slate-100 font-semibold text-slate-600 capitalize"
                                     />
                                   )}
@@ -1868,7 +1761,7 @@ export default function AdminDashboard() {
               <div>
                 <h3 className="font-bold text-slate-900 text-sm">Ambassador Permissions & Authority Matrix</h3>
                 <p className="text-xs text-slate-500">
-                  Admins can delegate permissions (including &ldquo;Manage Team&rdquo;) per ambassador. Stored live in <code className="bg-slate-100 px-1 py-0.5 rounded">member_permissions</code>.
+                  Admins can delegate &ldquo;Manage Team&rdquo; and MCQ authority per member. Stored live in <code className="bg-slate-100 px-1 py-0.5 rounded">members</code>.
                 </p>
               </div>
             </div>
@@ -1877,43 +1770,34 @@ export default function AdminDashboard() {
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider pb-2">
-                    <th className="py-2.5">Ambassador</th>
+                    <th className="py-2.5">Team Member</th>
                     <th className="text-center">Manage Team</th>
-                    <th className="text-center">Manage Events</th>
-                    <th className="text-center">View Surveys</th>
-                    <th className="text-center">Verify Attendance</th>
                     <th className="text-center min-w-[140px]">MCQ Authority</th>
-                    <th className="text-center">Export Reports</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {loadingRoles ? (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-400">
+                      <td colSpan={3} className="py-8 text-center text-slate-400">
                         Loading live permissions from Supabase...
                       </td>
                     </tr>
-                  ) : whitelist.filter(w => (w.target_role || w.role) === 'member' || w.email.includes('tayyab')).length === 0 ? (
+                  ) : members.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-400">
-                        No ambassador members currently in Supabase. Add a member above to configure capabilities.
+                      <td colSpan={3} className="py-8 text-center text-slate-400">
+                        No team members currently in Supabase. Add a member above to configure capabilities.
                       </td>
                     </tr>
                   ) : (
-                    whitelist.filter(w => (w.target_role || w.role) === 'member' || w.email.includes('tayyab')).map((w, idx) => {
+                    members.map((w, idx) => {
                       const email = w.email;
-                      const name = w.full_name || w.name || email.split('@')[0];
+                      const name = w.full_name || w.name || (email || '').split('@')[0];
                       const perms = permissionsMap[email] || {
-                        can_manage_events: false,
-                        can_view_surveys: true,
-                        can_verify_attendance: false,
-                        can_manage_mcqs: false,
-                        can_export_reports: true,
                         can_manage_team: false,
                         mcq_access_level: 'none',
                       };
 
-                      const currentMcqLevel = perms.mcq_access_level || (perms.can_manage_mcqs ? 'manager' : 'none');
+                      const currentMcqLevel = perms.mcq_access_level || 'none';
 
                       return (
                         <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
@@ -1928,36 +1812,6 @@ export default function AdminDashboard() {
                               disabled={!isSuperAdmin}
                               checked={perms.can_manage_team}
                               onChange={() => togglePermission(email, 'can_manage_team')}
-                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
-                            />
-                          </td>
-
-                          <td className="text-center">
-                            <input
-                              type="checkbox"
-                              disabled={!isSuperAdmin && !canManageTeam}
-                              checked={perms.can_manage_events}
-                              onChange={() => togglePermission(email, 'can_manage_events')}
-                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
-                            />
-                          </td>
-
-                          <td className="text-center">
-                            <input
-                              type="checkbox"
-                              disabled={!isSuperAdmin && !canManageTeam}
-                              checked={perms.can_view_surveys}
-                              onChange={() => togglePermission(email, 'can_view_surveys')}
-                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
-                            />
-                          </td>
-
-                          <td className="text-center">
-                            <input
-                              type="checkbox"
-                              disabled={!isSuperAdmin && !canManageTeam}
-                              checked={perms.can_verify_attendance}
-                              onChange={() => togglePermission(email, 'can_verify_attendance')}
                               className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
                             />
                           </td>
@@ -1983,16 +1837,6 @@ export default function AdminDashboard() {
                               <option value="moderator">Moderator (Can Toggle)</option>
                               <option value="manager">Manager (Full Edit)</option>
                             </select>
-                          </td>
-
-                          <td className="text-center">
-                            <input
-                              type="checkbox"
-                              disabled={!isSuperAdmin && !canManageTeam}
-                              checked={perms.can_export_reports}
-                              onChange={() => togglePermission(email, 'can_export_reports')}
-                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
-                            />
                           </td>
                         </tr>
                       );
@@ -2046,14 +1890,6 @@ export default function AdminDashboard() {
                   <UserPlus className="w-4 h-4 text-emerald-300" />
                   <span>+ Add Member</span>
                 </button>
-                <button
-                  onClick={handleSyncWhitelistToTeam}
-                  disabled={isSyncingTeam}
-                  className="px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs rounded-xl cursor-pointer transition-all flex items-center gap-1.5 disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingTeam ? 'animate-spin' : ''}`} />
-                  <span>Sync Whitelist</span>
-                </button>
               </div>
             </div>
           )}
@@ -2085,16 +1921,6 @@ export default function AdminDashboard() {
               </div>
 
               <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
-                <button
-                  onClick={handleSyncWhitelistToTeam}
-                  disabled={isSyncingTeam}
-                  className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 transition-colors cursor-pointer disabled:opacity-50"
-                  title="Import existing ambassadors from role_whitelist into team_members to prevent duplicate data entry"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncingTeam ? 'animate-spin' : ''}`} />
-                  <span>{isSyncingTeam ? 'Syncing...' : '1-Click Sync from Whitelist'}</span>
-                </button>
-
                 <button
                   onClick={handleOpenAddMember}
                   className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm transition-colors cursor-pointer"
@@ -2294,7 +2120,7 @@ export default function AdminDashboard() {
                         <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
                           {profileSearchQuery || profileTagFilter !== 'all' || profileStatusFilter !== 'all'
                             ? 'Try clearing the search query or tag filters above.'
-                            : 'Click "1-Click Sync from Whitelist" to import registered ambassadors, or click "+ Add Team Member".'}
+                            : 'Click "+ Add Team Member" to build your public roster.'}
                         </p>
                       </td>
                     </tr>
@@ -3761,20 +3587,20 @@ export default function AdminDashboard() {
               </button>
             </div>
 
-            {/* Quick Autofill Selector from Whitelist */}
-            {!editingMember && whitelist.length > 0 && (
+            {/* Quick Autofill Selector from the Team Roster */}
+            {!editingMember && members.filter(m => m.email).length > 0 && (
               <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-2 text-emerald-950">
                   <UserCheck className="w-4 h-4 text-emerald-700 flex-shrink-0" />
-                  <span className="font-bold">Quick Autofill from Whitelist:</span>
+                  <span className="font-bold">Quick Autofill from Roster:</span>
                 </div>
                 <select
                   value={autofillEmailSelected}
                   onChange={(e) => handleAutofillFromWhitelist(e.target.value)}
                   className="w-full sm:w-auto px-3 py-1.5 rounded-xl border border-emerald-300 bg-white text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
-                  <option value="">-- Choose Whitelist Ambassador to auto-fill --</option>
-                  {whitelist.map((w) => (
+                  <option value="">-- Choose a team member to auto-fill --</option>
+                  {members.filter(m => m.email).map((w) => (
                     <option key={w.email} value={w.email}>
                       {w.full_name || w.email} ({w.email})
                     </option>

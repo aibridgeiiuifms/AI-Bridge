@@ -3,9 +3,13 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAmbassadorPortalAccess } from '@/lib/ambassador-access';
 
 /**
- * Administrative API endpoint for Dynamic Task Assignment & Delegated Team Management
- * Superadmin: ai.bridge.iiui.fms@gmail.com (M. Tayyab, App Development Team Lead)
+ * Administrative API for the consolidated `members` table:
+ * dynamic task assignment, team roles, and delegated permissions.
+ * Superadmin: ai.bridge.iiui.fms@gmail.com
  */
+
+const MCQ_LEVELS = ['none', 'viewer', 'moderator', 'manager'];
+
 export async function GET(req: NextRequest) {
   const access = await requireAmbassadorPortalAccess();
   if (access instanceof NextResponse) return access;
@@ -19,20 +23,19 @@ export async function GET(req: NextRequest) {
       .select('*')
       .order('created_at', { ascending: true });
 
-    // 2. Fetch Whitelist entries
-    const { data: whitelist } = await supabase
-      .from('role_whitelist')
+    // 2. Fetch the team roster (single source of truth: members)
+    const { data: members } = await supabase
+      .from('members')
       .select('*')
       .order('created_at', { ascending: false });
 
-    // 3. Fetch Registered Profiles with their member_permissions
+    // 3. Fetch registered profiles with their linked members row
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('*, member_permissions(*)')
+      .select('*, members(*)')
       .order('created_at', { ascending: false });
 
     // 4. Fetch Real Metrics from Database
-    // 4. Fetch Real Metrics from Database (student_surveys + teacher_surveys with fallback to surveys)
     const { count: totalProfiles } = await supabase
       .from('profiles')
       .select('*', { count: 'exact', head: true });
@@ -123,7 +126,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: true,
       tasks: tasks || [],
-      whitelist: whitelist || [],
+      members: members || [],
       profiles: profiles || [],
       mcq_access_levels: mcqAccessLevels,
       stats: {
@@ -156,7 +159,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: false, error: 'Admin access is required.' }, { status: 403 });
       }
 
-      const { title, description = '', tag = 'General' } = body;
+      const { title, description = '' } = body;
       if (!title || !title.trim()) {
         return NextResponse.json({ success: false, error: 'Task title is required' }, { status: 400 });
       }
@@ -165,8 +168,7 @@ export async function POST(req: NextRequest) {
         .from('campaign_tasks')
         .insert({
           title: title.trim(),
-          description: description.trim() || null,
-          tag: (tag || 'General').trim()
+          description: description.trim() || null
         })
         .select()
         .single();
@@ -178,62 +180,79 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, task: data });
     }
 
-    // Action B: Add/Whitelist Team Member
+    // Action B: Add / configure a team member (creates the members row for a pre-registered person)
     const {
-      email, 
-      target_role = 'member', 
-      assigned_tasks = [], 
-      full_name = '', 
-      notes = ''
+      email,
+      team_role = 'team-member',
+      assigned_tasks = [],
+      full_name = '',
+      notes = '',
+      can_manage_team = false,
+      mcq_access_level = 'none'
     } = body;
 
     if (!email) {
       return NextResponse.json({ success: false, error: 'Email is required' }, { status: 400 });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-
-    // Only admins may grant admin roles; member invitations always remain members.
-    const finalRole = access.role === 'admin' ? target_role : 'member';
     if (access.role !== 'admin' && !access.canManageTeam) {
       return NextResponse.json({ success: false, error: 'Team management access is required.' }, { status: 403 });
     }
 
-    // Upsert in role_whitelist
-    const { data, error } = await supabase
-      .from('role_whitelist')
-      .upsert(
-        {
-          email: normalizedEmail,
-          target_role: finalRole,
-          assigned_tasks: Array.isArray(assigned_tasks) ? assigned_tasks : [],
-          full_name: full_name || null,
-          notes: notes || null,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'email' }
-      )
-      .select()
-      .single();
+    const normalizedEmail = email.trim().toLowerCase();
 
-    if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    // Only admins may grant the admin team role; everyone else is a team-member.
+    const finalTeamRole = access.role === 'admin' && team_role === 'admin' ? 'admin' : 'team-member';
+    const finalMcqLevel = MCQ_LEVELS.includes(mcq_access_level) ? mcq_access_level : 'none';
+
+    const { data: existingMember } = await supabase
+      .from('members')
+      .select('id')
+      .ilike('email', normalizedEmail)
+      .maybeSingle();
+
+    const memberPayload: Record<string, any> = {
+      email: normalizedEmail,
+      full_name: full_name || normalizedEmail.split('@')[0],
+      team_role: finalTeamRole,
+      designation: notes || null,
+      assigned_tasks: Array.isArray(assigned_tasks) ? assigned_tasks : [],
+      can_manage_team: Boolean(can_manage_team),
+      mcq_access_level: finalMcqLevel,
+      updated_at: new Date().toISOString(),
+    };
+
+    let saved;
+    if (existingMember) {
+      const { data, error } = await supabase
+        .from('members')
+        .update(memberPayload)
+        .eq('id', existingMember.id)
+        .select()
+        .single();
+      if (error) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+      }
+      saved = data;
+    } else {
+      const { data, error } = await supabase
+        .from('members')
+        .insert({ ...memberPayload, is_published: false })
+        .select()
+        .single();
+      if (error) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+      }
+      saved = data;
     }
 
-    // Also sync assigned_tasks to existing profile if user already registered
-    await supabase
-      .from('profiles')
-      .update({
-        role: finalRole,
-        assigned_tasks: Array.isArray(assigned_tasks) ? assigned_tasks : [],
-        updated_at: new Date().toISOString(),
-      })
-      .eq('email', normalizedEmail);
+    // Recompute the linked profile's access role.
+    await syncRoleForEmail(supabase, normalizedEmail);
 
     return NextResponse.json({
       success: true,
-      message: `User ${normalizedEmail} successfully configured as ${finalRole} with assigned tasks.`,
-      entry: data,
+      message: `User ${normalizedEmail} successfully configured as ${finalTeamRole} with assigned tasks.`,
+      entry: saved,
     });
   } catch (err: any) {
     return NextResponse.json(
@@ -259,131 +278,87 @@ export async function PATCH(req: NextRequest) {
       }
 
       const normalizedEmail = email.trim().toLowerCase();
-      await supabase
-        .from('role_whitelist')
+      const { error: taskError } = await supabase
+        .from('members')
         .update({
           assigned_tasks: Array.isArray(assigned_tasks) ? assigned_tasks : [],
           updated_at: new Date().toISOString()
         })
-        .eq('email', normalizedEmail);
+        .ilike('email', normalizedEmail);
 
-      await supabase
-        .from('profiles')
-        .update({
-          assigned_tasks: Array.isArray(assigned_tasks) ? assigned_tasks : [],
-          updated_at: new Date().toISOString()
-        })
-        .eq('email', normalizedEmail);
+      if (taskError) {
+        return NextResponse.json({ success: false, error: taskError.message }, { status: 400 });
+      }
     }
 
-    // 2. Update Role if provided (Only allowed by Admin)
+    // 2. Update the invite/team role (Admins only)
     if (userId && newRole && access.role === 'admin') {
+      const finalTeamRole = newRole === 'admin' ? 'admin' : 'team-member';
       const { error: roleError } = await supabase
-        .from('profiles')
-        .update({ role: newRole, updated_at: new Date().toISOString() })
-        .eq('id', userId);
+        .from('members')
+        .update({ team_role: finalTeamRole, updated_at: new Date().toISOString() })
+        .eq('profile_id', userId);
 
       if (roleError) {
         return NextResponse.json({ success: false, error: roleError.message }, { status: 400 });
       }
     }
 
-    // 3. Update Member Permissions if provided
+    // 3. Update member permissions (Manage Team + MCQ authority)
     if (permissions && (userId || email)) {
       if (access.role !== 'admin' && !access.canManageTeam) {
         return NextResponse.json({ success: false, error: 'Team management access is required.' }, { status: 403 });
       }
 
       const normalizedEmail = email ? email.trim().toLowerCase() : '';
+      const permUpdates: Record<string, any> = { updated_at: new Date().toISOString() };
 
-      // Synchronize mcq_access_level with can_manage_mcqs
+      if (permissions.can_manage_team !== undefined) {
+        permUpdates.can_manage_team = Boolean(permissions.can_manage_team);
+      }
       if (permissions.mcq_access_level !== undefined) {
-        const valid = ['none', 'viewer', 'moderator', 'manager'];
-        const level = valid.includes(permissions.mcq_access_level) ? permissions.mcq_access_level : 'none';
-        permissions.mcq_access_level = level;
-        permissions.can_manage_mcqs = level === 'manager';
-
-        // Persist to system_settings mcq_access_levels map for 100% resilience
-        if (normalizedEmail) {
-          try {
-            const { data: existingLevels } = await supabase
-              .from('system_settings')
-              .select('value')
-              .eq('key', 'mcq_access_levels')
-              .maybeSingle();
-
-            const map = (existingLevels?.value && typeof existingLevels.value === 'object')
-              ? { ...existingLevels.value }
-              : {};
-            map[normalizedEmail] = level;
-
-            await supabase
-              .from('system_settings')
-              .upsert({ key: 'mcq_access_levels', value: map, updated_at: new Date().toISOString() }, { onConflict: 'key' });
-          } catch (err) {
-            console.warn('Could not save mcq_access_levels to system_settings:', err);
-          }
-        }
+        permUpdates.mcq_access_level = MCQ_LEVELS.includes(permissions.mcq_access_level)
+          ? permissions.mcq_access_level
+          : 'none';
       }
 
-      let targetId = userId;
-      if (!targetId && normalizedEmail) {
-        const { data: prof } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('email', normalizedEmail)
-          .maybeSingle();
-        targetId = prof?.id;
-      }
-
-      if (targetId) {
-        let { error: permError } = await supabase
-          .from('member_permissions')
-          .upsert({
-            member_id: targetId,
-            ...permissions,
-            updated_at: new Date().toISOString(),
-          });
-
-        // Resilient retry if mcq_access_level column doesn't exist yet in member_permissions
-        if (permError && permError.message?.includes('mcq_access_level')) {
-          const { mcq_access_level, ...safePermissions } = permissions;
-          const retry = await supabase
-            .from('member_permissions')
-            .upsert({
-              member_id: targetId,
-              ...safePermissions,
-              updated_at: new Date().toISOString(),
-            });
-          permError = retry.error;
+      if (userId) {
+        const { error: permError } = await supabase
+          .from('members')
+          .update(permUpdates)
+          .eq('profile_id', userId);
+        if (permError) {
+          return NextResponse.json({ success: false, error: permError.message }, { status: 400 });
         }
-
+      } else if (normalizedEmail) {
+        const { error: permError } = await supabase
+          .from('members')
+          .update(permUpdates)
+          .ilike('email', normalizedEmail);
         if (permError) {
           return NextResponse.json({ success: false, error: permError.message }, { status: 400 });
         }
       }
 
-      // Also ensure can_manage_team and mcq_access_level are persisted to role_whitelist for this email
-      if (normalizedEmail) {
-        const wlUpdates: Record<string, any> = { updated_at: new Date().toISOString() };
-        if (permissions.can_manage_team !== undefined) {
-          wlUpdates.can_manage_team = Boolean(permissions.can_manage_team);
-        }
-        if (permissions.mcq_access_level !== undefined) {
-          wlUpdates.mcq_access_level = permissions.mcq_access_level;
-        }
+      // Persist the MCQ level to system_settings for resilience/back-compat.
+      if (normalizedEmail && permUpdates.mcq_access_level !== undefined) {
+        try {
+          const { data: existingLevels } = await supabase
+            .from('system_settings')
+            .select('value')
+            .eq('key', 'mcq_access_levels')
+            .maybeSingle();
 
-        let { error: wlErr } = await supabase
-          .from('role_whitelist')
-          .update(wlUpdates)
-          .eq('email', normalizedEmail);
+          const map = (existingLevels?.value && typeof existingLevels.value === 'object')
+            ? { ...existingLevels.value }
+            : {};
+          map[normalizedEmail] = permUpdates.mcq_access_level;
 
-        if (wlErr && wlErr.message?.includes('mcq_access_level')) {
-          delete wlUpdates.mcq_access_level;
           await supabase
-            .from('role_whitelist')
-            .update(wlUpdates)
-            .eq('email', normalizedEmail);
+            .from('system_settings')
+            .upsert({ key: 'mcq_access_levels', value: map, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+        } catch (err) {
+          console.warn('Could not save mcq_access_levels to system_settings:', err);
         }
       }
     }
@@ -432,7 +407,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ success: true, message: 'Task deleted from campaign pool.' });
     }
 
-    // Action B: Remove Member from Whitelist
+    // Action B: Remove a member from the team roster
     const email = searchParams.get('email');
     if (!email) {
       return NextResponse.json({ success: false, error: 'Email parameter is required' }, { status: 400 });
@@ -447,28 +422,49 @@ export async function DELETE(req: NextRequest) {
     // Super Admin protection
     if (normalizedEmail === 'ai.bridge.iiui.fms@gmail.com') {
       return NextResponse.json(
-        { success: false, error: 'Cannot remove primary super admin from whitelist.' },
+        { success: false, error: 'Cannot remove primary super admin from the team.' },
         { status: 403 }
       );
     }
 
     const { error } = await supabase
-      .from('role_whitelist')
+      .from('members')
       .delete()
-      .eq('email', normalizedEmail);
+      .ilike('email', normalizedEmail);
 
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
 
+    // Removing the members row drops the person back to student/teacher/guest.
+    await syncRoleForEmail(supabase, normalizedEmail);
+
     return NextResponse.json({
       success: true,
-      message: `Removed ${normalizedEmail} from whitelist. User role reset to student.`,
+      message: `Removed ${normalizedEmail} from the team.`,
     });
   } catch (err: any) {
     return NextResponse.json(
-      { success: false, error: err.message || 'Internal error deleting from whitelist' },
+      { success: false, error: err.message || 'Internal error removing member' },
       { status: 500 }
     );
+  }
+}
+
+/** Recompute a profile's access role from its members row + survey forms. */
+async function syncRoleForEmail(supabase: ReturnType<typeof createAdminClient>, email: string) {
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('email', normalizedEmail)
+      .maybeSingle();
+
+    if (profile?.id) {
+      await supabase.rpc('sync_user_role', { p_user_id: profile.id });
+    }
+  } catch (err) {
+    console.error('Error syncing user role:', err);
   }
 }

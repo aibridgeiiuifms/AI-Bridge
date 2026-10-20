@@ -24,7 +24,7 @@ export async function requireAmbassadorPortalAccess(): Promise<NextResponse | Am
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('role, email, member_permissions(*)')
+    .select('role, email, members(can_manage_team, mcq_access_level)')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -40,21 +40,19 @@ export async function requireAmbassadorPortalAccess(): Promise<NextResponse | Am
   const userEmail = (profile.email || user.email || '').trim().toLowerCase();
   const isSuperAdmin = profile.role === 'admin' || userEmail === 'ai.bridge.iiui.fms@gmail.com';
 
-  const rawPerms = Array.isArray(profile.member_permissions)
-    ? profile.member_permissions[0]
-    : profile.member_permissions;
+  const rawMember = Array.isArray(profile.members)
+    ? profile.members[0]
+    : profile.members;
 
-  const canManageTeam = isSuperAdmin || Boolean(rawPerms?.can_manage_team);
+  const canManageTeam = isSuperAdmin || Boolean(rawMember?.can_manage_team);
 
   // Compute hierarchical MCQ access level
   let mcqAccessLevel: MCQAccessLevel = 'none';
 
   if (isSuperAdmin) {
     mcqAccessLevel = 'manager';
-  } else if (rawPerms?.mcq_access_level && ['none', 'viewer', 'moderator', 'manager'].includes(rawPerms.mcq_access_level)) {
-    mcqAccessLevel = rawPerms.mcq_access_level;
-  } else if (rawPerms?.can_manage_mcqs) {
-    mcqAccessLevel = 'manager';
+  } else if (rawMember?.mcq_access_level && ['none', 'viewer', 'moderator', 'manager'].includes(rawMember.mcq_access_level)) {
+    mcqAccessLevel = rawMember.mcq_access_level;
   } else {
     // Check system_settings fallback for mcq_access_levels
     try {

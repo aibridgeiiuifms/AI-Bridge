@@ -14,6 +14,14 @@ export async function GET(request: Request) {
       if (error) {
         console.error('exchangeCodeForSession error:', error);
       } else if (data.user) {
+        // Refresh the access role on every login from members + survey forms
+        try {
+          const adminSupabase = createAdminClient();
+          await adminSupabase.rpc('sync_user_role', { p_user_id: data.user.id });
+        } catch (roleErr) {
+          console.error('Error syncing user role on login:', roleErr);
+        }
+
         // Auto-link any pre-registered surveys for this user's email
         const userEmail = (data.user.email || '').replace(/\s+/g, '').toLowerCase();
         if (userEmail) {
@@ -48,7 +56,7 @@ export async function GET(request: Request) {
           .maybeSingle();
         if (profileError) {
           console.error('Failed to load profile after sign in:', profileError);
-        } else if (profile?.role === 'admin' || profile?.role === 'member') {
+        } else if (profile?.role === 'admin' || profile?.role === 'team-member') {
           return NextResponse.redirect(`${origin}/dashboard`);
         }
       }
