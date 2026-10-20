@@ -187,6 +187,7 @@ export async function POST(req: NextRequest) {
       assigned_tasks = [],
       full_name = '',
       notes = '',
+      team_tag,
       can_manage_team = false,
       mcq_access_level = 'none'
     } = body;
@@ -221,6 +222,11 @@ export async function POST(req: NextRequest) {
       mcq_access_level: finalMcqLevel,
       updated_at: new Date().toISOString(),
     };
+
+    // Team tag (public badge label) — editable by admins and delegated team managers.
+    if (typeof team_tag === 'string' && team_tag.trim()) {
+      memberPayload.team_tag = team_tag.trim();
+    }
 
     let saved;
     if (existingMember) {

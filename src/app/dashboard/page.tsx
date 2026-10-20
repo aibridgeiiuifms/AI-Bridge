@@ -50,7 +50,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'team' | 'team_profiles' | 'departments' | 'mcqs'>('team');
   // Inline-edit state for team roster rows
   const [editingWhitelistEmail, setEditingWhitelistEmail] = useState<string | null>(null);
-  const [editWhitelistDraft, setEditWhitelistDraft] = useState<{ full_name: string; team_role: 'admin' | 'team-member'; assigned_tasks: string[]; notes: string }>({ full_name: '', team_role: 'team-member', assigned_tasks: [], notes: '' });
+  const [editWhitelistDraft, setEditWhitelistDraft] = useState<{ full_name: string; team_role: 'admin' | 'team-member'; team_tag: string; assigned_tasks: string[]; notes: string }>({ full_name: '', team_role: 'team-member', team_tag: 'General', assigned_tasks: [], notes: '' });
   const [isSavingWhitelist, setIsSavingWhitelist] = useState(false);
 
   // Master MCQ Pool State
@@ -226,6 +226,7 @@ export default function AdminDashboard() {
   const [newRole, setNewRole] = useState<'admin' | 'team-member'>('team-member');
   const [newName, setNewName] = useState('');
   const [newNotes, setNewNotes] = useState('');
+  const [newTeamTag, setNewTeamTag] = useState('');
   const [isSubmittingWhitelist, setIsSubmittingWhitelist] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
@@ -1026,6 +1027,7 @@ export default function AdminDashboard() {
           team_role: isSuperAdmin ? newRole : 'team-member',
           assigned_tasks: selectedTasks,
           full_name: newName.trim(),
+          team_tag: newTeamTag.trim(),
           notes: newNotes.trim()
         })
       });
@@ -1073,6 +1075,7 @@ export default function AdminDashboard() {
     setEditWhitelistDraft({
       full_name: w.full_name || w.name || '',
       team_role: w.team_role === 'admin' ? 'admin' : 'team-member',
+      team_tag: w.team_tag || 'General',
       assigned_tasks: Array.isArray(w.assigned_tasks) ? w.assigned_tasks : [],
       notes: w.bio || w.designation || '',
     });
@@ -1089,6 +1092,7 @@ export default function AdminDashboard() {
           email: editingWhitelistEmail,
           team_role: editWhitelistDraft.team_role,
           full_name: editWhitelistDraft.full_name,
+          team_tag: editWhitelistDraft.team_tag,
           assigned_tasks: editWhitelistDraft.assigned_tasks,
           notes: editWhitelistDraft.notes,
         }),
@@ -1405,7 +1409,7 @@ export default function AdminDashboard() {
               </div>
 
               <form onSubmit={handleAddWhitelist} className="space-y-4 pt-1">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                   <input
                     type="email"
                     required
@@ -1429,7 +1433,7 @@ export default function AdminDashboard() {
                       onChange={(e: any) => setNewRole(e.target.value)}
                       className="px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white font-medium"
                     >
-                      <option value="member">Role: Member (Ambassador)</option>
+                      <option value="team-member">Role: Team Member (Ambassador)</option>
                       <option value="admin">Role: Admin (Leadership)</option>
                     </select>
                   ) : (
@@ -1446,6 +1450,19 @@ export default function AdminDashboard() {
                     onChange={(e) => setNewNotes(e.target.value)}
                     className="px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
+                  <input
+                    type="text"
+                    list="roster-team-tag-options"
+                    placeholder="Category Tag (e.g. Executive Governance)"
+                    value={newTeamTag}
+                    onChange={(e) => setNewTeamTag(e.target.value)}
+                    className="px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                  <datalist id="roster-team-tag-options">
+                    {availableTeamTags.map((tag) => (
+                      <option key={tag} value={tag} />
+                    ))}
+                  </datalist>
                 </div>
 
                 {/* Task Selection Checkboxes / Pills */}
@@ -1568,7 +1585,7 @@ export default function AdminDashboard() {
 
                               {/* Row 1: name + role + notes */}
                               <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-                                <div className="sm:col-span-5">
+                                <div className="sm:col-span-4">
                                   <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">Full Name</label>
                                   <input
                                     type="text"
@@ -1578,7 +1595,7 @@ export default function AdminDashboard() {
                                     className="w-full px-3 py-1.5 rounded-xl border border-emerald-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white font-medium"
                                   />
                                 </div>
-                                <div className="sm:col-span-3">
+                                <div className="sm:col-span-2">
                                   <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">Role</label>
                                   {isSuperAdmin && !isProtected ? (
                                     <select
@@ -1598,7 +1615,23 @@ export default function AdminDashboard() {
                                     />
                                   )}
                                 </div>
-                                <div className="sm:col-span-4">
+                                <div className="sm:col-span-3">
+                                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">Team Tag</label>
+                                  <input
+                                    type="text"
+                                    list="roster-edit-team-tag-options"
+                                    value={editWhitelistDraft.team_tag}
+                                    onChange={e => setEditWhitelistDraft(d => ({ ...d, team_tag: e.target.value }))}
+                                    placeholder="e.g. Executive Governance"
+                                    className="w-full px-3 py-1.5 rounded-xl border border-emerald-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+                                  />
+                                  <datalist id="roster-edit-team-tag-options">
+                                    {availableTeamTags.map((tag) => (
+                                      <option key={tag} value={tag} />
+                                    ))}
+                                  </datalist>
+                                </div>
+                                <div className="sm:col-span-3">
                                   <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">Notes (Optional)</label>
                                   <input
                                     type="text"
@@ -1671,12 +1704,17 @@ export default function AdminDashboard() {
                             <p className="font-bold text-slate-900">{name}</p>
                             <p className="font-mono text-slate-500 text-[11px]">{email}</p>
                           </td>
-                          <td>
-                            <span className={`px-2.5 py-0.5 rounded-full font-bold uppercase text-[10px] ${
-                              role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800'
-                            }`}>
-                              {role}
-                            </span>
+                          <td className="py-3">
+                            <div className="flex flex-col items-start gap-1">
+                              <span className={`px-2.5 py-0.5 rounded-full font-bold uppercase text-[10px] ${
+                                role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800'
+                              }`}>
+                                {role}
+                              </span>
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${getTagBadgeStyle(w.team_tag)}`}>
+                                {w.team_tag || 'General'}
+                              </span>
+                            </div>
                           </td>
                           <td className="py-3">
                             {assignedList.length === 0 ? (
