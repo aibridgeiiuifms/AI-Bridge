@@ -17,11 +17,11 @@
  * 6. Hardware-accelerated GPU transforms (x, y, scale, rotate) with spring physics.
  */
 
-import React, { useRef, useState, useEffect, useCallback, type RefObject } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import {
   motion,
-  useInView,
+  useMotionValue,
   useMotionValueEvent,
   useScroll,
   useSpring,
@@ -48,9 +48,6 @@ const typingRangeByGoal: Record<number, [number, number]> = {
 };
 const wheelRotationRange: [number, number] = [0, 0.2];
 const wheelRotationDegrees = 45;
-const dockMeasurementTrigger = typingRangeByGoal[4][0] - 0.05;
-const dockMeasurementReset = dockMeasurementTrigger - 0.05;
-
 const orderedStaticSlices = [...STATIC_SLICES].sort((a, b) => a.thetaMid - b.thetaMid);
 const balancedRotationByNum = orderedStaticSlices.reduce<Record<number, number>>(
   (rotations, slice, index) => {
@@ -110,22 +107,28 @@ const StaticSdgSlice = React.memo(function StaticSdgSlice({
 
 interface TargetSliceProps {
   slice: SdgSliceConfig;
-  delta: { x: number; y: number; scale: number } | undefined;
+  deltas: React.MutableRefObject<Record<number, { x: number; y: number; scale: number }>>;
   progress: MotionValue<number>;
 }
 
 const TargetSdgSlice = React.memo(function TargetSdgSlice({
   slice,
-  delta,
+  deltas,
   progress,
 }: TargetSliceProps) {
   const range = typingRangeByGoal[slice.num];
-  const x = useTransform(progress, range, [0, delta?.x ?? 0], { clamp: true });
-  const y = useTransform(progress, range, [0, delta?.y ?? 0], { clamp: true });
+  const rangeProgress = useTransform(progress, (value) =>
+    Math.max(0, Math.min(1, (value - range[0]) / (range[1] - range[0]))),
+  );
+  const x = useTransform(rangeProgress, (value) => value * (deltas.current[slice.num]?.x ?? 0));
+  const y = useTransform(rangeProgress, (value) => value * (deltas.current[slice.num]?.y ?? 0));
   const rotate = useTransform(progress, range, [0, slice.targetRotation - wheelRotationDegrees], {
     clamp: true,
   });
-  const scale = useTransform(progress, range, [1, delta?.scale ?? 1], { clamp: true });
+  const scale = useTransform(
+    rangeProgress,
+    (value) => 1 + value * ((deltas.current[slice.num]?.scale ?? 1) - 1),
+  );
 
   return (
     <motion.div
@@ -164,32 +167,24 @@ interface ScrollTypewriterProps {
 
 function ScrollTypewriter({ text, progress, range }: ScrollTypewriterProps) {
   const rawCharIndex = useTransform(progress, range, [0, text.length], { clamp: true });
-  const charIndex = useTransform(rawCharIndex, (index) => Math.floor(index));
-  const [visibleCharIndex, setVisibleCharIndex] = useState(() => charIndex.get());
-
-  useMotionValueEvent(charIndex, 'change', (index) => {
-    setVisibleCharIndex((current) => (current === index ? current : index));
+  const clipPath = useTransform(rawCharIndex, (index) => {
+    const visibleCharacters = Math.floor(index);
+    const hiddenPercent = 100 - (visibleCharacters / text.length) * 100;
+    return `inset(0 ${hiddenPercent}% 0 0)`;
   });
-
-  const isComplete = visibleCharIndex >= text.length;
-
   return (
     <span aria-label={text}>
       <span className="grid">
         <span aria-hidden="true" className="invisible col-start-1 row-start-1">
           {text}
         </span>
-        <span aria-hidden="true" className="col-start-1 row-start-1">
-          {text.slice(0, visibleCharIndex)}
-          <motion.span
-            aria-hidden="true"
-            animate={{ opacity: isComplete ? 0 : 1 }}
-            transition={{ duration: 0.12 }}
-            className={`ml-px inline-block ${isComplete ? '' : 'animate-pulse'}`}
-          >
-            |
-          </motion.span>
-        </span>
+        <motion.span
+          aria-hidden="true"
+          className="col-start-1 row-start-1"
+          style={{ clipPath }}
+        >
+          {text}
+        </motion.span>
       </span>
     </span>
   );
@@ -197,7 +192,7 @@ function ScrollTypewriter({ text, progress, range }: ScrollTypewriterProps) {
 
 interface AnimatedWheelLayersProps {
   scrollProgress: MotionValue<number>;
-  deltas: Record<number, { x: number; y: number; scale: number }>;
+  deltas: React.MutableRefObject<Record<number, { x: number; y: number; scale: number }>>;
 }
 
 function AnimatedWheelLayers({
@@ -231,7 +226,7 @@ function AnimatedWheelLayers({
         <TargetSdgSlice
           key={slice.num}
           slice={slice}
-          delta={deltas[slice.num]}
+          deltas={deltas}
           progress={scrollProgress}
         />
       ))}
@@ -246,23 +241,36 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
   const cardSlotRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   // Dynamic screen offsets from wheel slots to card landing docks
-  const [deltas, setDeltas] = useState<Record<number, { x: number; y: number; scale: number }>>({});
-  const isWheelInView = useInView(wheelRef, { amount: 0.1 });
-  const areCardsInView = useInView(cardsRef, { amount: 0.1 });
+  const deltas = useRef<Record<number, { x: number; y: number; scale: number }>>({});
   const { scrollYProgress: smoothProgress } = useScroll({
     target: containerRef,
     offset: ['start start', 'end end'],
   });
 
-  const [isScrolled, setIsScrolled] = useState(false);
-  const shouldMeasureDeltasRef = useRef(true);
+  const dockingProgress = useMotionValue(0);
+  useMotionValueEvent(smoothProgress, 'change', (progress) => {
+    if (progress >= typingRangeByGoal[4][0]) {
+      dockingProgress.set(1);
+    } else if (progress <= typingRangeByGoal[4][0] - 0.05) {
+      dockingProgress.set(0);
+    }
+  });
+  const alignedOpacity = useTransform(dockingProgress, [0, 1], [1, 0]);
+  const decoupledOpacity = useTransform(dockingProgress, [0, 1], [0, 1]);
+  const statusColor = useTransform(dockingProgress, [0, 1], ['#10b981', '#14b8a6']);
+  const cardBorderColor = useTransform(dockingProgress, [0, 1], ['#e2e8f0', '#cbd5e1']);
+  const cardShadow = useTransform(
+    dockingProgress,
+    [0, 1],
+    ['0 1px 2px rgb(0 0 0 / 0.05)', '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'],
+  );
+  const guideBorderColor = useTransform(dockingProgress, [0, 1], ['#cbd5e1', 'transparent']);
+  const watermarkOpacity = useTransform(dockingProgress, [0, 1], [0.4, 0]);
 
   // 2. Measure pinpoint screen translation vectors from wheel slots to card slots
   const measureDeltas = useCallback(() => {
     if (!wheelRef.current) return;
     const wheelRect = wheelRef.current.getBoundingClientRect();
-
-    const newDeltas: Record<number, { x: number; y: number; scale: number }> = {};
 
     TARGET_SLICES.forEach((slice) => {
       const cardEl = cardSlotRefs.current[slice.num];
@@ -294,14 +302,12 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
       const targetDim = cardRect.width * 0.95;
       const scale = Math.min(1.4, Math.max(0.6, targetDim / maxSliceDim));
 
-      newDeltas[slice.num] = {
+      deltas.current[slice.num] = {
         x: targetLocalX - sourceLocalX,
         y: targetLocalY - sourceLocalY,
         scale,
       };
     });
-
-    setDeltas(newDeltas);
   }, []);
 
   // The wheel and its card docks share a sticky stage, so scrolling does not
@@ -318,21 +324,6 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
       resizeObserver.disconnect();
     };
   }, [measureDeltas]);
-
-  useMotionValueEvent(smoothProgress, 'change', (progress) => {
-    if (progress >= dockMeasurementTrigger && shouldMeasureDeltasRef.current) {
-      shouldMeasureDeltasRef.current = false;
-      measureDeltas();
-    } else if (progress <= dockMeasurementReset) {
-      shouldMeasureDeltasRef.current = true;
-    }
-
-    setIsScrolled((current) => {
-      if (progress >= typingRangeByGoal[4][0]) return true;
-      if (progress <= typingRangeByGoal[4][0] - 0.05) return false;
-      return current;
-    });
-  });
 
   const toggleGoalsDocking = useCallback(() => {
     const section = containerRef.current;
@@ -391,12 +382,10 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
                 touchAction: 'pan-y',
               }}
             >
-              {(isWheelInView || areCardsInView) && (
-                <AnimatedWheelLayers
-                  scrollProgress={smoothProgress}
-                  deltas={deltas}
-                />
-              )}
+              <AnimatedWheelLayers
+                scrollProgress={smoothProgress}
+                deltas={deltas}
+              />
               <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 flex aspect-square w-[38%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white bg-white p-[2%] shadow-md ring-1 ring-slate-200/80">
                 <Image
                   src="/sdg-logo-for-wheel.webp"
@@ -411,15 +400,17 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
 
             {/* Status indicator pill */}
             <div className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
-              <span
-                className={`inline-block h-2 w-2 rounded-full ${
-                  isScrolled ? 'bg-teal-500 animate-pulse' : 'bg-emerald-500'
-                }`}
+              <motion.span
+                className="inline-block h-2 w-2 rounded-full"
+                style={{ backgroundColor: statusColor }}
               />
-              <span>
-                {isScrolled
-                  ? 'Goals 4, 8, 10, 17 decoupled (scroll up to re-dock)'
-                  : 'Full wheel aligned (scroll down to separate goals)'}
+              <span className="inline-grid">
+                <motion.span className="col-start-1 row-start-1" style={{ opacity: alignedOpacity }}>
+                  Full wheel aligned (scroll down to separate goals)
+                </motion.span>
+                <motion.span className="col-start-1 row-start-1" style={{ opacity: decoupledOpacity }}>
+                  Goals 4, 8, 10, 17 decoupled (scroll up to re-dock)
+                </motion.span>
               </span>
             </div>
           </div>
@@ -430,21 +421,13 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
             className="relative z-0 grid w-full max-w-xl flex-1 grid-cols-2 items-stretch gap-1.5 sm:gap-4"
           >
             {TARGET_SDGS.map((target) => (
-              <button
+              <motion.button
                 key={target.num}
                 type="button"
                 onClick={toggleGoalsDocking}
-                aria-label={
-                  isScrolled
-                    ? `Animate SDG ${target.num} back into the wheel`
-                    : `Animate SDG ${target.num} out of the wheel and into its card`
-                }
-                className={`group relative flex h-full min-w-0 cursor-pointer flex-row items-start gap-1.5 rounded-xl border bg-white/95 p-1.5 text-left shadow-xs backdrop-blur-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 sm:gap-3 sm:rounded-2xl sm:p-4 ${
-                  isScrolled
-                    ? 'border-slate-300 shadow-md ring-1 ring-slate-200'
-                    : 'border-slate-200/80 hover:border-slate-300'
-                }`}
-                style={{ borderTop: `4px solid ${target.color}` }}
+                aria-label={`Toggle SDG ${target.num} between the wheel and its card`}
+                className="group relative flex h-full min-w-0 cursor-pointer flex-row items-start gap-1.5 rounded-xl border bg-white/95 p-1.5 text-left shadow-xs backdrop-blur-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 sm:gap-3 sm:rounded-2xl sm:p-4"
+                style={{ borderColor: cardBorderColor, boxShadow: cardShadow, borderTop: `4px solid ${target.color}` }}
               >
                 {/*
                  * Target Landing Dock:
@@ -458,21 +441,18 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
                   style={{ backgroundColor: `${target.color}15` }}
                 >
                   {/* Visual dashed slot guide */}
-                  <div
-                    className={`absolute inset-0 rounded-md sm:rounded-xl border border-dashed transition-colors ${
-                      isScrolled ? 'border-transparent' : 'border-slate-300 group-hover:border-slate-400'
-                    }`}
+                  <motion.div
+                    className="absolute inset-0 rounded-md sm:rounded-xl border border-dashed transition-colors"
+                    style={{ borderColor: guideBorderColor }}
                   />
 
                   {/* Faint goal number watermark before slice docks */}
-                  <span
-                    className={`text-[10px] sm:text-xs font-black transition-opacity ${
-                      isScrolled ? 'opacity-0' : 'opacity-40'
-                    }`}
-                    style={{ color: target.color }}
+                  <motion.span
+                    className="text-[10px] sm:text-xs font-black transition-opacity"
+                    style={{ color: target.color, opacity: watermarkOpacity }}
                   >
                     SDG {target.num}
-                  </span>
+                  </motion.span>
                 </div>
 
                 {/* Card Text Content */}
@@ -484,8 +464,13 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
                     >
                       SDG {target.num}
                     </span>
-                    <span className="text-[8px] font-semibold text-slate-500 sm:text-[10px]">
-                      {isScrolled ? 'Decoupled' : 'In Wheel'}
+                    <span className="inline-grid text-[8px] font-semibold text-slate-500 sm:text-[10px]">
+                      <motion.span className="col-start-1 row-start-1" style={{ opacity: alignedOpacity }}>
+                        In Wheel
+                      </motion.span>
+                      <motion.span className="col-start-1 row-start-1" style={{ opacity: decoupledOpacity }}>
+                        Decoupled
+                      </motion.span>
                     </span>
                   </div>
 
@@ -501,7 +486,7 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
                     />
                   </p>
                 </div>
-              </button>
+              </motion.button>
             ))}
           </div>
 
