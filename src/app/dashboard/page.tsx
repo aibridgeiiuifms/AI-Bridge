@@ -276,6 +276,7 @@ export default function AdminDashboard() {
     id: '',
     email: '',
     full_name: '',
+    team_role: 'team-member' as 'admin' | 'team-member',
     designation: '',
     bio: '',
     position_order: 99,
@@ -283,6 +284,8 @@ export default function AdminDashboard() {
     assigned_tasks: [] as string[],
     linkedin_url: '',
     avatar_url: '',
+    can_manage_team: false,
+    mcq_access_level: 'none' as 'none' | 'viewer' | 'moderator' | 'manager',
     is_published: true
   });
 
@@ -707,6 +710,7 @@ export default function AdminDashboard() {
       id: '',
       email: '',
       full_name: '',
+      team_role: 'team-member',
       designation: '',
       bio: '',
       position_order: nextPos,
@@ -714,6 +718,8 @@ export default function AdminDashboard() {
       assigned_tasks: [],
       linkedin_url: '',
       avatar_url: '',
+      can_manage_team: false,
+      mcq_access_level: 'none',
       is_published: true
     });
     setAvatarUploadFile(null);
@@ -729,6 +735,7 @@ export default function AdminDashboard() {
       id: member.id,
       email: member.email || '',
       full_name: member.full_name || '',
+      team_role: (member.team_role || 'team-member') as 'admin' | 'team-member',
       designation: member.designation || '',
       bio: member.bio || '',
       position_order: member.position_order ?? 99,
@@ -736,6 +743,8 @@ export default function AdminDashboard() {
       assigned_tasks: member.assigned_tasks || [],
       linkedin_url: member.linkedin_url || '',
       avatar_url: member.avatar_url || '',
+      can_manage_team: Boolean(member.can_manage_team),
+      mcq_access_level: (member.mcq_access_level || 'none') as any,
       is_published: member.is_published ?? true
     });
     setAvatarUploadFile(null);
@@ -911,6 +920,55 @@ export default function AdminDashboard() {
     } catch (err: any) {
       await fetchTeamData();
       setFeedbackMsg({ text: `Failed to update status: ${err.message}`, type: 'error' });
+    }
+  };
+
+  const handleToggleTeamManage = async (member: any) => {
+    const newStatus = !member.can_manage_team;
+    setTeamMembers(prev => prev.map(m => m.id === member.id ? { ...m, can_manage_team: newStatus } : m));
+    try {
+      const res = await fetch('/api/team', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: member.id, can_manage_team: newStatus })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      setFeedbackMsg({
+        text: newStatus ? `Granted Team Management to ${member.full_name || member.email}` : `Revoked Team Management from ${member.full_name || member.email}`,
+        type: 'success'
+      });
+      await Promise.all([fetchTeamData(), fetchRolesData()]);
+    } catch (err: any) {
+      setFeedbackMsg({ text: `Failed to update permission: ${err.message}`, type: 'error' });
+      await fetchTeamData();
+    } finally {
+      setTimeout(() => setFeedbackMsg(null), 3000);
+    }
+  };
+
+  const handleTableMcqLevelChange = async (member: any, newLevel: string) => {
+    setTeamMembers(prev => prev.map(m => m.id === member.id ? { ...m, mcq_access_level: newLevel } : m));
+    try {
+      const res = await fetch('/api/team', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: member.id, mcq_access_level: newLevel })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      setFeedbackMsg({
+        text: `MCQ Authority updated to "${newLevel}" for ${member.full_name || member.email}`,
+        type: 'success'
+      });
+      await Promise.all([fetchTeamData(), fetchRolesData()]);
+    } catch (err: any) {
+      setFeedbackMsg({ text: `Failed to update MCQ level: ${err.message}`, type: 'error' });
+      await fetchTeamData();
+    } finally {
+      setTimeout(() => setFeedbackMsg(null), 3000);
     }
   };
 
@@ -1159,26 +1217,15 @@ export default function AdminDashboard() {
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          <ShieldCheck className="w-3.5 h-3.5" />
-          <span>Team Roles & Roster</span>
+          <Users className="w-3.5 h-3.5" />
+          <span>Team Management</span>
           {canManageTeam && !isSuperAdmin && (
             <span className="ml-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-300">
               Manager Access
             </span>
           )}
-        </button>
-        <button
-          onClick={() => setActiveTab('team_profiles')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
-            activeTab === 'team_profiles'
-              ? 'bg-emerald-700 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Users className="w-3.5 h-3.5" />
-          <span>Public Team Profile</span>
           <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-            activeTab === 'team_profiles' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+            activeTab === 'team' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
           }`}>
             {teamMembers.length}
           </span>
@@ -1237,7 +1284,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Quick Access Banner for Delegated Team Managers */}
-      {canManageTeam && !isSuperAdmin && activeTab !== 'team' && activeTab !== 'team_profiles' && (
+      {canManageTeam && !isSuperAdmin && activeTab !== 'team' && (
         <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
           <div className="flex items-center gap-2.5 text-xs">
             <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">
@@ -1250,18 +1297,11 @@ export default function AdminDashboard() {
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
-              onClick={() => setActiveTab('team_profiles')}
+              onClick={() => setActiveTab('team')}
               className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl cursor-pointer transition-all shadow-sm flex items-center gap-1.5"
             >
               <Users className="w-3.5 h-3.5" />
-              <span>Public Team Profiles</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('team')}
-              className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl cursor-pointer transition-all shadow-sm flex items-center gap-1.5"
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Roster & Tasks</span>
+              <span>Go to Team Management</span>
             </button>
           </div>
         </div>
@@ -1271,676 +1311,7 @@ export default function AdminDashboard() {
 
       {/* Tab Content: Dynamic Tasks & Delegated Team Management */}
       {activeTab === 'team' && (
-        <div className="min-w-0 space-y-5 sm:space-y-8">
-          {/* Superadmin & Delegation Banner */}
-          <div className="flex min-w-0 flex-col items-start justify-between gap-4 rounded-3xl border border-slate-700 bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 p-4 text-white shadow-md sm:p-6 md:flex-row md:items-center">
-            <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-600/30 border border-emerald-400/40 flex items-center justify-center text-emerald-400 shadow-inner flex-shrink-0">
-                <Briefcase className="w-6 h-6" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-800/60">
-                    App Development Lead & Super Admin
-                  </span>
-                  <span className="break-all text-[11px] text-slate-400">• ai.bridge.iiui.fms@gmail.com</span>
-                </div>
-                <h2 className="text-lg font-extrabold text-white mt-1">
-                  Dynamic Task Assignment & Team Governance
-                </h2>
-                <p className="text-xs text-slate-300">
-                  {isSuperAdmin
-                    ? 'Super Admin Mode: You have full authority to modify the master task pool, assign tasks, and delegate team management permissions.'
-                    : canManageTeam
-                    ? 'Delegated Manager Mode: You are authorized to manage team members, emails, names, and assigned tasks.'
-                    : 'Viewing team roster and assigned campaign tasks.'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex max-w-full items-center gap-2 rounded-xl border border-slate-700 bg-slate-800/80 px-3.5 py-2 text-xs text-slate-300">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
-              <span>{isSuperAdmin ? 'Full Admin Access' : canManageTeam ? 'Delegated Team Manager' : 'Team Member View'}</span>
-            </div>
-          </div>
-
-          {feedbackMsg && (
-            <div className={`p-4 rounded-2xl text-xs flex items-center justify-between ${
-              feedbackMsg.type === 'success' ? 'bg-emerald-50 border border-emerald-200 text-emerald-800' : 'bg-red-50 border border-red-200 text-red-700'
-            }`}>
-              <span>{feedbackMsg.text}</span>
-              <button onClick={() => setFeedbackMsg(null)} className="text-slate-400 hover:text-slate-600">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-
-          {/* Master Campaign Tasks Pool (Admin Control) */}
-          {(isSuperAdmin || canManageTeam) && (
-            <div className="min-w-0 space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                <div>
-                  <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                    <Tag className="w-4 h-4 text-emerald-700" />
-                    <span>Master Campaign Tasks Pool ({tasks.length})</span>
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Campaign tasks defined here can be dynamically assigned to ambassadors and team members.
-                  </p>
-                </div>
-              </div>
-
-              {/* Tasks Chips / Badges */}
-              <div className="flex flex-wrap gap-2 pt-1">
-                {tasks.map((t) => (
-                  <div
-                    key={t.id}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-800 shadow-2xs group"
-                  >
-                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <span className="font-semibold">{t.title}</span>
-                    {t.tag && (
-                      <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded font-bold">
-                        {t.tag}
-                      </span>
-                    )}
-                    {(isSuperAdmin || canManageTeam) && (
-                      <button
-                        onClick={() => handleDeleteTask(t.id, t.title)}
-                        className="text-slate-400 hover:text-rose-600 transition-colors ml-1 p-0.5 cursor-pointer"
-                        title="Delete Task from Pool"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              {/* Add New Task Form (Admin or Delegated Manager) */}
-              {(isSuperAdmin || canManageTeam) && (
-                <form onSubmit={handleCreateTask} className="flex flex-col gap-2 border-t border-slate-100 pt-2 lg:flex-row">
-                  <input
-                    type="text"
-                    required
-                    placeholder="New Task Title (e.g. Poster Design, Lab Logistics)"
-                    value={newTaskTitle}
-                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                    className="w-full min-w-0 flex-1 rounded-xl border border-slate-300 px-3.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Tag / Dept (e.g. Workshops, Awareness, Tech)"
-                    value={newTaskTag}
-                    onChange={(e) => setNewTaskTag(e.target.value)}
-                    className="w-full min-w-0 rounded-xl border border-slate-300 px-3.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 lg:w-56"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Description (optional)"
-                    value={newTaskDesc}
-                    onChange={(e) => setNewTaskDesc(e.target.value)}
-                    className="w-full min-w-0 flex-1 rounded-xl border border-slate-300 px-3.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isCreatingTask}
-                    className="flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white transition-all hover:bg-slate-800 disabled:opacity-60 cursor-pointer"
-                  >
-                    <ListPlus className="w-4 h-4" />
-                    <span>{isCreatingTask ? 'Adding...' : 'Add Task to Pool'}</span>
-                  </button>
-                </form>
-              )}
-            </div>
-          )}
-
-          {/* Add Team Member & Assign Tasks Form (Admin or Permitted Member) */}
-          {(isSuperAdmin || canManageTeam) && (
-            <div className="min-w-0 space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-              <div>
-                <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-                  <UserPlus className="w-4 h-4 text-emerald-700" />
-                  <span>Add Team Member & Assign Tasks</span>
-                </h3>
-                <p className="text-xs text-slate-500">
-                  {isSuperAdmin
-                    ? 'Admins can assign roles and tasks. When they sign in with Google, tasks and access are automatically granted.'
-                    : 'As a delegated team manager, any person you add will be configured as a Member with your assigned tasks.'}
-                </p>
-              </div>
-
-              <form onSubmit={handleAddWhitelist} className="space-y-4 pt-1">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                  <input
-                    type="email"
-                    required
-                    placeholder="Google / IIUI Email Address"
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    className="px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Full Name (e.g. Asad Naveed)"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    className="px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
-
-                  {/* Role Selector: Shown ONLY if Super Admin! For delegated members, hidden completely */}
-                  {isSuperAdmin ? (
-                    <select
-                      value={newRole}
-                      onChange={(e: any) => setNewRole(e.target.value)}
-                      className="px-3 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white font-medium"
-                    >
-                      <option value="team-member">Role: Team Member (Ambassador)</option>
-                      <option value="admin">Role: Admin (Leadership)</option>
-                    </select>
-                  ) : (
-                    <div className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-600 flex items-center gap-1.5 font-medium">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                      <span>Role: Member (Ambassador) [Fixed]</span>
-                    </div>
-                  )}
-
-                  <input
-                    type="text"
-                    placeholder="Notes (optional)"
-                    value={newNotes}
-                    onChange={(e) => setNewNotes(e.target.value)}
-                    className="px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    list="roster-team-tag-options"
-                    placeholder="Category Tag (e.g. Executive Governance)"
-                    value={newTeamTag}
-                    onChange={(e) => setNewTeamTag(e.target.value)}
-                    className="px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                  />
-                  <datalist id="roster-team-tag-options">
-                    {availableTeamTags.map((tag) => (
-                      <option key={tag} value={tag} />
-                    ))}
-                  </datalist>
-                </div>
-
-                {/* Task Selection Checkboxes / Pills */}
-                <div className="space-y-2 pt-2 border-t border-slate-100">
-                  <label className="block text-xs font-bold text-slate-700">
-                    Select Tasks to Assign to this Member:
-                  </label>
-                  {tasks.length === 0 ? (
-                    <p className="text-xs text-slate-400">No tasks in pool yet. Add tasks above first.</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {tasks.map((t) => {
-                        const isSelected = selectedTasks.includes(t.title);
-                        return (
-                          <button
-                            key={t.id}
-                            type="button"
-                            onClick={() => toggleTaskSelection(t.title)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-                              isSelected
-                                ? 'bg-emerald-700 text-white shadow-sm'
-                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                            }`}
-                          >
-                            <span>{isSelected ? '✓' : '+'}</span>
-                            <span>{t.title}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-2 flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={isSubmittingWhitelist}
-                    className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center gap-2 disabled:opacity-60 cursor-pointer"
-                  >
-                    <UserPlus className="w-4 h-4" />
-                    <span>{isSubmittingWhitelist ? 'Saving...' : 'Add Member & Assign Tasks'}</span>
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* Team Roster & Assigned Tasks Table */}
-          <div className="min-w-0 space-y-2 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex flex-col items-start justify-between gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:p-6">
-              <div>
-                <h3 className="font-bold text-slate-900 text-sm">Team Roster & Dynamic Tasks ({members.length})</h3>
-                <p className="text-xs text-slate-500">
-                  Data loaded live from Supabase. Tasks assigned here are automatically reflected in each member&apos;s profile.
-                </p>
-              </div>
-              <button
-                onClick={fetchRolesData}
-                disabled={loadingRoles}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${loadingRoles ? 'animate-spin' : ''}`} />
-                <span>Refresh from Supabase</span>
-              </button>
-            </div>
-
-            <div className="max-w-full overflow-x-auto overscroll-x-contain">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-400 font-semibold uppercase tracking-wider bg-slate-50/70">
-                    <th className="py-3 px-6">Name & Google Email</th>
-                    <th>Role</th>
-                    <th>Assigned Tasks</th>
-                    <th className="text-center">Can Manage Team</th>
-                    <th className="text-right px-6">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {loadingRoles ? (
-                    <tr>
-                      <td colSpan={5} className="py-12 text-center text-slate-400">
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-                          <span>Querying Supabase database...</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : members.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="py-12 text-center text-slate-400">
-                        <p className="font-bold text-slate-700 text-sm">No team members found in Supabase.</p>
-                        <p className="text-[11px] text-slate-400 mt-1">
-                          The database is empty. Add a member above to configure their tasks.
-                        </p>
-                      </td>
-                    </tr>
-                  ) : (
-                    members.map((w, idx) => {
-                      const email = w.email;
-                      const name = w.full_name || w.name || (email || '').split('@')[0];
-                      const role = w.team_role || 'team-member';
-                      const assignedList: string[] = Array.isArray(w.assigned_tasks) ? w.assigned_tasks : [];
-                      const canManage = permissionsMap[email]?.can_manage_team || false;
-                      const isEditing = editingWhitelistEmail === email;
-                      const isProtected = email === 'ai-bridge-iiui-fms@gmail.com' || email === 'ai.bridge.iiui.fms@gmail.com';
-
-                      return isEditing ? (
-                        /* ── EDIT ROW ── */
-                        <tr key={idx} className="bg-emerald-50/70 border-l-4 border-emerald-600">
-                          <td className="py-4 px-5" colSpan={5}>
-                            <div className="space-y-3.5">
-                              {/* Header info */}
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs font-bold text-slate-800">Editing Team Member:</span>
-                                  <span className="font-mono text-xs text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded font-semibold">{email}</span>
-                                </div>
-                                <span className="text-[11px] text-slate-500">Live sync to database on save</span>
-                              </div>
-
-                              {/* Row 1: name + role + notes */}
-                              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-                                <div className="sm:col-span-4">
-                                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">Full Name</label>
-                                  <input
-                                    type="text"
-                                    value={editWhitelistDraft.full_name}
-                                    onChange={e => setEditWhitelistDraft(d => ({ ...d, full_name: e.target.value }))}
-                                    placeholder="Full Name (e.g. Asad Naveed)"
-                                    className="w-full px-3 py-1.5 rounded-xl border border-emerald-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white font-medium"
-                                  />
-                                </div>
-                                <div className="sm:col-span-2">
-                                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">Role</label>
-                                  {isSuperAdmin && !isProtected ? (
-                                    <select
-                                      value={editWhitelistDraft.team_role}
-                                      onChange={e => setEditWhitelistDraft(d => ({ ...d, team_role: e.target.value as 'admin' | 'team-member' }))}
-                                      className="w-full px-3 py-1.5 rounded-xl border border-emerald-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white font-semibold"
-                                    >
-                                      <option value="team-member">Team Member</option>
-                                      <option value="admin">Admin</option>
-                                    </select>
-                                  ) : (
-                                    <input
-                                      type="text"
-                                      disabled
-                                      value={isProtected ? 'Admin (Super)' : editWhitelistDraft.team_role}
-                                      className="w-full px-3 py-1.5 rounded-xl border border-slate-200 text-xs bg-slate-100 font-semibold text-slate-600 capitalize"
-                                    />
-                                  )}
-                                </div>
-                                <div className="sm:col-span-3">
-                                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">Team Tag</label>
-                                  <input
-                                    type="text"
-                                    list="roster-edit-team-tag-options"
-                                    value={editWhitelistDraft.team_tag}
-                                    onChange={e => setEditWhitelistDraft(d => ({ ...d, team_tag: e.target.value }))}
-                                    placeholder="e.g. Executive Governance"
-                                    className="w-full px-3 py-1.5 rounded-xl border border-emerald-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
-                                  />
-                                  <datalist id="roster-edit-team-tag-options">
-                                    {availableTeamTags.map((tag) => (
-                                      <option key={tag} value={tag} />
-                                    ))}
-                                  </datalist>
-                                </div>
-                                <div className="sm:col-span-3">
-                                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">Notes (Optional)</label>
-                                  <input
-                                    type="text"
-                                    value={editWhitelistDraft.notes}
-                                    onChange={e => setEditWhitelistDraft(d => ({ ...d, notes: e.target.value }))}
-                                    placeholder="Notes or designation"
-                                    className="w-full px-3 py-1.5 rounded-xl border border-emerald-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Row 2: task assignment pills */}
-                              {tasks.length > 0 && (
-                                <div className="space-y-1.5 pt-1">
-                                  <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">Assigned Campaign Tasks (Click to toggle):</p>
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {tasks.map((t: any) => {
-                                      const sel = editWhitelistDraft.assigned_tasks.includes(t.title);
-                                      return (
-                                        <button
-                                          key={t.id}
-                                          type="button"
-                                          onClick={() =>
-                                            setEditWhitelistDraft(d => ({
-                                              ...d,
-                                              assigned_tasks: sel
-                                                ? d.assigned_tasks.filter(x => x !== t.title)
-                                                : [...d.assigned_tasks, t.title],
-                                            }))
-                                          }
-                                          className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all cursor-pointer flex items-center gap-1 ${
-                                            sel
-                                              ? 'bg-emerald-700 text-white shadow-sm ring-1 ring-emerald-800'
-                                              : 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-100'
-                                          }`}
-                                        >
-                                          <span>{sel ? '✓' : '+'}</span>
-                                          <span>{t.title}</span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Row 3: actions */}
-                              <div className="flex items-center gap-2 pt-2 border-t border-emerald-100">
-                                <button
-                                  onClick={handleSaveWhitelistEdit}
-                                  disabled={isSavingWhitelist}
-                                  className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-60 cursor-pointer flex items-center gap-1.5 shadow-sm"
-                                >
-                                  <Check className="w-3.5 h-3.5" />
-                                  {isSavingWhitelist ? 'Saving...' : 'Save Changes'}
-                                </button>
-                                <button
-                                  onClick={() => setEditingWhitelistEmail(null)}
-                                  className="px-3.5 py-1.5 border border-slate-300 text-slate-600 hover:bg-slate-100 text-xs font-semibold rounded-xl transition-all cursor-pointer flex items-center gap-1"
-                                >
-                                  <X className="w-3.5 h-3.5" /> Cancel
-                                </button>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      ) : (
-                        /* ── VIEW ROW ── */
-                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="py-3 px-6">
-                            <p className="font-bold text-slate-900">{name}</p>
-                            <p className="font-mono text-slate-500 text-[11px]">{email}</p>
-                          </td>
-                          <td className="py-3">
-                            <div className="flex flex-col items-start gap-1">
-                              <span className={`px-2.5 py-0.5 rounded-full font-bold uppercase text-[10px] ${
-                                role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-emerald-100 text-emerald-800'
-                              }`}>
-                                {role}
-                              </span>
-                              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${getTagBadgeStyle(w.team_tag)}`}>
-                                {w.team_tag || 'General'}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-3">
-                            {assignedList.length === 0 ? (
-                              <span className="text-slate-400 italic text-[11px]">No tasks assigned</span>
-                            ) : (
-                              <div className="flex flex-wrap gap-1 max-w-sm">
-                                {assignedList.map((t, tIdx) => (
-                                  <span
-                                    key={tIdx}
-                                    className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-medium"
-                                  >
-                                    {t}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </td>
-
-                          {/* Can Manage Team Delegation Toggle */}
-                          <td className="text-center">
-                            {isSuperAdmin && !isProtected ? (
-                              <label className="inline-flex items-center gap-1.5 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={canManage}
-                                  onChange={() => togglePermission(email, 'can_manage_team')}
-                                  className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
-                                />
-                                <span className="text-[10px] text-slate-600 font-medium">
-                                  {canManage ? 'Manager' : 'No'}
-                                </span>
-                              </label>
-                            ) : (
-                              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
-                                isProtected || canManage
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : 'text-slate-400'
-                              }`}>
-                                {isProtected ? 'Super Admin' : canManage ? 'Yes (Delegated)' : 'No'}
-                              </span>
-                            )}
-                          </td>
-
-                          <td className="text-right px-4">
-                            <div className="flex items-center justify-end gap-1">
-                              {/* Edit button */}
-                              {(isSuperAdmin || canManageTeam) && (
-                                <button
-                                  onClick={() => startEditWhitelist(w)}
-                                  className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
-                                  title="Edit member"
-                                >
-                                  <Pencil className="w-4 h-4" />
-                                </button>
-                              )}
-                              {/* Delete button */}
-                              {(isSuperAdmin || canManageTeam) && !isProtected ? (
-                                <button
-                                  onClick={() => handleRemoveWhitelist(email)}
-                                  className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                                  title="Delete from Supabase"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
-                              ) : (
-                                <span className="text-[11px] text-emerald-600 font-bold pr-2">Protected</span>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Granular Ambassador Capabilities Matrix */}
-          <div className="min-w-0 space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="font-bold text-slate-900 text-sm">Ambassador Permissions & Authority Matrix</h3>
-                <p className="text-xs text-slate-500">
-                  Admins can delegate &ldquo;Manage Team&rdquo; and MCQ authority per member. Stored live in <code className="bg-slate-100 px-1 py-0.5 rounded">members</code>.
-                </p>
-              </div>
-            </div>
-
-            <div className="max-w-full overflow-x-auto overscroll-x-contain">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider pb-2">
-                    <th className="py-2.5">Team Member</th>
-                    <th className="text-center">Manage Team</th>
-                    <th className="text-center min-w-[140px]">MCQ Authority</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {loadingRoles ? (
-                    <tr>
-                      <td colSpan={3} className="py-8 text-center text-slate-400">
-                        Loading live permissions from Supabase...
-                      </td>
-                    </tr>
-                  ) : members.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="py-8 text-center text-slate-400">
-                        No team members currently in Supabase. Add a member above to configure capabilities.
-                      </td>
-                    </tr>
-                  ) : (
-                    members.map((w, idx) => {
-                      const email = w.email;
-                      const name = w.full_name || w.name || (email || '').split('@')[0];
-                      const perms = permissionsMap[email] || {
-                        can_manage_team: false,
-                        mcq_access_level: 'none',
-                      };
-
-                      const currentMcqLevel = perms.mcq_access_level || 'none';
-
-                      return (
-                        <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
-                          <td className="py-3 font-medium text-slate-800">
-                            <div>{name}</div>
-                            <div className="text-[10px] text-slate-400 font-mono">{email}</div>
-                          </td>
-
-                          <td className="text-center">
-                            <input
-                              type="checkbox"
-                              disabled={!isSuperAdmin}
-                              checked={perms.can_manage_team}
-                              onChange={() => togglePermission(email, 'can_manage_team')}
-                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
-                            />
-                          </td>
-
-                          {/* 3-Tier Hierarchical MCQ Authority Dropdown */}
-                          <td className="text-center px-2 py-2">
-                            <select
-                              disabled={!isSuperAdmin && !canManageTeam}
-                              value={currentMcqLevel}
-                              onChange={(e) => handleMcqLevelChange(email, e.target.value as any)}
-                              className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-all cursor-pointer shadow-xs disabled:opacity-50 ${
-                                currentMcqLevel === 'manager'
-                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-                                  : currentMcqLevel === 'moderator'
-                                  ? 'bg-amber-50 border-amber-300 text-amber-800'
-                                  : currentMcqLevel === 'viewer'
-                                  ? 'bg-sky-50 border-sky-300 text-sky-800'
-                                  : 'bg-slate-50 border-slate-200 text-slate-500'
-                              }`}
-                            >
-                              <option value="none">None (No Access)</option>
-                              <option value="viewer">Viewer (Read Only)</option>
-                              <option value="moderator">Moderator (Can Toggle)</option>
-                              <option value="manager">Manager (Full Edit)</option>
-                            </select>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Quick Jump to Public Team Profiles Workspace */}
-          {(isSuperAdmin || canManageTeam) && (
-            <div className="flex min-w-0 flex-col items-start justify-between gap-4 rounded-3xl border border-emerald-700/50 bg-gradient-to-r from-emerald-900 to-slate-900 p-4 text-white shadow-md sm:gap-5 sm:p-6 md:flex-row md:items-center">
-                <div className="min-w-0 space-y-2 md:max-w-2xl">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span className="text-xs uppercase tracking-wider font-bold text-emerald-300">Public Page Showcase</span>
-                </div>
-                <h3 className="text-lg sm:text-xl font-extrabold text-white">
-                  Public Team Profiles & Positioning Hierarchy ({teamMembers.length} Profiles)
-                </h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  Configure the visual roster on <strong className="text-white">/team</strong>. Position #1 is reserved for the Solo Hero Row (Sir Zahid Khan), followed by Team Leads (Positions 2–4) and SDG Ambassadors (Positions 5+).
-                </p>
-                {heroMember ? (
-                  <div className="flex items-center gap-2 pt-1 text-xs text-amber-300">
-                    <span>👑 Row 1 Solo Hero:</span>
-                    <span className="font-bold text-white">{heroMember.full_name}</span>
-                    <span className="text-slate-400">({heroMember.designation})</span>
-                  </div>
-                ) : (
-                  <p className="text-xs text-amber-300 font-semibold pt-1">
-                    ⚠️ Position 1 is unassigned. Assign Sir Zahid Khan to Position 1.
-                  </p>
-                )}
-              </div>
-
-              <div className="flex w-full flex-wrap items-center gap-2.5 sm:w-auto sm:flex-shrink-0">
-                <button
-                  onClick={() => setActiveTab('team_profiles')}
-                  className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs rounded-xl cursor-pointer transition-all shadow-md flex items-center gap-1.5"
-                >
-                  <Users className="w-4 h-4" />
-                  <span>Open Team Profiles Workspace</span>
-                  <span>&rarr;</span>
-                </button>
-                <button
-                  onClick={handleOpenAddMember}
-                  className="px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs rounded-xl cursor-pointer transition-all flex items-center gap-1.5"
-                >
-                  <UserPlus className="w-4 h-4 text-emerald-300" />
-                  <span>+ Add Member</span>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ============================================================== */}
-      {/* TAB CONTENT: PUBLIC TEAM PROFILES & POSITIONING HIERARCHY       */}
-      {/* ============================================================== */}
-      {activeTab === 'team_profiles' && (
-        <div className="min-w-0 space-y-5 sm:space-y-6">
+        <div className="min-w-0 space-y-6">
           {/* Header Card */}
           <div className="min-w-0 space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:space-y-6 sm:p-6 lg:p-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-6">
@@ -1948,26 +1319,27 @@ export default function AdminDashboard() {
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
                   <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                    Live Public Page Control
+                    Live Supabase Roster & Access Controls
                   </span>
                 </div>
                 <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-1.5">
-                  Public Team Profiles & Positioning Hierarchy
+                  Team Management & Public Roster
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
-                  Directly configure the visual roster rendered on <strong className="text-slate-800 font-semibold">/team</strong>.
-                  Position #1 is reserved for the Project Mentor (Sir Zahid Khan) in the top hero row, followed by Team Leads (Positions 2–4) and SDG Ambassadors (Positions 5+).
+                  Manage team ambassadors, roles, public display profiles on <strong className="text-slate-800 font-semibold">/team</strong>, and platform permissions in one single workspace.
                 </p>
               </div>
 
               <div className="flex w-full flex-wrap items-center gap-2 md:w-auto">
-                <button
-                  onClick={handleOpenAddMember}
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm transition-colors cursor-pointer"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span>+ Add Team Member</span>
-                </button>
+                {(isSuperAdmin || canManageTeam) && (
+                  <button
+                    onClick={handleOpenAddMember}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm transition-colors cursor-pointer"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    <span>+ Add Team Member</span>
+                  </button>
+                )}
 
                 <Link
                   href="/team"
@@ -2127,32 +1499,33 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Profiles Table */}
+            {/* Unified Team Members Table */}
             <div className="max-w-full overflow-x-auto overscroll-x-contain">
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider text-[11px] pb-2">
                     <th className="py-2.5 w-36">Rank & Row</th>
                     <th>Member Profile</th>
-                    <th>Designation / Title</th>
+                    <th>Designation & Role</th>
                     <th>Category & Tasks</th>
-                    <th className="text-center w-28">Status</th>
+                    <th className="text-center w-36">Permissions</th>
+                    <th className="text-center w-28">Public /team</th>
                     <th className="text-right w-24">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {loadingTeam ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-slate-400 font-medium">
+                      <td colSpan={7} className="py-12 text-center text-slate-400 font-medium">
                         <div className="flex items-center justify-center gap-2">
                           <RefreshCw className="w-4 h-4 animate-spin text-emerald-600" />
-                          <span>Loading team profiles from Supabase...</span>
+                          <span>Loading team members from Supabase...</span>
                         </div>
                       </td>
                     </tr>
                   ) : filteredTeamMembers.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-12 text-center text-slate-400 space-y-3">
+                      <td colSpan={7} className="py-12 text-center text-slate-400 space-y-3">
                         <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
                           <Users className="w-6 h-6" />
                         </div>
@@ -2160,7 +1533,7 @@ export default function AdminDashboard() {
                         <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
                           {profileSearchQuery || profileTagFilter !== 'all' || profileStatusFilter !== 'all'
                             ? 'Try clearing the search query or tag filters above.'
-                            : 'Click "+ Add Team Member" to build your public roster.'}
+                            : 'Click "+ Add Team Member" to add ambassadors and leaders.'}
                         </p>
                       </td>
                     </tr>
@@ -2168,6 +1541,9 @@ export default function AdminDashboard() {
                     filteredTeamMembers.map((member, idx) => {
                       const isPosition1 = member.position_order === 1;
                       const isLead = member.position_order > 1 && member.position_order <= 4;
+                      const isProtected = member.email === 'ai.bridge.iiui.fms@gmail.com';
+                      const canManage = Boolean(member.can_manage_team);
+                      const mcqLevel = member.mcq_access_level || 'none';
 
                       return (
                         <tr key={member.id} className="hover:bg-slate-50/80 transition-colors">
@@ -2215,22 +1591,22 @@ export default function AdminDashboard() {
 
                               {/* Row Badge */}
                               {isPosition1 ? (
-                                <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px] font-bold border border-amber-200 flex items-center gap-0.5" title="Row 1 Solo Leader">
-                                  👑 Row 1
+                                <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px] font-bold border border-amber-200 flex items-center gap-0.5">
+                                  👑 Hero
                                 </span>
                               ) : isLead ? (
-                                <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-900 text-[10px] font-bold border border-blue-200 flex items-center gap-0.5" title="Row 2 Team Leads">
-                                  ⭐ Row 2
+                                <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-900 text-[10px] font-bold border border-blue-200 flex items-center gap-0.5">
+                                  ⭐ Lead
                                 </span>
                               ) : (
-                                <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-medium border border-slate-200" title="Row 3+ Ambassadors">
-                                  Row 3+
+                                <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-medium border border-slate-200">
+                                  Ambassador
                                 </span>
                               )}
                             </div>
                           </td>
 
-                          {/* Member Avatar, Name & Monospace Email */}
+                          {/* Member Avatar & Details */}
                           <td className="py-3">
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-900 flex-shrink-0 border border-slate-200 shadow-2xs">
@@ -2242,7 +1618,7 @@ export default function AdminDashboard() {
                                   />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center text-white font-bold text-xs bg-slate-800">
-                                    {member.full_name.split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
+                                    {(member.full_name || 'TM').split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
                                   </div>
                                 )}
                               </div>
@@ -2270,31 +1646,75 @@ export default function AdminDashboard() {
                             </div>
                           </td>
 
-                          {/* Designation */}
-                          <td className="py-3 text-slate-700 font-medium max-w-xs">
-                            <div className="truncate" title={member.designation}>
-                              {member.designation}
+                          {/* Designation & Role */}
+                          <td className="py-3">
+                            <p className="font-medium text-slate-800 text-xs truncate max-w-xs">{member.designation || 'No designation set'}</p>
+                            <div className="mt-1 flex items-center gap-1.5">
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                member.team_role === 'admin'
+                                  ? 'bg-purple-100 text-purple-900 border border-purple-200'
+                                  : 'bg-slate-100 text-slate-700 border border-slate-200'
+                              }`}>
+                                {member.team_role === 'admin' ? '🛡️ Admin' : '👤 Team Member'}
+                              </span>
                             </div>
                           </td>
 
                           {/* Category Tag & Tasks */}
                           <td className="py-3">
-                            <div className="space-y-1">
-                              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${getTagBadgeStyle(member.team_tag)}`}>
-                                {member.team_tag || 'General'}
-                              </span>
-                              {member.assigned_tasks && member.assigned_tasks.length > 0 && (
-                                <div className="flex items-center gap-1 text-[10px] text-slate-500">
-                                  <span className="font-semibold">{member.assigned_tasks.length} Task{member.assigned_tasks.length > 1 ? 's' : ''}:</span>
-                                  <span className="truncate max-w-[140px]" title={member.assigned_tasks.join(', ')}>
-                                    {member.assigned_tasks.join(', ')}
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${getTagBadgeStyle(member.team_tag)}`}>
+                              {member.team_tag || 'General'}
+                            </span>
+                            {Array.isArray(member.assigned_tasks) && member.assigned_tasks.length > 0 && (
+                              <div className="mt-1 flex flex-wrap gap-1 max-w-xs">
+                                {member.assigned_tasks.slice(0, 2).map((t: string, i: number) => (
+                                  <span key={i} className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 text-[9px] font-semibold truncate max-w-[140px]">
+                                    {t}
                                   </span>
-                                </div>
-                              )}
+                                ))}
+                                {member.assigned_tasks.length > 2 && (
+                                  <span className="text-[9px] text-slate-400 font-bold self-center">
+                                    +{member.assigned_tasks.length - 2}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Permissions: Team Manager & MCQ Authority */}
+                          <td className="py-3 text-center">
+                            <div className="flex flex-col items-center gap-1.5">
+                              {/* Team Manager switch */}
+                              <button
+                                type="button"
+                                disabled={!isSuperAdmin}
+                                onClick={() => handleToggleTeamManage(member)}
+                                className={`px-2 py-0.5 rounded-md text-[10px] font-bold transition-all cursor-pointer disabled:opacity-70 ${
+                                  canManage || isProtected
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                    : 'bg-slate-100 text-slate-500 border border-slate-200'
+                                }`}
+                                title={isSuperAdmin ? "Click to toggle Manager permission" : "Only Super Admin can change"}
+                              >
+                                {canManage || isProtected ? '✓ Manager' : 'No Access'}
+                              </button>
+
+                              {/* MCQ Authority Dropdown */}
+                              <select
+                                disabled={!isSuperAdmin && !canManageTeam}
+                                value={mcqLevel}
+                                onChange={(e) => handleTableMcqLevelChange(member, e.target.value as any)}
+                                className="px-1.5 py-0.5 rounded text-[10px] font-semibold border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer disabled:bg-slate-100"
+                              >
+                                <option value="none">MCQ: None</option>
+                                <option value="viewer">MCQ: Viewer</option>
+                                <option value="moderator">MCQ: Mod</option>
+                                <option value="manager">MCQ: Manager</option>
+                              </select>
                             </div>
                           </td>
 
-                          {/* 1-Click Visibility Toggle */}
+                          {/* Status Badge (Click to toggle published) */}
                           <td className="py-3 text-center">
                             <button
                               type="button"
@@ -2320,24 +1740,26 @@ export default function AdminDashboard() {
                             </button>
                           </td>
 
-                          {/* Actions */}
+                          {/* Action Buttons: Edit & Delete */}
                           <td className="py-3 text-right">
                             <div className="flex items-center justify-end gap-1.5">
                               <button
                                 onClick={() => handleOpenEditMember(member)}
                                 className="p-1.5 rounded-lg text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
-                                title="Edit Profile & Photo"
+                                title="Edit Full Profile & Permissions"
                               >
-                                <Edit3 className="w-4 h-4" />
+                                <Pencil className="w-3.5 h-3.5" />
                               </button>
 
-                              <button
-                                onClick={() => handleDeleteTeamMember(member.id, member.full_name)}
-                                className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                                title="Remove from Team"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              {!isProtected && (
+                                <button
+                                  onClick={() => handleDeleteTeamMember(member.id, member.full_name)}
+                                  className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                  title="Remove from Team"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -2346,6 +1768,84 @@ export default function AdminDashboard() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          {/* Master Campaign Task Pool Card (Collapsible & Clean) */}
+          <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-emerald-600" />
+                  <span>Campaign Master Task Pool ({tasks.length} Active Tasks)</span>
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Global tasks pool. Assign tasks to ambassadors directly in their member edit popup.
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Add Task Form */}
+            {(isSuperAdmin || canManageTeam) && (
+              <form onSubmit={handleCreateTask} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                <div className="sm:col-span-5 space-y-1">
+                  <label className="text-xs font-bold text-slate-700">Task Title *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Campus SDG Walk Logistics"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+                  />
+                </div>
+                <div className="sm:col-span-5 space-y-1">
+                  <label className="text-xs font-bold text-slate-700">Task Description</label>
+                  <input
+                    type="text"
+                    placeholder="Short description of task deliverables..."
+                    value={newTaskDesc}
+                    onChange={(e) => setNewTaskDesc(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <button
+                    type="submit"
+                    disabled={isCreatingTask || !newTaskTitle.trim()}
+                    className="w-full px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>{isCreatingTask ? 'Adding...' : 'Add Task'}</span>
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Tasks Chips List */}
+            <div className="flex flex-wrap gap-2 pt-2">
+              {tasks.length === 0 ? (
+                <p className="text-xs text-slate-400">No tasks created yet. Add one above.</p>
+              ) : (
+                tasks.map((t) => (
+                  <div
+                    key={t.id}
+                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-xs font-medium text-slate-800 flex items-center gap-2 group transition-colors"
+                  >
+                    <span>{t.title}</span>
+                    {(isSuperAdmin || canManageTeam) && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteTask(t.id, t.title)}
+                        className="text-slate-400 hover:text-rose-600 transition-colors cursor-pointer p-0.5 rounded"
+                        title="Delete task from pool"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -3718,6 +3218,60 @@ export default function AdminDashboard() {
                           <option key={tag} value={tag} />
                         ))}
                       </datalist>
+                    </div>
+                  </div>
+
+                  {/* Account Role & Platform Permissions */}
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <Shield className="w-3.5 h-3.5 text-emerald-600" />
+                      Platform Role & Access Controls
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* System Role */}
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-slate-700">Account System Role</label>
+                        <select
+                          disabled={!isSuperAdmin}
+                          value={memberForm.team_role}
+                          onChange={(e) => setMemberForm({ ...memberForm, team_role: e.target.value as any })}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white disabled:bg-slate-100 disabled:text-slate-500"
+                        >
+                          <option value="team-member">Team Member</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                      </div>
+
+                      {/* MCQ Authority */}
+                      <div className="space-y-1">
+                        <label className="text-xs font-bold text-slate-700">MCQ Authority Level</label>
+                        <select
+                          disabled={!isSuperAdmin && !canManageTeam}
+                          value={memberForm.mcq_access_level}
+                          onChange={(e) => setMemberForm({ ...memberForm, mcq_access_level: e.target.value as any })}
+                          className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+                        >
+                          <option value="none">No Access</option>
+                          <option value="viewer">Viewer (Read-only)</option>
+                          <option value="moderator">Moderator (Can Toggle)</option>
+                          <option value="manager">Manager (Full Edit)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Can Manage Team Checkbox */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <input
+                        type="checkbox"
+                        id="modal_can_manage_team_chk"
+                        disabled={!isSuperAdmin}
+                        checked={memberForm.can_manage_team}
+                        onChange={(e) => setMemberForm({ ...memberForm, can_manage_team: e.target.checked })}
+                        className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
+                      />
+                      <label htmlFor="modal_can_manage_team_chk" className="text-xs text-slate-700 font-semibold cursor-pointer">
+                        Delegated Team Manager (Can add/edit team members and tasks)
+                      </label>
                     </div>
                   </div>
 
