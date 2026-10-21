@@ -21,7 +21,9 @@ export async function GET(req: NextRequest) {
       .order('created_at', { ascending: true });
 
     if (!includeUnpublished) {
-      query = query.eq('is_published', true);
+      query = query
+        .eq('is_published', true)
+        .neq('email', 'ai.bridge.iiui.fms@gmail.com');
     }
 
     const { data, error } = await query;
@@ -74,13 +76,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Only admins may grant the admin team role.
-    const finalTeamRole = access.role === 'admin' && team_role === 'admin' ? 'admin' : 'team-member';
+    const normalizedEmail = email ? email.trim().toLowerCase() : null;
+    const isSuperAdminEmail = normalizedEmail === 'ai.bridge.iiui.fms@gmail.com';
+
+    // Only admins may grant the admin team role. Super admin email is always admin.
+    const finalTeamRole = isSuperAdminEmail
+      ? 'admin'
+      : (access.role === 'admin' && team_role === 'admin' ? 'admin' : 'team-member');
 
     const { data: created, error } = await supabase
       .from('members')
       .insert({
-        email: email ? email.trim().toLowerCase() : null,
+        email: normalizedEmail,
         full_name: full_name.trim(),
         team_role: finalTeamRole,
         designation: designation.trim(),
@@ -90,10 +97,10 @@ export async function POST(req: NextRequest) {
         team_tag,
         assigned_tasks: Array.isArray(assigned_tasks) ? assigned_tasks : [],
         linkedin_url: linkedin_url?.trim() || null,
-        can_manage_team: Boolean(can_manage_team),
-        mcq_access_level: ['none', 'viewer', 'moderator', 'manager'].includes(mcq_access_level)
-          ? mcq_access_level
-          : 'none',
+        can_manage_team: isSuperAdminEmail ? true : Boolean(can_manage_team),
+        mcq_access_level: isSuperAdminEmail
+          ? 'manager'
+          : (['none', 'viewer', 'moderator', 'manager'].includes(mcq_access_level) ? mcq_access_level : 'none'),
         is_published: Boolean(is_published)
       })
       .select()

@@ -1095,6 +1095,8 @@ export default function AdminDashboard() {
           team_tag: editWhitelistDraft.team_tag,
           assigned_tasks: editWhitelistDraft.assigned_tasks,
           notes: editWhitelistDraft.notes,
+          can_manage_team: permissionsMap[editingWhitelistEmail]?.can_manage_team,
+          mcq_access_level: permissionsMap[editingWhitelistEmail]?.mcq_access_level,
         }),
       });
       const data = await res.json();

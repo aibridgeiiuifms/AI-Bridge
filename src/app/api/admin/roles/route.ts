@@ -203,12 +203,15 @@ export async function POST(req: NextRequest) {
     const normalizedEmail = email.trim().toLowerCase();
 
     // Only admins may grant the admin team role; everyone else is a team-member.
-    const finalTeamRole = access.role === 'admin' && team_role === 'admin' ? 'admin' : 'team-member';
+    const isSuperAdminEmail = normalizedEmail === 'ai.bridge.iiui.fms@gmail.com';
+    const finalTeamRole = isSuperAdminEmail
+      ? 'admin'
+      : (access.role === 'admin' && team_role === 'admin' ? 'admin' : 'team-member');
     const finalMcqLevel = MCQ_LEVELS.includes(mcq_access_level) ? mcq_access_level : 'none';
 
     const { data: existingMember } = await supabase
       .from('members')
-      .select('id')
+      .select('id, can_manage_team, mcq_access_level')
       .ilike('email', normalizedEmail)
       .maybeSingle();
 
@@ -218,10 +221,31 @@ export async function POST(req: NextRequest) {
       team_role: finalTeamRole,
       designation: notes || null,
       assigned_tasks: Array.isArray(assigned_tasks) ? assigned_tasks : [],
-      can_manage_team: Boolean(can_manage_team),
-      mcq_access_level: finalMcqLevel,
       updated_at: new Date().toISOString(),
     };
+
+    // If super admin email, always preserve full management permissions
+    if (isSuperAdminEmail) {
+      memberPayload.can_manage_team = true;
+      memberPayload.mcq_access_level = 'manager';
+    } else {
+      // Preserve existing permissions if not explicitly passed in the request body
+      if (body.can_manage_team !== undefined) {
+        memberPayload.can_manage_team = Boolean(body.can_manage_team);
+      } else if (existingMember) {
+        memberPayload.can_manage_team = Boolean(existingMember.can_manage_team);
+      } else {
+        memberPayload.can_manage_team = false;
+      }
+
+      if (body.mcq_access_level !== undefined) {
+        memberPayload.mcq_access_level = finalMcqLevel;
+      } else if (existingMember) {
+        memberPayload.mcq_access_level = existingMember.mcq_access_level || 'none';
+      } else {
+        memberPayload.mcq_access_level = finalMcqLevel;
+      }
+    }
 
     // Team tag (public badge label) — editable by admins and delegated team managers.
     if (typeof team_tag === 'string' && team_tag.trim()) {
