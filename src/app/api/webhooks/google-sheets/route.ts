@@ -124,56 +124,100 @@ function extractRating(answers: Record<string, any>): number | null {
 
 function detectParticipantType(sheetOrType: string, email: string): 'student' | 'teacher' {
   const s = (sheetOrType || '').toLowerCase();
-  if (s.includes('teach') || s.includes('faculty') || s.includes('prof')) return 'teacher';
+  if (s.includes('teach') || s.includes('faculty') || s.includes('prof') || s.includes('educator')) return 'teacher';
   return 'student';
 }
 
-/**
- * Resolves email by strictly prioritizing the official Student Email field.
- * If filled, personal email is ignored. Personal email is only used when student email is empty.
- */
-function resolvePrioritizedEmail(rowData: any): string {
-  const answers = rowData.answers || {};
+function resolveParticipantType(rowData: any): 'student' | 'teacher' {
+  if (rowData?.participant_type === 'teacher') return 'teacher';
+  if (rowData?.participant_type === 'student') return 'student';
+  return detectParticipantType(rowData?.sheet_name || '', '');
+}
 
-  // 1. Explicit student_email field passed from script
-  const rowStudentEmail = (rowData.student_email || '').replace(/\s+/g, '').toLowerCase();
-  if (rowStudentEmail && rowStudentEmail.includes('@')) {
-    return rowStudentEmail;
+/** Normalises a sheet header so email columns can be matched by name. */
+function normalizeHeaderKey(rawHeader: string): string {
+  return String(rawHeader || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function cleanEmailValue(val: any): string {
+  const clean = String(val ?? '').replace(/\s+/g, '').toLowerCase();
+  return clean.includes('@') ? clean : '';
+}
+
+/**
+ * EMAIL COLUMN PRIORITY — must stay in sync with google-sheet-scripts/02_SyncEngine.gs
+ *   student : "Student Email Address" -> "Email Address (non-iiui)" -> "Email address"
+ *   teacher : "Institutional Email Address" -> "Email Address (non-iiui)" -> "Email Address"
+ */
+const EMAIL_PRIORITY: Record<'student' | 'teacher', string[]> = {
+  student: ['student email address', 'email address (non-iiui)', 'email address'],
+  teacher: ['institutional email address', 'email address (non-iiui)', 'email address']
+};
+
+/** Maps normalised header names to the first valid email value found in that column. */
+function buildHeaderMap(answers: Record<string, any>): Record<string, string> {
+  const map: Record<string, string> = {};
+  if (!answers || typeof answers !== 'object') return map;
+  for (const [key, val] of Object.entries(answers)) {
+    const cleanVal = cleanEmailValue(val);
+    if (cleanVal) map[normalizeHeaderKey(key)] = cleanVal;
+  }
+  return map;
+}
+
+/**
+ * Resolves the single email that identifies a respondent, strictly by column-name priority.
+ */
+function resolvePrioritizedEmail(rowData: any, participantType: 'student' | 'teacher'): string {
+  const byHeader = buildHeaderMap(rowData.answers || {});
+  const order = EMAIL_PRIORITY[participantType] || EMAIL_PRIORITY.student;
+
+  for (const headerName of order) {
+    const found = byHeader[headerName];
+    if (found) return found;
   }
 
-  // 2. Scan form answers for official student email question or institutional domain
-  let formStudentEmail = '';
-  let formPersonalEmail = '';
+  // Fallbacks for direct API calls that do not ship the full answers map
+  const candidates = [rowData.student_email, rowData.personal_email, rowData.email, rowData.teacher_email];
+  for (const candidate of candidates) {
+    const clean = cleanEmailValue(candidate);
+    if (clean) return clean;
+  }
+  return '';
+}
 
+/**
+ * The auto-collected Google-login email (`Email address` column). Stored for reference
+ * only — the stable match key is the Google Form Timestamp, not this value.
+ */
+function resolveLoginEmail(answers: Record<string, any>, participantType: 'student' | 'teacher'): string | null {
+  if (participantType !== 'student') return null;
+  return buildHeaderMap(answers || {})['email address'] || null;
+}
+
+/** Finds the Google Form Timestamp inside the stored answers map. */
+function findTimestamp(answers: Record<string, any>): string {
+  if (!answers || typeof answers !== 'object') return '';
   for (const [key, val] of Object.entries(answers)) {
-    const k = key.toLowerCase();
-    const cleanVal = String(val || '').replace(/\s+/g, '').toLowerCase();
-    if (!cleanVal.includes('@')) continue;
-
-    const isStudentField = k.includes('student email') || k.includes('university email') || k.includes('institutional email') || cleanVal.includes('@student.iiu.edu.pk') || cleanVal.includes('@iiu.edu.pk');
-    if (isStudentField) {
-      formStudentEmail = cleanVal;
-    } else if (k.includes('email') || k.includes('respondent') || k.includes('username')) {
-      if (!formPersonalEmail) formPersonalEmail = cleanVal;
+    if (normalizeHeaderKey(key) === 'timestamp') {
+      const value = String(val ?? '').trim();
+      if (value && value.toLowerCase() !== 'invalid date') return value;
     }
   }
+  return '';
+}
 
-  // If student email found in form answers, prioritize it and IGNORE personal email
-  if (formStudentEmail) {
-    return formStudentEmail;
-  }
-
-  // 3. Personal email only matters when student email is empty
-  const rowPersonalEmail = (rowData.personal_email || '').replace(/\s+/g, '').toLowerCase();
-  if (rowPersonalEmail && rowPersonalEmail.includes('@')) {
-    return rowPersonalEmail;
-  }
-  if (formPersonalEmail) {
-    return formPersonalEmail;
-  }
-
-  // 4. Fallback to general email or teacher email
-  return (rowData.email || rowData.teacher_email || '').replace(/\s+/g, '').toLowerCase();
+/**
+ * STABLE MATCH KEY
+ * A Google Form Timestamp never changes when the respondent edits their response, so it
+ * is used as the row identity. Editing an email therefore UPDATES the same row instead of
+ * inserting a duplicate. Falls back to the resolved email for rows without a timestamp.
+ */
+function computeMatchKey(rowData: any, email: string): string {
+  const rawTimestamp = String(rowData.sheet_timestamp || '').trim() || findTimestamp(rowData.answers || {});
+  const normalized = rawTimestamp.replace(/\s+/g, '').toLowerCase();
+  if (normalized) return `ts:${normalized}`;
+  return `em:${String(email || '').replace(/\s+/g, '').toLowerCase()}`;
 }
 
 /**
@@ -202,15 +246,17 @@ async function ensureDepartmentMappingExists(supabase: any, deptCode: string) {
  * preserves raw clean hours_saved_category, and mirrors to legacy surveys.
  */
 async function syncSurveyRow(supabase: any, rowData: any) {
-  const email = resolvePrioritizedEmail(rowData);
+  const participantType = resolveParticipantType(rowData);
+  const email = resolvePrioritizedEmail(rowData, participantType);
   if (!email) return null;
 
   const answers = rowData.answers || {};
+  const matchKey = computeMatchKey(rowData, email);
+  const loginEmail = resolveLoginEmail(answers, participantType);
   const fullName = rowData.full_name || extractFullName(answers, email);
   const hoursCategory = rowData.hours_saved_category || extractHoursCategory(answers);
   const rating = rowData.ai_familiarity_rating || rowData.comprehension_self_rating || extractRating(answers) || 3;
   const surveyType = (rowData.survey_type || 'pre').toLowerCase() === 'post' ? 'post' : 'pre';
-  const participantType = rowData.participant_type || detectParticipantType(rowData.sheet_name || '', email);
 
   // Parse email for student fields
   const fallbackRoll = extractFallbackRoll(answers);
@@ -237,6 +283,8 @@ async function syncSurveyRow(supabase: any, rowData: any) {
     const teacherPayload = {
       user_id: userId,
       teacher_email: email,
+      login_email: loginEmail,
+      match_key: matchKey,
       full_name: fullName,
       survey_type: surveyType,
       designation: rowData.designation || answers['Designation'] || answers['Designation / Academic Rank'] || null,
@@ -252,12 +300,14 @@ async function syncSurveyRow(supabase: any, rowData: any) {
       updated_at: new Date().toISOString(),
     };
 
-    await supabase.from('teacher_surveys').upsert(teacherPayload, { onConflict: 'teacher_email,survey_type' });
+    await supabase.from('teacher_surveys').upsert(teacherPayload, { onConflict: 'match_key,survey_type' });
   } else {
     // 2. Save into student_surveys table
     const studentPayload = {
       user_id: userId,
       student_email: email,
+      login_email: loginEmail,
+      match_key: matchKey,
       full_name: fullName,
       survey_type: surveyType,
       reg_no: regNo,
@@ -272,7 +322,7 @@ async function syncSurveyRow(supabase: any, rowData: any) {
       updated_at: new Date().toISOString(),
     };
 
-    await supabase.from('student_surveys').upsert(studentPayload, { onConflict: 'student_email,survey_type' });
+    await supabase.from('student_surveys').upsert(studentPayload, { onConflict: 'match_key,survey_type' });
   }
 
   // 3. Mirror into legacy surveys table for 100% backwards compatibility
@@ -280,6 +330,7 @@ async function syncSurveyRow(supabase: any, rowData: any) {
     const legacyPayload = {
       user_id: userId,
       respondent_email: email,
+      match_key: matchKey,
       survey_type: surveyType,
       answers: answers,
       hours_saved_estimate: 0,
@@ -292,7 +343,7 @@ async function syncSurveyRow(supabase: any, rowData: any) {
       submitted_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
-    await supabase.from('surveys').upsert(legacyPayload, { onConflict: 'respondent_email,survey_type' });
+    await supabase.from('surveys').upsert(legacyPayload, { onConflict: 'match_key,survey_type' });
   } catch (err) {
     // Non-fatal if legacy surveys table is migrated to view
   }
@@ -333,9 +384,19 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // Collect all distinct emails & dept codes using prioritized email resolution
+      // Resolve each row's participant type, prioritized email, stable match key and login email
       const validRows = rows
-        .map(r => ({ ...r, resolved_email: resolvePrioritizedEmail(r) }))
+        .map(r => {
+          const participantType = resolveParticipantType(r);
+          const resolved_email = resolvePrioritizedEmail(r, participantType);
+          return {
+            ...r,
+            resolved_participant_type: participantType,
+            resolved_email,
+            resolved_match_key: computeMatchKey(r, resolved_email),
+            resolved_login_email: resolveLoginEmail(r.answers || {}, participantType)
+          };
+        })
         .filter(r => r.resolved_email);
       const allEmails = Array.from(new Set(validRows.map(r => r.resolved_email)));
 
@@ -364,7 +425,9 @@ export async function POST(req: NextRequest) {
         const hoursCategory = rowData.hours_saved_category || extractHoursCategory(answers);
         const rating = rowData.ai_familiarity_rating || rowData.comprehension_self_rating || extractRating(answers) || 3;
         const surveyType = (rowData.survey_type || 'pre').toLowerCase() === 'post' ? 'post' : 'pre';
-        const participantType = rowData.participant_type || detectParticipantType(rowData.sheet_name || '', email);
+        const participantType = rowData.resolved_participant_type || 'student';
+        const matchKey = rowData.resolved_match_key || computeMatchKey(rowData, email);
+        const loginEmail = rowData.resolved_login_email || resolveLoginEmail(answers, participantType);
 
         const fallbackRoll = extractFallbackRoll(answers);
         const parsed = parseStudentEmail(email, fallbackRoll);
@@ -382,6 +445,8 @@ export async function POST(req: NextRequest) {
           teacherBatch.push({
             user_id: userId,
             teacher_email: email,
+            login_email: loginEmail,
+            match_key: matchKey,
             full_name: fullName,
             survey_type: surveyType,
             designation: rowData.designation || answers['Designation'] || answers['Designation / Academic Rank'] || null,
@@ -400,6 +465,8 @@ export async function POST(req: NextRequest) {
           studentBatch.push({
             user_id: userId,
             student_email: email,
+            login_email: loginEmail,
+            match_key: matchKey,
             full_name: fullName,
             survey_type: surveyType,
             reg_no: regNo,
@@ -418,6 +485,7 @@ export async function POST(req: NextRequest) {
         legacyBatch.push({
           user_id: userId,
           respondent_email: email,
+          match_key: matchKey,
           survey_type: surveyType,
           answers: answers,
           hours_saved_estimate: 0,
@@ -448,7 +516,7 @@ export async function POST(req: NextRequest) {
       if (studentBatch.length > 0) {
         for (let i = 0; i < studentBatch.length; i += 100) {
           const chunk = studentBatch.slice(i, i + 100);
-          const { error } = await supabase.from('student_surveys').upsert(chunk, { onConflict: 'student_email,survey_type' });
+          const { error } = await supabase.from('student_surveys').upsert(chunk, { onConflict: 'match_key,survey_type' });
           if (!error) studentSuccessCount += chunk.length;
         }
       }
@@ -458,7 +526,7 @@ export async function POST(req: NextRequest) {
       if (teacherBatch.length > 0) {
         for (let i = 0; i < teacherBatch.length; i += 100) {
           const chunk = teacherBatch.slice(i, i + 100);
-          const { error } = await supabase.from('teacher_surveys').upsert(chunk, { onConflict: 'teacher_email,survey_type' });
+          const { error } = await supabase.from('teacher_surveys').upsert(chunk, { onConflict: 'match_key,survey_type' });
           if (!error) teacherSuccessCount += chunk.length;
         }
       }
@@ -468,7 +536,7 @@ export async function POST(req: NextRequest) {
         for (let i = 0; i < legacyBatch.length; i += 100) {
           const chunk = legacyBatch.slice(i, i + 100);
           try {
-            await supabase.from('surveys').upsert(chunk, { onConflict: 'respondent_email,survey_type' });
+            await supabase.from('surveys').upsert(chunk, { onConflict: 'match_key,survey_type' });
           } catch (e) {
             // Ignore legacy table error
           }
@@ -505,9 +573,10 @@ export async function POST(req: NextRequest) {
 
     if (action === 'DELETE') {
       const surveyType = (body.survey_type || 'pre').toLowerCase() === 'post' ? 'post' : 'pre';
-      await supabase.from('student_surveys').delete().eq('student_email', email).eq('survey_type', surveyType);
-      await supabase.from('teacher_surveys').delete().eq('teacher_email', email).eq('survey_type', surveyType);
-      await supabase.from('surveys').delete().eq('respondent_email', email).eq('survey_type', surveyType);
+      const matchKey = body.match_key || computeMatchKey(body, email);
+      await supabase.from('student_surveys').delete().eq('match_key', matchKey).eq('survey_type', surveyType);
+      await supabase.from('teacher_surveys').delete().eq('match_key', matchKey).eq('survey_type', surveyType);
+      await supabase.from('surveys').delete().eq('match_key', matchKey).eq('survey_type', surveyType);
 
       return NextResponse.json({
         success: true,
