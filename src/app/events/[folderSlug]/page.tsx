@@ -14,6 +14,7 @@ import {
   User, 
   Folder,
   Layers,
+  Images,
   ChevronRight
 } from 'lucide-react';
 import { fetchFolderWithEventsBySlug } from '@/lib/gallery';
@@ -241,18 +242,26 @@ export default function FolderGalleryPage() {
                     {/* Multi-Picture Showcase (Click to Open Lightbox) */}
                     {pictures.length > 0 && (
                       <div className="space-y-3 pt-2">
+                        {/* Section Header with Clear Count & Direct View All Action */}
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                             <ImageIcon className="w-3.5 h-3.5 text-emerald-700" />
                             Photo Showcase ({pictures.length} {pictures.length === 1 ? 'Photo' : 'Photos'})
                           </span>
-                          <span className="text-[11px] text-slate-400 font-medium">
-                            Click any photo for interactive fullscreen view
-                          </span>
+                          {pictures.length > 1 && (
+                            <button
+                              onClick={() => openLightbox(pictures, 0, evt.title)}
+                              className="text-xs font-extrabold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-2.5 py-1 rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                            >
+                              <Layers className="w-3.5 h-3.5 text-emerald-700" />
+                              <span>View All ({pictures.length})</span>
+                            </button>
+                          )}
                         </div>
 
+                        {/* Image Showcase Grid */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          {/* Primary Cover Image (Spans 2 columns on medium screens) */}
+                          {/* Primary Cover Image */}
                           {coverPic && (
                             <div
                               onClick={() => openLightbox(pictures, 0, evt.title)}
@@ -265,7 +274,20 @@ export default function FolderGalleryPage() {
                                 sizes="(max-width: 768px) 100vw, 600px"
                                 className="object-cover group-hover:scale-105 transition-transform duration-500"
                               />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent opacity-85 group-hover:opacity-90 transition-opacity" />
+
+                              {/* Prominent High-Visibility Photo Count Pill on Mobile & Desktop */}
+                              {pictures.length > 1 && (
+                                <div className="absolute top-3 right-3 z-10">
+                                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/80 hover:bg-emerald-800 backdrop-blur-md text-white text-xs font-extrabold shadow-md border border-white/20 transition-all group-hover:scale-105">
+                                    <Images className="w-3.5 h-3.5 text-emerald-300" />
+                                    <span>{pictures.length} Photos</span>
+                                    <span className="text-[10px] text-emerald-200 bg-emerald-950/80 px-2 py-0.5 rounded-full font-bold ml-0.5">
+                                      Tap to open
+                                    </span>
+                                  </span>
+                                </div>
+                              )}
 
                               {/* Caption overlay on cover */}
                               <div className="absolute bottom-3 left-3 right-3 text-white space-y-1">
@@ -278,13 +300,13 @@ export default function FolderGalleryPage() {
                                 {/* Tagged Team Members chips on cover */}
                                 {coverPic.tags && coverPic.tags.length > 0 && (
                                   <div className="flex items-center gap-1.5 pt-1 overflow-x-auto">
-                                    <span className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider">
+                                    <span className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider shrink-0">
                                       Tagged:
                                     </span>
                                     {coverPic.tags.map((t, tIdx) => (
                                       <span
                                         key={tIdx}
-                                        className="text-[10px] bg-white/20 backdrop-blur-md px-2 py-0.5 rounded-full text-white font-medium"
+                                        className="text-[10px] bg-white/20 backdrop-blur-md px-2 py-0.5 rounded-full text-white font-medium shrink-0"
                                       >
                                         {t.member?.full_name}
                                       </span>
@@ -295,8 +317,8 @@ export default function FolderGalleryPage() {
                             </div>
                           )}
 
-                          {/* Secondary Thumbnails Stack */}
-                          <div className="grid grid-cols-2 sm:grid-cols-1 gap-3">
+                          {/* Desktop Secondary Thumbnails Stack */}
+                          <div className="hidden sm:grid sm:grid-cols-1 gap-3">
                             {remainingPics.slice(0, 2).map((pic, pIdx) => {
                               const actualIndex = pictures.findIndex(p => p.id === pic.id);
                               const isLastVisible = pIdx === 1 && remainingPics.length > 2;
@@ -306,7 +328,7 @@ export default function FolderGalleryPage() {
                                 <div
                                   key={pic.id || pIdx}
                                   onClick={() => openLightbox(pictures, actualIndex, evt.title)}
-                                  className="relative h-30 sm:h-[138px] rounded-2xl overflow-hidden cursor-pointer group shadow-sm border border-slate-200"
+                                  className="relative sm:h-[138px] rounded-2xl overflow-hidden cursor-pointer group shadow-sm border border-slate-200"
                                 >
                                   <Image
                                     src={pic.image_url}
@@ -318,7 +340,7 @@ export default function FolderGalleryPage() {
                                   <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
 
                                   {isLastVisible && extraCount > 0 && (
-                                    <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center text-white text-center p-2">
+                                    <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center text-white text-center p-2">
                                       <div>
                                         <span className="text-lg font-black block">+{extraCount}</span>
                                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300">
@@ -332,6 +354,57 @@ export default function FolderGalleryPage() {
                             })}
                           </div>
                         </div>
+
+                        {/* Mobile Swipeable Thumbnail Carousel & Action Bar */}
+                        {pictures.length > 1 && (
+                          <div className="sm:hidden space-y-2.5 pt-1">
+                            <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium px-1">
+                              <span>Swipe photos to browse:</span>
+                              <span className="text-emerald-700 font-extrabold">{pictures.length} photos</span>
+                            </div>
+
+                            <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-0.5 scroll-smooth snap-x snap-mandatory">
+                              {pictures.map((pic, pIdx) => (
+                                <button
+                                  key={pic.id || pIdx}
+                                  onClick={() => openLightbox(pictures, pIdx, evt.title)}
+                                  className="relative w-24 h-20 shrink-0 rounded-xl overflow-hidden border border-slate-200 shadow-2xs snap-start cursor-pointer group active:scale-95 transition-all text-left"
+                                >
+                                  <Image
+                                    src={pic.image_url}
+                                    alt={`Photo ${pIdx + 1}`}
+                                    fill
+                                    sizes="96px"
+                                    className="object-cover"
+                                  />
+                                  <div className="absolute inset-0 bg-black/15 group-hover:bg-black/0 transition-colors" />
+                                  <span className="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/70 text-[9px] font-bold text-white">
+                                    #{pIdx + 1}
+                                  </span>
+                                </button>
+                              ))}
+
+                              {/* Dedicated View All Card in horizontal mobile strip */}
+                              <button
+                                onClick={() => openLightbox(pictures, 0, evt.title)}
+                                className="relative w-24 h-20 shrink-0 rounded-xl bg-emerald-900 text-white flex flex-col items-center justify-center text-center p-2 shadow-2xs snap-start cursor-pointer hover:bg-emerald-800 transition-colors"
+                              >
+                                <Layers className="w-5 h-5 text-emerald-300 mb-0.5" />
+                                <span className="text-[11px] font-extrabold leading-tight">View All</span>
+                                <span className="text-[9px] text-emerald-300 font-bold">{pictures.length} Photos</span>
+                              </button>
+                            </div>
+
+                            {/* Full-Width Mobile Trigger Button */}
+                            <button
+                              onClick={() => openLightbox(pictures, 0, evt.title)}
+                              className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-emerald-800 active:bg-emerald-900 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+                            >
+                              <Images className="w-4 h-4 text-emerald-400" />
+                              <span>View All {pictures.length} Photos in Fullscreen</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
