@@ -1,0 +1,43 @@
+{
+  "name": "The AI Bridge – HHP SDG",
+  "short_name": "AI Bridge",
+  "description": "Empowering non-IT educators and learners through source-grounded AI tools. FMS IIUI · Hum Hain Pakistan SDG Youth Campaign.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#065f46",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/logo.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Student Portal",
+      "short_name": "Portal",
+      "description": "Access your student portal",
+      "url": "/portal",
+      "icons": [{ "src": "/logo.jpg", "sizes": "96x96" }]
+    },
+    {
+      "name": "Team & Leadership",
+      "short_name": "Team",
+      "description": "Meet the team",
+      "url": "/team",
+      "icons": [{ "src": "/logo.jpg", "sizes": "96x96" }]
+    }
+  ]
+}
