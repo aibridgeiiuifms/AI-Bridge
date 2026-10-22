@@ -35,6 +35,7 @@ export interface Member {
   is_published: boolean;
   can_manage_team: boolean;
   mcq_access_level: MCQAccessLevel;
+  can_manage_gallery?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -44,6 +45,85 @@ export interface CampaignTask {
   title: string;
   description: string | null;
   created_at: string;
+}
+
+export interface GalleryFolder {
+  id: string;
+  title: string;
+  slug: string;
+  description: string | null;
+  thumbnail_url: string;
+  display_order: number;
+  is_published: boolean;
+  is_archived: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExternalLinkItem {
+  label: string;
+  url: string;
+}
+
+export interface GalleryEvent {
+  id: string;
+  folder_id: string;
+  title: string;
+  slug: string;
+  location: string;
+  event_date: string | null;
+  is_date_visible: boolean;
+  description_markdown: string;
+  external_links: ExternalLinkItem[];
+  display_order: number;
+  is_published: boolean;
+  is_archived: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GalleryPicture {
+  id: string;
+  event_id: string;
+  image_url: string;
+  storage_path: string;
+  caption: string | null;
+  display_order: number;
+  is_cover: boolean;
+  created_at: string;
+}
+
+export interface TaggedMemberInfo {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+  designation?: string | null;
+  team_tag?: string | null;
+}
+
+export interface GalleryPictureTag {
+  id: string;
+  picture_id: string;
+  member_id: string;
+  created_at: string;
+}
+
+export interface GalleryPictureWithTags extends GalleryPicture {
+  tags?: {
+    id: string;
+    member: TaggedMemberInfo;
+  }[];
+}
+
+export interface GalleryEventWithPictures extends GalleryEvent {
+  pictures: GalleryPictureWithTags[];
+}
+
+export interface GalleryFolderWithEvents extends GalleryFolder {
+  events_count?: number;
+  events?: GalleryEventWithPictures[];
 }
 
 export interface EventItem {

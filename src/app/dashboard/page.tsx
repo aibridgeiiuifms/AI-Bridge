@@ -45,9 +45,10 @@ import {
   EyeOff
 } from 'lucide-react';
 import { compressImageToMaxKB, uploadTeamAvatar } from '@/lib/imageCompression';
+import GalleryManager from '@/components/dashboard/GalleryManager';
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'team' | 'team_profiles' | 'departments' | 'mcqs'>('team');
+  const [activeTab, setActiveTab] = useState<'team' | 'team_profiles' | 'departments' | 'mcqs' | 'gallery'>('team');
   // Inline-edit state for team roster rows
   const [editingWhitelistEmail, setEditingWhitelistEmail] = useState<string | null>(null);
   const [editWhitelistDraft, setEditWhitelistDraft] = useState<{ full_name: string; team_role: 'admin' | 'team-member'; team_tag: string; assigned_tasks: string[]; notes: string }>({ full_name: '', team_role: 'team-member', team_tag: 'General', assigned_tasks: [], notes: '' });
@@ -242,6 +243,7 @@ export default function AdminDashboard() {
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
   const [currentUserRole, setCurrentUserRole] = useState<string>('guest');
   const [canManageTeam, setCanManageTeam] = useState<boolean>(false);
+  const [canManageGallery, setCanManageGallery] = useState<boolean>(false);
 
   // Live Supabase Database State (Zero Hardcoded Data)
   const [members, setMembers] = useState<any[]>([]);
@@ -642,7 +644,7 @@ export default function AdminDashboard() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
-      if (tabParam && ['metrics', 'participants', 'mcqs', 'team', 'audit'].includes(tabParam)) {
+      if (tabParam && ['metrics', 'participants', 'mcqs', 'team', 'audit', 'gallery'].includes(tabParam)) {
         setActiveTab(tabParam as any);
       }
     }
@@ -657,7 +659,7 @@ export default function AdminDashboard() {
 
           const { data: prof } = await supabase
             .from('profiles')
-            .select('role, members(can_manage_team, mcq_access_level)')
+            .select('role, members(can_manage_team, mcq_access_level, can_manage_gallery)')
             .eq('id', user.id)
             .maybeSingle();
 
@@ -666,8 +668,10 @@ export default function AdminDashboard() {
 
           const rawMember = Array.isArray(prof?.members) ? prof?.members[0] : prof?.members;
           const hasDelegatedPermission = Boolean(rawMember?.can_manage_team);
+          const hasGalleryPermission = Boolean(rawMember?.can_manage_gallery);
 
           setCanManageTeam(isSuperAdmin || hasDelegatedPermission);
+          setCanManageGallery(isSuperAdmin || hasGalleryPermission);
 
           if (isSuperAdmin) {
             setCurrentUserMcqAccess('manager');
@@ -1278,6 +1282,24 @@ export default function AdminDashboard() {
               activeTab === 'mcqs' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
             }`}>
               {mcqsList.length}
+            </span>
+          </button>
+        )}
+        {(isSuperAdmin || canManageGallery) && (
+          <button
+            onClick={() => setActiveTab('gallery')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              activeTab === 'gallery'
+                ? 'bg-emerald-700 text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            <span>Event Gallery</span>
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+              activeTab === 'gallery' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+            }`}>
+              Manager
             </span>
           </button>
         )}
@@ -3093,6 +3115,13 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Tab Content: Event Gallery */}
+      {activeTab === 'gallery' && (
+        <div className="space-y-6 animate-fade-in">
+          <GalleryManager />
         </div>
       )}
 

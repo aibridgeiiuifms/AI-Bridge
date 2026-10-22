@@ -1,0 +1,355 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { useParams } from 'next/navigation';
+import { 
+  Calendar, 
+  MapPin, 
+  ExternalLink, 
+  ArrowLeft, 
+  Sparkles, 
+  ImageIcon, 
+  User, 
+  Folder,
+  Layers,
+  ChevronRight
+} from 'lucide-react';
+import { fetchFolderWithEventsBySlug } from '@/lib/gallery';
+import { GalleryFolderWithEvents, GalleryEventWithPictures, GalleryPictureWithTags } from '@/types/database';
+import MarkdownView from '@/components/MarkdownView';
+import GalleryLightbox from '@/components/gallery/GalleryLightbox';
+
+export default function FolderGalleryPage() {
+  const params = useParams();
+  const folderSlug = params?.folderSlug as string;
+
+  const [folder, setFolder] = useState<GalleryFolderWithEvents | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Lightbox State
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxPictures, setLightboxPictures] = useState<GalleryPictureWithTags[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxEventTitle, setLightboxEventTitle] = useState('');
+
+  useEffect(() => {
+    if (!folderSlug) return;
+    async function loadFolder() {
+      setLoading(true);
+      try {
+        const data = await fetchFolderWithEventsBySlug(folderSlug);
+        setFolder(data);
+      } catch (err) {
+        console.error('Failed to load folder:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadFolder();
+  }, [folderSlug]);
+
+  const openLightbox = (pictures: GalleryPictureWithTags[], index: number, eventTitle: string) => {
+    setLightboxPictures(pictures);
+    setLightboxIndex(index);
+    setLightboxEventTitle(eventTitle);
+    setLightboxOpen(true);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-4">
+        <div className="w-10 h-10 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm font-semibold text-slate-500 animate-pulse">
+          Opening Event Album...
+        </p>
+      </div>
+    );
+  }
+
+  if (!folder) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-6">
+        <div className="w-16 h-16 mx-auto rounded-3xl bg-amber-100 text-amber-800 flex items-center justify-center">
+          <Folder className="w-8 h-8" />
+        </div>
+        <h1 className="text-2xl font-black text-slate-900">Album Not Found</h1>
+        <p className="text-sm text-slate-500 max-w-md mx-auto">
+          The requested event folder does not exist or may have been archived.
+        </p>
+        <Link
+          href="/events"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-sm"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to All Albums
+        </Link>
+      </div>
+    );
+  }
+
+  const events = folder.events || [];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100/60 pb-28">
+      {/* Top Breadcrumb & Return Bar */}
+      <div className="border-b border-slate-200/80 bg-white/80 backdrop-blur-md sticky top-16 z-30">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2 text-slate-500 font-medium overflow-hidden">
+            <Link 
+              href="/events" 
+              className="hover:text-emerald-800 transition-colors flex items-center gap-1.5 shrink-0"
+            >
+              <Folder className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Events Gallery</span>
+            </Link>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />
+            <span className="truncate font-bold text-slate-900">
+              {folder.title}
+            </span>
+          </div>
+
+          <Link
+            href="/events"
+            className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-700 font-bold transition-all text-[11px] shrink-0"
+          >
+            <ArrowLeft className="w-3 h-3" />
+            <span>All Albums</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* Album Header Banner */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-10">
+        <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-10 shadow-sm relative overflow-hidden">
+          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-emerald-50 rounded-full blur-3xl opacity-60 pointer-events-none" />
+
+          <div className="relative space-y-4 max-w-3xl">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-emerald-900 bg-emerald-100/80 px-3 py-1 rounded-full border border-emerald-200/80">
+                <Folder className="w-3 h-3 text-emerald-700" />
+                Event Album
+              </span>
+              <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+                {events.length} {events.length === 1 ? 'Event Documented' : 'Events Documented'}
+              </span>
+            </div>
+
+            <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">
+              {folder.title}
+            </h1>
+
+            {folder.description && (
+              <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
+                {folder.description}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Sticky Card Stack Container */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+        {events.length === 0 ? (
+          <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-3">
+            <ImageIcon className="w-10 h-10 text-slate-300 mx-auto" />
+            <h3 className="text-base font-bold text-slate-800">No Events Added Yet</h3>
+            <p className="text-xs text-slate-500">
+              Photographs and documentation for this album will appear here soon.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-12 relative">
+            {events.map((evt, idx) => {
+              const pictures = evt.pictures || [];
+              const coverPic = pictures.find(p => p.is_cover) || pictures[0];
+              const remainingPics = pictures.filter(p => p.id !== coverPic?.id);
+
+              // Distinct sticky offset so each subsequent card stacks cleanly over the previous
+              const stickyTopPx = 88 + (idx * 10);
+
+              return (
+                <article
+                  key={evt.id || idx}
+                  style={{ top: `${stickyTopPx}px` }}
+                  className="sticky z-10 bg-white rounded-3xl border border-slate-200/90 shadow-xl shadow-slate-200/60 hover:shadow-2xl hover:shadow-slate-300/60 transition-all duration-300 overflow-hidden"
+                >
+                  {/* Decorative Card Top Indicator */}
+                  <div className="h-1.5 bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-700" />
+
+                  <div className="p-6 sm:p-8 lg:p-10 space-y-6">
+                    {/* Metadata Header Bar */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Event Index Badge */}
+                        <span className="text-xs font-black text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/60">
+                          #{idx + 1}
+                        </span>
+
+                        {/* Location Badge */}
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 px-3 py-1 rounded-lg">
+                          <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                          <span>{evt.location}</span>
+                        </span>
+
+                        {/* Date Badge — STRICTLY HIDDEN IF is_date_visible is false */}
+                        {evt.is_date_visible && evt.event_date && (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 px-3 py-1 rounded-lg">
+                            <Calendar className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+                            <span>
+                              {new Date(evt.event_date).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric',
+                                timeZone: 'UTC'
+                              })}
+                            </span>
+                          </span>
+                        )}
+                      </div>
+
+                      {/* External Links (Chips) */}
+                      {evt.external_links && evt.external_links.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          {evt.external_links.map((link, lIdx) => (
+                            <a
+                              key={lIdx}
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-md transition-colors border border-emerald-200/60"
+                            >
+                              <span>{link.label}</span>
+                              <ExternalLink className="w-3 h-3 text-emerald-600" />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Event Title */}
+                    <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-snug">
+                      {evt.title}
+                    </h2>
+
+                    {/* Formatted Markdown Caption / Description */}
+                    <div className="bg-slate-50/70 border border-slate-100 rounded-2xl p-5 sm:p-6">
+                      <MarkdownView content={evt.description_markdown} />
+                    </div>
+
+                    {/* Multi-Picture Showcase (Click to Open Lightbox) */}
+                    {pictures.length > 0 && (
+                      <div className="space-y-3 pt-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                            <ImageIcon className="w-3.5 h-3.5 text-emerald-700" />
+                            Photo Showcase ({pictures.length} {pictures.length === 1 ? 'Photo' : 'Photos'})
+                          </span>
+                          <span className="text-[11px] text-slate-400 font-medium">
+                            Click any photo for interactive fullscreen view
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          {/* Primary Cover Image (Spans 2 columns on medium screens) */}
+                          {coverPic && (
+                            <div
+                              onClick={() => openLightbox(pictures, 0, evt.title)}
+                              className="relative h-64 sm:h-72 sm:col-span-2 rounded-2xl overflow-hidden cursor-pointer group shadow-sm border border-slate-200"
+                            >
+                              <Image
+                                src={coverPic.image_url}
+                                alt={coverPic.caption || evt.title}
+                                fill
+                                sizes="(max-width: 768px) 100vw, 600px"
+                                className="object-cover group-hover:scale-105 transition-transform duration-500"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
+
+                              {/* Caption overlay on cover */}
+                              <div className="absolute bottom-3 left-3 right-3 text-white space-y-1">
+                                {coverPic.caption && (
+                                  <p className="text-xs sm:text-sm font-semibold truncate drop-shadow">
+                                    {coverPic.caption}
+                                  </p>
+                                )}
+                                
+                                {/* Tagged Team Members chips on cover */}
+                                {coverPic.tags && coverPic.tags.length > 0 && (
+                                  <div className="flex items-center gap-1.5 pt-1 overflow-x-auto">
+                                    <span className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider">
+                                      Tagged:
+                                    </span>
+                                    {coverPic.tags.map((t, tIdx) => (
+                                      <span
+                                        key={tIdx}
+                                        className="text-[10px] bg-white/20 backdrop-blur-md px-2 py-0.5 rounded-full text-white font-medium"
+                                      >
+                                        {t.member?.full_name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Secondary Thumbnails Stack */}
+                          <div className="grid grid-cols-2 sm:grid-cols-1 gap-3">
+                            {remainingPics.slice(0, 2).map((pic, pIdx) => {
+                              const actualIndex = pictures.findIndex(p => p.id === pic.id);
+                              const isLastVisible = pIdx === 1 && remainingPics.length > 2;
+                              const extraCount = remainingPics.length - 2;
+
+                              return (
+                                <div
+                                  key={pic.id || pIdx}
+                                  onClick={() => openLightbox(pictures, actualIndex, evt.title)}
+                                  className="relative h-30 sm:h-[138px] rounded-2xl overflow-hidden cursor-pointer group shadow-sm border border-slate-200"
+                                >
+                                  <Image
+                                    src={pic.image_url}
+                                    alt={pic.caption || `Photo ${actualIndex + 1}`}
+                                    fill
+                                    sizes="300px"
+                                    className="object-cover group-hover:scale-105 transition-transform duration-500"
+                                  />
+                                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
+
+                                  {isLastVisible && extraCount > 0 && (
+                                    <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center text-white text-center p-2">
+                                      <div>
+                                        <span className="text-lg font-black block">+{extraCount}</span>
+                                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300">
+                                          More Photos
+                                        </span>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Fullscreen Interactive Lightbox */}
+      <GalleryLightbox
+        pictures={lightboxPictures}
+        initialIndex={lightboxIndex}
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        eventTitle={lightboxEventTitle}
+      />
+    </div>
+  );
+}
