@@ -75,15 +75,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Failed to update survey link.' }, { status: 500 });
     }
 
-    // Also link legacy surveys table if row exists
-    try {
-      await adminSupabase
-        .from('surveys')
-        .update({ user_id: user.id, respondent_email: userEmail })
-        .eq('id', surveyId);
-    } catch (e) {
-      // Non-critical mirror update
-    }
+
 
     return NextResponse.json({
       success: true,

@@ -55,17 +55,16 @@ export async function GET() {
           countsMap[c] = (countsMap[c] || 0) + 1;
         }
       }
-    } else {
-      const { data: surveyCounts } = await supabase
-        .from('surveys')
-        .select('extracted_dept_code');
+    }
+    const { data: teacherDeptCounts } = await supabase
+      .from('teacher_surveys')
+      .select('dept_code');
 
-      if (surveyCounts) {
-        for (const row of surveyCounts) {
-          if (row.extracted_dept_code) {
-            const c = row.extracted_dept_code.toUpperCase();
-            countsMap[c] = (countsMap[c] || 0) + 1;
-          }
+    if (teacherDeptCounts) {
+      for (const row of teacherDeptCounts) {
+        if (row.dept_code) {
+          const c = row.dept_code.toUpperCase();
+          countsMap[c] = (countsMap[c] || 0) + 1;
         }
       }
     }

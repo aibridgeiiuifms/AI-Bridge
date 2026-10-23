@@ -186,14 +186,6 @@ export default function StudentPortal() {
               if (!preTeacher.user_id && user.id) {
                 supabase.from('teacher_surveys').update({ user_id: user.id }).eq('id', preTeacher.id).then();
               }
-            } else {
-              const { data: legacyPre } = await supabase
-                .from('surveys')
-                .select('id')
-                .or(`user_id.eq.${user.id},respondent_email.ilike.${userEmail}`)
-                .eq('survey_type', 'pre')
-                .maybeSingle();
-              if (legacyPre) hasPre = true;
             }
           }
         }
@@ -275,14 +267,6 @@ export default function StudentPortal() {
               if (!postTeacher.user_id && user.id) {
                 supabase.from('teacher_surveys').update({ user_id: user.id }).eq('id', postTeacher.id).then();
               }
-            } else {
-              const { data: legacyPost } = await supabase
-                .from('surveys')
-                .select('id')
-                .or(`user_id.eq.${user.id},respondent_email.ilike.${userEmail}`)
-                .eq('survey_type', 'post')
-                .maybeSingle();
-              if (legacyPost) hasPost = true;
             }
           }
         }

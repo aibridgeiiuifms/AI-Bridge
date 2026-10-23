@@ -50,14 +50,7 @@ export async function GET(req: NextRequest) {
       .select('*', { count: 'exact', head: true })
       .eq('survey_type', 'pre');
 
-    let preSurveysCount = (studentPreCount || 0) + (teacherPreCount || 0);
-    if (preSurveysCount === 0) {
-      const { count: legacyPreCount } = await supabase
-        .from('surveys')
-        .select('*', { count: 'exact', head: true })
-        .eq('survey_type', 'pre');
-      preSurveysCount = legacyPreCount || 0;
-    }
+    const preSurveysCount = (studentPreCount || 0) + (teacherPreCount || 0);
 
     const { count: passedQuizzesCount } = await supabase
       .from('quiz_attempts')
@@ -95,17 +88,6 @@ export async function GET(req: NextRequest) {
 
       const totalH = allHourEntries.reduce((acc, curr) => acc + parseCatVal(curr.hours_saved_category), 0);
       avgHours = parseFloat((totalH / allHourEntries.length).toFixed(1));
-    } else {
-      // Fallback to legacy surveys table
-      const { data: surveyHours } = await supabase
-        .from('surveys')
-        .select('hours_saved_estimate')
-        .not('hours_saved_estimate', 'is', null);
-
-      if (surveyHours && surveyHours.length > 0) {
-        const totalHours = surveyHours.reduce((acc, curr) => acc + (Number(curr.hours_saved_estimate) || 0), 0);
-        avgHours = parseFloat((totalHours / surveyHours.length).toFixed(1));
-      }
     }
 
     // 5. Fetch mcq_access_levels map from system_settings

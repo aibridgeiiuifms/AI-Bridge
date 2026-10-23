@@ -12,7 +12,7 @@ import {
   Download,
   AlertTriangle
 } from 'lucide-react';
-import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@supabase/supabase-js';
 
 interface VerifyPageProps {
   params: Promise<{ id: string }>;
@@ -21,18 +21,24 @@ interface VerifyPageProps {
 export default async function VerifyPage({ params }: VerifyPageProps) {
   const { id } = await params;
   const decodedId = decodeURIComponent(id || '').trim();
+  const cleanSuffix = decodedId.replace(/^AIB-/i, '').trim();
 
-  const supabase = createAdminClient();
+  // Public verification uses standard anon client (certificates has public SELECT policy)
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ijwucoxajmlzpkcqvrpw.supabase.co';
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_MTFDKPww9S28kVqsLbVKvA_gWGPn25H';
+  const supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 
-  // Case-insensitive query against public.certificates by serial, verification UUID, or legacy ID
-  const { data: cert, error } = await supabase
+  // Query by full certificate_id, AIB- prefixed suffix, wildcard suffix, verification_code UUID, or legacy ID
+  const { data: cert } = await supabase
     .from('certificates')
     .select('*')
-    .or(`certificate_id.ilike.${decodedId},verification_code.ilike.${decodedId},legacy_certificate_id.ilike.${decodedId}`)
+    .or(`certificate_id.ilike.${decodedId},certificate_id.ilike.AIB-${cleanSuffix},certificate_id.ilike.%${cleanSuffix}%,verification_code.ilike.${decodedId},legacy_certificate_id.ilike.${decodedId}`)
     .maybeSingle();
 
   // 1. Not Found View
-  if (!cert || error) {
+  if (!cert) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-16 space-y-6">
         <Link

@@ -141,8 +141,9 @@ export async function GET(req: NextRequest) {
     // 1. Verify User Has Completed Step 1 (Pre-Survey)
     let hasPre = false;
 
-    // Check student_surveys table
-    const { data: preStudent } = await adminSupabase
+    // Check student_surveys table using authenticated client (fallback to admin client)
+    const dbClient = supabase || adminSupabase;
+    const { data: preStudent } = await dbClient
       .from('student_surveys')
       .select('id')
       .or(`user_id.eq.${user.id},student_email.ilike.${userEmail}`)
@@ -153,7 +154,7 @@ export async function GET(req: NextRequest) {
       hasPre = true;
     } else {
       // Check fallback student answers JSONB
-      const { data: preByAnswers } = await adminSupabase
+      const { data: preByAnswers } = await dbClient
         .from('student_surveys')
         .select('id')
         .filter('answers->>Student Email Address', 'ilike', userEmail)
@@ -164,7 +165,7 @@ export async function GET(req: NextRequest) {
         hasPre = true;
       } else {
         // Check teacher_surveys table
-        const { data: preTeacher } = await adminSupabase
+        const { data: preTeacher } = await dbClient
           .from('teacher_surveys')
           .select('id')
           .or(`user_id.eq.${user.id},teacher_email.ilike.${userEmail}`)
@@ -173,16 +174,6 @@ export async function GET(req: NextRequest) {
 
         if (preTeacher) {
           hasPre = true;
-        } else {
-          // Check legacy surveys table
-          const { data: legacyPre } = await adminSupabase
-            .from('surveys')
-            .select('id')
-            .or(`user_id.eq.${user.id},respondent_email.ilike.${userEmail}`)
-            .eq('survey_type', 'pre')
-            .maybeSingle();
-
-          if (legacyPre) hasPre = true;
         }
       }
     }
