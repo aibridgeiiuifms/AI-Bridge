@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import BackButton from '@/components/BackButton';
 import { 
   ShieldCheck, 
   ShieldAlert,
@@ -7,7 +8,6 @@ import {
   BookOpen, 
   Building2, 
   CheckCircle, 
-  ArrowLeft,
   Download,
   AlertTriangle
 } from 'lucide-react';
@@ -41,13 +41,7 @@ export default async function VerifyPage({ params }: VerifyPageProps) {
   if (!cert) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-16 space-y-6">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Home
-        </Link>
+        <BackButton label="Back" fallback="/portal" />
 
         <div className="bg-white rounded-3xl border border-rose-200 shadow-xl overflow-hidden">
           <div className="bg-rose-700 text-white p-6 sm:p-8 flex items-center justify-between">
@@ -104,13 +98,7 @@ export default async function VerifyPage({ params }: VerifyPageProps) {
   if (!cert.is_valid) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-16 space-y-6">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Home
-        </Link>
+        <BackButton label="Back" fallback="/portal" />
 
         <div className="bg-white rounded-3xl border border-rose-300 shadow-xl overflow-hidden">
           <div className="bg-rose-900 text-white p-6 sm:p-8 flex items-center justify-between">
@@ -187,9 +175,9 @@ export default async function VerifyPage({ params }: VerifyPageProps) {
     if (cert.department && cert.department !== 'Faculty of Management Sciences (FMS)') {
       deptDisplay = cert.department;
     } else if (!cert.student_id) {
-      // External / non-IIUI participant with no roll number
-      deptDisplay = 'Verified Participant';
-      facultyDisplay = 'International Islamic University Islamabad (IIUI)';
+      // External / non-IIUI participant with no roll number: leave completely blank
+      deptDisplay = '';
+      facultyDisplay = '';
     } else {
       // IIUI student whose dept could not be resolved from mappings
       deptDisplay = 'International Islamic University Islamabad (IIUI)';
@@ -217,13 +205,7 @@ export default async function VerifyPage({ params }: VerifyPageProps) {
   // 3. Valid Verified Credential View
   return (
     <div className="max-w-3xl mx-auto px-4 py-16 space-y-8 animate-fade-in">
-      <Link
-        href="/"
-        className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back to Home
-      </Link>
+      <BackButton label="Back" fallback="/portal" />
 
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
         {/* Verification Status Header */}
@@ -234,16 +216,16 @@ export default async function VerifyPage({ params }: VerifyPageProps) {
             </div>
             <div>
               <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-200">
-                Official Credential Verification
+                AUTHENTICATION STATUS
               </span>
               <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-                Valid & Authentic Certificate
+                Certificate Verified
               </h1>
             </div>
           </div>
           <div className="hidden sm:block text-right">
             <span className="px-3.5 py-1.5 rounded-full text-xs font-extrabold bg-emerald-700 border border-emerald-500/50 text-white shadow-xs">
-              STATUS: VERIFIED & VALID
+              STATUS: VERIFIED
             </span>
           </div>
         </div>
@@ -252,24 +234,26 @@ export default async function VerifyPage({ params }: VerifyPageProps) {
         <div className="p-6 sm:p-10 space-y-8">
           <div className="border-b border-slate-100 pb-6 text-center space-y-2">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              This official credential certifies that
+              This Digital Credential belongs to
             </p>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
               {cert.recipient_name}
             </h2>
-            <p className="text-xs text-slate-500 font-medium">
-              {cert.student_id ? (
-                <>
-                  Registration / Roll No:{' '}
-                  <span className="font-mono text-slate-800 font-bold">{cert.student_id}</span>
-                  {' • '}
-                </>
-              ) : null}
-              <span className="text-slate-700 font-semibold">{deptDisplay}</span>
-              {facultyDisplay && (
-                <span className="text-slate-400"> · {facultyDisplay}</span>
-              )}
-            </p>
+            {cert.student_id ? (
+              <p className="text-xs text-slate-500 font-medium">
+                Registration / Roll No:{' '}
+                <span className="font-mono text-slate-800 font-bold">{cert.student_id}</span>
+                {deptDisplay ? (
+                  <>
+                    {' • '}
+                    <span className="text-slate-700 font-semibold">{deptDisplay}</span>
+                    {facultyDisplay ? (
+                      <span className="text-slate-400"> · {facultyDisplay}</span>
+                    ) : null}
+                  </>
+                ) : null}
+              </p>
+            ) : null}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
@@ -305,8 +289,8 @@ export default async function VerifyPage({ params }: VerifyPageProps) {
                 <Award className="w-3.5 h-3.5 text-emerald-600" />
                 Authorized Signatories
               </span>
-              <p className="font-bold text-slate-900">Dr. Abdul Zahid Khan & Prof. Dr. Ahmed Shuja Syed</p>
-              <p className="text-[11px] text-slate-500">Chairperson TPM, FMS & Vice President (Research & Enterprise), IIUI</p>
+              <p className="font-bold text-slate-900">Dr. Abdul Zahid Khan & Dr. Syed Zulfiqar Ali Shah</p>
+              <p className="text-[11px] text-slate-500">Chairman TPM, FMS, IIUI & Dean FMS, IIUI</p>
             </div>
           </div>
 
