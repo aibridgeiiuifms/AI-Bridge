@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  outputFileTracingIncludes: {
+    '/api/portal/certificate': ['./Assets/**/*'],
+  },
   images: {
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 2592000,

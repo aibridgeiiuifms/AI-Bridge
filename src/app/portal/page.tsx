@@ -638,19 +638,16 @@ export default function StudentPortal() {
           <div>
             {certificateReady ? (
               <div className="flex flex-col sm:flex-row gap-3">
-                <Link
-                  href={certificate?.certificate_id ? `/verify/${certificate.certificate_id}` : '#'}
-                  onClick={(e) => {
-                    if (!certificate?.certificate_id) {
-                      e.preventDefault();
-                      handleDownloadCertificate();
-                    }
-                  }}
-                  className="px-5 py-3 rounded-xl font-bold text-xs bg-white text-emerald-950 hover:bg-emerald-50 shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
-                >
-                  <ShieldCheck className="w-4 h-4 text-emerald-700" />
-                  <span>Verify Status</span>
-                </Link>
+                {/* FR-1 fix: Verify Status only shown when certificate_id is confirmed in DB */}
+                {certificate?.certificate_id ? (
+                  <Link
+                    href={`/verify/${certificate.certificate_id}`}
+                    className="px-5 py-3 rounded-xl font-bold text-xs bg-white text-emerald-950 hover:bg-emerald-50 shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                    <span>Verify Status</span>
+                  </Link>
+                ) : null}
                 <button
                   onClick={handleDownloadCertificate}
                   disabled={isDownloadingCert}
@@ -661,10 +658,15 @@ export default function StudentPortal() {
                       <Loader2 className="w-4 h-4 animate-spin" />
                       <span>Generating Certificate...</span>
                     </>
-                  ) : (
+                  ) : certificate?.certificate_id ? (
                     <>
                       <Download className="w-4 h-4" />
                       <span>Download PDF Certificate</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4" />
+                      <span>Generate &amp; Download Certificate</span>
                     </>
                   )}
                 </button>

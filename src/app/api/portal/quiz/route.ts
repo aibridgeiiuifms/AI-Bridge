@@ -141,8 +141,9 @@ export async function GET(req: NextRequest) {
     // 1. Verify User Has Completed Step 1 (Pre-Survey)
     let hasPre = false;
 
-    // Check student_surveys table using authenticated client (fallback to admin client)
-    const dbClient = supabase || adminSupabase;
+    // Always use admin client to bypass RLS — supabase client object is always truthy
+    // so `supabase || adminSupabase` would NEVER select adminSupabase (C-1 fix)
+    const dbClient = adminSupabase;
     const { data: preStudent } = await dbClient
       .from('student_surveys')
       .select('id')
