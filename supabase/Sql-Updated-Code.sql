@@ -175,6 +175,63 @@ CREATE TABLE public.members (
   mcq_access_level text NOT NULL DEFAULT 'none'::text CHECK (mcq_access_level = ANY (ARRAY['none'::text, 'viewer'::text, 'moderator'::text, 'manager'::text])),
   created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  can_manage_gallery boolean NOT NULL DEFAULT false,
   CONSTRAINT members_pkey PRIMARY KEY (id),
   CONSTRAINT members_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.gallery_folders (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  slug text NOT NULL UNIQUE,
+  description text,
+  thumbnail_url text NOT NULL,
+  display_order integer NOT NULL DEFAULT 0,
+  is_published boolean NOT NULL DEFAULT true,
+  is_archived boolean NOT NULL DEFAULT false,
+  created_by uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT gallery_folders_pkey PRIMARY KEY (id),
+  CONSTRAINT gallery_folders_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.gallery_events (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  folder_id uuid NOT NULL,
+  title text NOT NULL,
+  slug text NOT NULL,
+  location text NOT NULL,
+  event_date date,
+  is_date_visible boolean NOT NULL DEFAULT true,
+  description_markdown text NOT NULL DEFAULT ''::text,
+  external_links jsonb NOT NULL DEFAULT '[]'::jsonb,
+  display_order integer NOT NULL DEFAULT 0,
+  is_published boolean NOT NULL DEFAULT true,
+  is_archived boolean NOT NULL DEFAULT false,
+  created_by uuid,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT gallery_events_pkey PRIMARY KEY (id),
+  CONSTRAINT gallery_events_folder_id_fkey FOREIGN KEY (folder_id) REFERENCES public.gallery_folders(id),
+  CONSTRAINT gallery_events_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.gallery_pictures (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  event_id uuid NOT NULL,
+  image_url text NOT NULL,
+  storage_path text NOT NULL,
+  caption text,
+  display_order integer NOT NULL DEFAULT 0,
+  is_cover boolean NOT NULL DEFAULT false,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT gallery_pictures_pkey PRIMARY KEY (id),
+  CONSTRAINT gallery_pictures_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.gallery_events(id)
+);
+CREATE TABLE public.gallery_picture_tags (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  picture_id uuid NOT NULL,
+  member_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT gallery_picture_tags_pkey PRIMARY KEY (id),
+  CONSTRAINT gallery_picture_tags_picture_id_fkey FOREIGN KEY (picture_id) REFERENCES public.gallery_pictures(id),
+  CONSTRAINT gallery_picture_tags_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.members(id)
 );
