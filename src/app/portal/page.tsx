@@ -68,6 +68,7 @@ export default function StudentPortal() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
+        setSurveyModalOpen(false);
         await checkCertificationProgress();
       } else {
         // Revert optimistic update on failure
@@ -151,7 +152,7 @@ export default function StudentPortal() {
         if (preStudent) {
           hasPre = true;
           if (!preStudent.user_id && user.id) {
-            supabase.from('student_surveys').update({ user_id: user.id }).eq('id', preStudent.id).then();
+            await supabase.from('student_surveys').update({ user_id: user.id }).eq('id', preStudent.id);
           }
         } else {
           // Fallback: check answers JSONB for 'Student Email Address' field
@@ -167,10 +168,9 @@ export default function StudentPortal() {
             hasPre = true;
             // Opportunistically fix user_id and student_email for this row
             if (user.id) {
-              supabase.from('student_surveys')
+              await supabase.from('student_surveys')
                 .update({ user_id: user.id, student_email: userEmail })
-                .eq('id', preByAnswers.id)
-                .then();
+                .eq('id', preByAnswers.id);
             }
           } else {
             // Cross-table check in case user submitted teacher form
@@ -184,7 +184,7 @@ export default function StudentPortal() {
             if (preTeacher) {
               hasPre = true;
               if (!preTeacher.user_id && user.id) {
-                supabase.from('teacher_surveys').update({ user_id: user.id }).eq('id', preTeacher.id).then();
+                await supabase.from('teacher_surveys').update({ user_id: user.id }).eq('id', preTeacher.id);
               }
             }
           }
@@ -235,7 +235,7 @@ export default function StudentPortal() {
         if (postStudent) {
           hasPost = true;
           if (!postStudent.user_id && user.id) {
-            supabase.from('student_surveys').update({ user_id: user.id }).eq('id', postStudent.id).then();
+            await supabase.from('student_surveys').update({ user_id: user.id }).eq('id', postStudent.id);
           }
         } else {
           // Fallback: check answers JSONB for 'Student Email Address' field
@@ -249,10 +249,9 @@ export default function StudentPortal() {
           if (postByAnswers) {
             hasPost = true;
             if (user.id) {
-              supabase.from('student_surveys')
+              await supabase.from('student_surveys')
                 .update({ user_id: user.id, student_email: userEmail })
-                .eq('id', postByAnswers.id)
-                .then();
+                .eq('id', postByAnswers.id);
             }
           } else {
             const { data: postTeacher } = await supabase
@@ -265,7 +264,7 @@ export default function StudentPortal() {
             if (postTeacher) {
               hasPost = true;
               if (!postTeacher.user_id && user.id) {
-                supabase.from('teacher_surveys').update({ user_id: user.id }).eq('id', postTeacher.id).then();
+                await supabase.from('teacher_surveys').update({ user_id: user.id }).eq('id', postTeacher.id);
               }
             }
           }
@@ -613,25 +612,59 @@ export default function StudentPortal() {
         </div>
       </div>
 
-      {/* Official Certificate Download Card */}
+      {/* Official Certificate Download Card (UI-2: Distinct styling for Ready to Generate vs Already Issued) */}
       <div className={`rounded-3xl p-8 border transition-all ${
-        certificateReady
+        certificate?.certificate_id
           ? 'bg-gradient-to-br from-emerald-900 to-teal-950 text-white border-emerald-700 shadow-xl'
+          : certificateReady
+          ? 'bg-gradient-to-br from-amber-950 via-slate-900 to-amber-900 text-white border-amber-500/60 shadow-xl ring-1 ring-amber-400/30'
           : 'bg-white border-slate-200 text-slate-900 shadow-sm'
       }`}>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="space-y-3 max-w-xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-400 text-slate-900">
+            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+              certificate?.certificate_id
+                ? 'bg-emerald-400 text-slate-950'
+                : certificateReady
+                ? 'bg-amber-400 text-slate-950 animate-pulse'
+                : 'bg-slate-100 text-slate-700'
+            }`}>
               <Award className="w-3.5 h-3.5" />
-              <span>Official Verification Certificate</span>
+              <span>
+                {certificate?.certificate_id
+                  ? 'Official Credential Issued'
+                  : certificateReady
+                  ? 'Steps Completed • Ready to Generate'
+                  : 'Official Verification Certificate'}
+              </span>
             </div>
             <h2 className={`text-2xl font-extrabold ${certificateReady ? 'text-white' : 'text-slate-900'}`}>
-              {certificateReady ? 'Your Certificate is Ready for Download!' : 'Certificate Locked'}
+              {certificate?.certificate_id
+                ? 'Your Official Certificate is Issued & Verified!'
+                : certificateReady
+                ? '🎉 Congratulations! Generate Your Official Certificate'
+                : 'Certificate Locked'}
             </h2>
-            <p className={`text-xs sm:text-sm leading-relaxed ${certificateReady ? 'text-emerald-100' : 'text-slate-500'}`}>
-              {certificateReady
-                ? 'Congratulations! You have fulfilled all 3 requirements. Your certificate contains an embedded QR code linking to the public IIUI verification registry.'
-                : 'To unlock your certificate, you must complete the Pre-Survey, achieve at least 75% on the 12-MCQ Course Assessment (9/12 to pass), and complete the Post-Survey.'}
+            <p className={`text-xs sm:text-sm leading-relaxed ${
+              certificate?.certificate_id
+                ? 'text-emerald-100'
+                : certificateReady
+                ? 'text-amber-100'
+                : 'text-slate-500'
+            }`}>
+              {certificate?.certificate_id ? (
+                <>
+                  Your certificate has been formally registered with Serial:{' '}
+                  <span className="font-mono font-bold text-amber-300 bg-black/30 px-1.5 py-0.5 rounded">
+                    {certificate.certificate_id}
+                  </span>
+                  . Download your stamped PDF or view its live public registry entry.
+                </>
+              ) : certificateReady ? (
+                'You have completed all 3 evaluation requirements! Click below to initialize your unique cryptographic serial number and download your stamped PDF certificate.'
+              ) : (
+                'To unlock your certificate, you must complete the Pre-Survey, achieve at least 75% on the 12-MCQ Course Assessment (9/12 to pass), and complete the Post-Survey.'
+              )}
             </p>
           </div>
 
@@ -651,7 +684,11 @@ export default function StudentPortal() {
                 <button
                   onClick={handleDownloadCertificate}
                   disabled={isDownloadingCert}
-                  className="px-6 py-3 rounded-xl font-bold text-xs bg-amber-400 text-slate-900 hover:bg-amber-300 disabled:opacity-50 shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className={`px-6 py-3 rounded-xl font-bold text-xs shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 ${
+                    certificate?.certificate_id
+                      ? 'bg-emerald-400 text-slate-950 hover:bg-emerald-300'
+                      : 'bg-amber-400 text-slate-950 hover:bg-amber-300'
+                  }`}
                 >
                   {isDownloadingCert ? (
                     <>
@@ -665,7 +702,7 @@ export default function StudentPortal() {
                     </>
                   ) : (
                     <>
-                      <Download className="w-4 h-4" />
+                      <Award className="w-4 h-4" />
                       <span>Generate &amp; Download Certificate</span>
                     </>
                   )}
