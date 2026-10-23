@@ -513,6 +513,14 @@ export default function StudentPortal() {
                       <span>AI detected your survey with a slight typo above! Click <strong>&quot;Link My Survey&quot;</strong> to claim.</span>
                     </div>
                   )}
+                  {/* UX-2: Email reminder tip for students who already submitted the form */}
+                  <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900 flex items-start gap-1.5">
+                    <HelpCircle className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Already filled the survey?</strong> Make sure you logged in to this portal with the <strong>same email you entered in the form</strong>. The name displayed on your certificate will be the name registered with that email. For any name issues, contact admin:{' '}
+                      <a href="mailto:ai.bridge.iiui.fms@gmail.com" className="underline font-semibold text-blue-700 hover:text-blue-900">ai.bridge.iiui.fms@gmail.com</a>
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
@@ -545,7 +553,7 @@ export default function StudentPortal() {
             <div className="pt-3 border-t border-slate-100">
               {quizPassed ? (
                 <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Passed ({quizScore || 9}/12)
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Passed ({quizScore ?? 9}/12)
                 </span>
               ) : preSurveyCompleted ? (
                 <Link
