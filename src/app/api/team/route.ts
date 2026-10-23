@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAmbassadorPortalAccess } from '@/lib/ambassador-access';
 
@@ -8,11 +9,11 @@ import { requireAmbassadorPortalAccess } from '@/lib/ambassador-access';
  * Backed by the consolidated `members` table (roster + invite role + permissions).
  */
 
-export const revalidate = 300; // Cache team data for 5 minutes
+export const revalidate = 0; // Fresh team data without stale cache
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = createAdminClient();
+    const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ijwucoxajmlzpkcqvrpw.supabase.co', process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_MTFDKPww9S28kVqsLbVKvA_gWGPn25H');
     const { searchParams } = new URL(req.url);
     const includeUnpublished = searchParams.get('all') === 'true';
 

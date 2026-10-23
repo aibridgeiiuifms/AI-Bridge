@@ -18,11 +18,10 @@ export default function HomePage() {
         <SdgSharedLayoutWheel />
       </section>
 
-      {/* Section 4: Events & Impact Gallery with Interactive Album Modal (#events) */}
-      <EventsSection />
-
       {/* Section 5: Institutional Leadership & 11 SDG Ambassadors (#team) */}
       <TeamSection />
+      {/* Section 4: Events & Impact Gallery with Interactive Album Modal (#events) */}
+      <EventsSection />
     </div>
   );
 }
