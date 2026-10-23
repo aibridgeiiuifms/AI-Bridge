@@ -300,7 +300,14 @@ async function syncSurveyRow(supabase: any, rowData: any) {
       updated_at: new Date().toISOString(),
     };
 
-    await supabase.from('teacher_surveys').upsert(teacherPayload, { onConflict: 'match_key,survey_type' });
+    let { error: teacherErr } = await supabase.from('teacher_surveys').upsert(teacherPayload, { onConflict: 'match_key,survey_type' });
+    if (teacherErr && (teacherErr.message?.includes('match_key') || teacherErr.message?.includes('login_email'))) {
+      const { match_key, login_email, ...fallbackTeacherPayload } = teacherPayload;
+      const { error: fbTErr } = await supabase.from('teacher_surveys').upsert(fallbackTeacherPayload, { onConflict: 'teacher_email,survey_type' });
+      if (fbTErr) console.error('Fallback teacher upsert error:', fbTErr);
+    } else if (teacherErr) {
+      console.error('teacher_surveys upsert error:', teacherErr);
+    }
   } else {
     // 2. Save into student_surveys table
     const studentPayload = {
@@ -322,7 +329,14 @@ async function syncSurveyRow(supabase: any, rowData: any) {
       updated_at: new Date().toISOString(),
     };
 
-    await supabase.from('student_surveys').upsert(studentPayload, { onConflict: 'match_key,survey_type' });
+    let { error: studentErr } = await supabase.from('student_surveys').upsert(studentPayload, { onConflict: 'match_key,survey_type' });
+    if (studentErr && (studentErr.message?.includes('match_key') || studentErr.message?.includes('login_email'))) {
+      const { match_key, login_email, ...fallbackPayload } = studentPayload;
+      const { error: fbErr } = await supabase.from('student_surveys').upsert(fallbackPayload, { onConflict: 'student_email,survey_type' });
+      if (fbErr) console.error('Fallback student upsert error:', fbErr);
+    } else if (studentErr) {
+      console.error('student_surveys upsert error:', studentErr);
+    }
   }
 
   return { email, fullName, participantType, deptCode, semester, regNo };
@@ -492,8 +506,18 @@ export async function POST(req: NextRequest) {
       if (studentBatch.length > 0) {
         for (let i = 0; i < studentBatch.length; i += 100) {
           const chunk = studentBatch.slice(i, i + 100);
-          const { error } = await supabase.from('student_surveys').upsert(chunk, { onConflict: 'match_key,survey_type' });
-          if (!error) studentSuccessCount += chunk.length;
+          let { error } = await supabase.from('student_surveys').upsert(chunk, { onConflict: 'match_key,survey_type' });
+          if (error && (error.message?.includes('match_key') || error.message?.includes('login_email'))) {
+            console.warn('match_key column not found, falling back to student_email,survey_type for studentBatch');
+            const fallbackChunk = chunk.map(({ match_key, login_email, ...rest }) => rest);
+            const fbRes = await supabase.from('student_surveys').upsert(fallbackChunk, { onConflict: 'student_email,survey_type' });
+            error = fbRes.error;
+          }
+          if (error) {
+            console.error('Batch upsert student_surveys error:', error);
+          } else {
+            studentSuccessCount += chunk.length;
+          }
         }
       }
 
@@ -502,8 +526,18 @@ export async function POST(req: NextRequest) {
       if (teacherBatch.length > 0) {
         for (let i = 0; i < teacherBatch.length; i += 100) {
           const chunk = teacherBatch.slice(i, i + 100);
-          const { error } = await supabase.from('teacher_surveys').upsert(chunk, { onConflict: 'match_key,survey_type' });
-          if (!error) teacherSuccessCount += chunk.length;
+          let { error } = await supabase.from('teacher_surveys').upsert(chunk, { onConflict: 'match_key,survey_type' });
+          if (error && (error.message?.includes('match_key') || error.message?.includes('login_email'))) {
+            console.warn('match_key column not found, falling back to teacher_email,survey_type for teacherBatch');
+            const fallbackTeacherChunk = chunk.map(({ match_key, login_email, ...rest }) => rest);
+            const fbTRes = await supabase.from('teacher_surveys').upsert(fallbackTeacherChunk, { onConflict: 'teacher_email,survey_type' });
+            error = fbTRes.error;
+          }
+          if (error) {
+            console.error('Batch upsert teacher_surveys error:', error);
+          } else {
+            teacherSuccessCount += chunk.length;
+          }
         }
       }
 
