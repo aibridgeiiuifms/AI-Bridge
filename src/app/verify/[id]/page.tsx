@@ -30,11 +30,11 @@ export default async function VerifyPage({ params }: VerifyPageProps) {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // Query by full certificate_id, AIB- prefixed suffix, wildcard suffix, verification_code UUID, or legacy ID
+  // Query by full certificate_id, AIB- prefixed suffix, wildcard suffix, or verification_code UUID
   const { data: cert } = await supabase
     .from('certificates')
     .select('*')
-    .or(`certificate_id.ilike.${decodedId},certificate_id.ilike.AIB-${cleanSuffix},certificate_id.ilike.%${cleanSuffix}%,verification_code.ilike.${decodedId},legacy_certificate_id.ilike.${decodedId}`)
+    .or(`certificate_id.ilike.${decodedId},certificate_id.ilike.AIB-${cleanSuffix},certificate_id.ilike.%${cleanSuffix}%,verification_code.ilike.${decodedId}`)
     .maybeSingle();
 
   // 1. Not Found View
