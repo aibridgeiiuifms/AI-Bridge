@@ -9,7 +9,6 @@ import SdgWheelSkeleton from '@/components/skeletons/SdgWheelSkeleton';
 const HighlightsCarousel = dynamic(
   () => import('@/components/HighlightsCarousel'),
   {
-    ssr: false,
     loading: () => <HighlightsCarouselSkeleton />,
   }
 );
@@ -17,7 +16,6 @@ const HighlightsCarousel = dynamic(
 const SdgSharedLayoutWheel = dynamic(
   () => import('@/components/sdg-wheel/SdgSharedLayoutWheel'),
   {
-    ssr: false,
     loading: () => <SdgWheelSkeleton />,
   }
 );

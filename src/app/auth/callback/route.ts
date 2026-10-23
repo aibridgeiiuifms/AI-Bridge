@@ -38,11 +38,6 @@ export async function GET(request: Request) {
                 .update({ user_id: data.user.id })
                 .ilike('teacher_email', userEmail)
                 .is('user_id', null),
-              adminSupabase
-                .from('surveys')
-                .update({ user_id: data.user.id })
-                .ilike('respondent_email', userEmail)
-                .is('user_id', null),
             ]);
           } catch (linkErr) {
             console.error('Error auto-linking pre-registered surveys:', linkErr);

@@ -325,29 +325,6 @@ async function syncSurveyRow(supabase: any, rowData: any) {
     await supabase.from('student_surveys').upsert(studentPayload, { onConflict: 'match_key,survey_type' });
   }
 
-  // 3. Mirror into legacy surveys table for 100% backwards compatibility
-  try {
-    const legacyPayload = {
-      user_id: userId,
-      respondent_email: email,
-      match_key: matchKey,
-      survey_type: surveyType,
-      answers: answers,
-      hours_saved_estimate: 0,
-      comprehension_self_rating: rating,
-      feedback_notes: rowData.feedback_notes || null,
-      sheet_row_number: rowData.sheet_row_number || null,
-      extracted_reg_no: regNo,
-      extracted_dept_code: deptCode,
-      extracted_semester: semester,
-      submitted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    await supabase.from('surveys').upsert(legacyPayload, { onConflict: 'match_key,survey_type' });
-  } catch (err) {
-    // Non-fatal if legacy surveys table is migrated to view
-  }
-
   return { email, fullName, participantType, deptCode, semester, regNo };
 }
 
@@ -416,7 +393,21 @@ export async function POST(req: NextRequest) {
       const deptCodesToUpsert = new Set<string>();
       const studentBatch: any[] = [];
       const teacherBatch: any[] = [];
-      const legacyBatch: any[] = [];
+
+      // Query existing user_ids for these match keys so bulk sync never overwrites a bonded user_id with null
+      const allMatchKeys = validRows.map(r => r.resolved_match_key);
+      const { data: existingStudentLinks } = await supabase
+        .from('student_surveys')
+        .select('match_key, user_id')
+        .in('match_key', allMatchKeys)
+        .not('user_id', 'is', null);
+
+      const existingUserMap = new Map<string, string>();
+      if (existingStudentLinks) {
+        existingStudentLinks.forEach((row: any) => {
+          if (row.match_key && row.user_id) existingUserMap.set(row.match_key, row.user_id);
+        });
+      }
 
       for (const rowData of validRows) {
         const email = rowData.resolved_email;
@@ -435,7 +426,9 @@ export async function POST(req: NextRequest) {
         const rawDept = rowData.extracted_dept_code || rowData.dept_code || parsed.deptCode || null;
         const deptCode = rawDept ? rawDept.trim().toUpperCase() : null;
         const semester = rowData.extracted_semester || rowData.semester || parsed.semester || null;
-        const userId = profileMap.get(email) || null;
+        
+        // Preserve existing user_id if row is already linked, otherwise map from profiles
+        const userId = existingUserMap.get(matchKey) || profileMap.get(email) || null;
 
         if (deptCode) {
           deptCodesToUpsert.add(deptCode);
@@ -481,23 +474,6 @@ export async function POST(req: NextRequest) {
             updated_at: new Date().toISOString(),
           });
         }
-
-        legacyBatch.push({
-          user_id: userId,
-          respondent_email: email,
-          match_key: matchKey,
-          survey_type: surveyType,
-          answers: answers,
-          hours_saved_estimate: 0,
-          comprehension_self_rating: rating,
-          feedback_notes: rowData.feedback_notes || null,
-          sheet_row_number: rowData.sheet_row_number || null,
-          extracted_reg_no: regNo,
-          extracted_dept_code: deptCode,
-          extracted_semester: semester,
-          submitted_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
       }
 
       // Batch upsert department codes in 1 query
@@ -528,18 +504,6 @@ export async function POST(req: NextRequest) {
           const chunk = teacherBatch.slice(i, i + 100);
           const { error } = await supabase.from('teacher_surveys').upsert(chunk, { onConflict: 'match_key,survey_type' });
           if (!error) teacherSuccessCount += chunk.length;
-        }
-      }
-
-      // Batch mirror into legacy surveys
-      if (legacyBatch.length > 0) {
-        for (let i = 0; i < legacyBatch.length; i += 100) {
-          const chunk = legacyBatch.slice(i, i + 100);
-          try {
-            await supabase.from('surveys').upsert(chunk, { onConflict: 'match_key,survey_type' });
-          } catch (e) {
-            // Ignore legacy table error
-          }
         }
       }
 
@@ -576,7 +540,6 @@ export async function POST(req: NextRequest) {
       const matchKey = body.match_key || computeMatchKey(body, email);
       await supabase.from('student_surveys').delete().eq('match_key', matchKey).eq('survey_type', surveyType);
       await supabase.from('teacher_surveys').delete().eq('match_key', matchKey).eq('survey_type', surveyType);
-      await supabase.from('surveys').delete().eq('match_key', matchKey).eq('survey_type', surveyType);
 
       return NextResponse.json({
         success: true,
