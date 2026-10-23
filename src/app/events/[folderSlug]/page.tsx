@@ -15,7 +15,9 @@ import {
   Folder,
   Layers,
   Images,
-  ChevronRight
+  ChevronRight,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { fetchFolderWithEventsBySlug } from '@/lib/gallery';
 import { GalleryFolderWithEvents, GalleryEventWithPictures, GalleryPictureWithTags } from '@/types/database';
@@ -230,11 +232,6 @@ export default function FolderGalleryPage() {
                       {evt.title}
                     </h2>
 
-                    {/* Formatted Markdown Caption / Description */}
-                    <div className="bg-slate-50/70 border border-slate-100 rounded-2xl p-5 sm:p-6">
-                      <MarkdownView content={evt.description_markdown} />
-                    </div>
-
                     {/* Multi-Picture Showcase (Click to Open Lightbox) */}
                     {pictures.length > 0 && (
                       <div className="space-y-3 pt-2">
@@ -403,6 +400,11 @@ export default function FolderGalleryPage() {
                         )}
                       </div>
                     )}
+
+                    {/* Formatted Markdown Caption / Story (Placed below picture with Instagram-style 'see more') */}
+                    {evt.description_markdown && (
+                      <ExpandableEventDescription content={evt.description_markdown} />
+                    )}
                   </div>
                 </article>
               );
@@ -422,3 +424,58 @@ export default function FolderGalleryPage() {
     </div>
   );
 }
+
+/**
+ * Expandable Instagram-style Markdown Description
+ * Shows first lines with a subtle fade and "... see more" button,
+ * expanding smoothly to reveal full rich markdown content.
+ */
+function ExpandableEventDescription({ content }: { content?: string }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  if (!content || !content.trim()) return null;
+
+  // Deem content long if it exceeds ~180 characters or has multiple line breaks/paragraphs
+  const isLong =
+    content.trim().length > 180 ||
+    content.includes('\n\n') ||
+    content.split('\n').filter(l => l.trim().length > 0).length > 2;
+
+  return (
+    <div className="bg-slate-50/75 border border-slate-100 rounded-2xl p-4 sm:p-5 transition-all">
+      <div className="relative">
+        <div
+          className={`transition-all duration-300 ${
+            !isExpanded && isLong ? 'max-h-20 sm:max-h-24 overflow-hidden' : ''
+          }`}
+        >
+          <MarkdownView content={content} />
+        </div>
+
+        {/* Gradient fade overlay when collapsed and long */}
+        {!isExpanded && isLong && (
+          <div className="absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-slate-50/95 via-slate-50/60 to-transparent pointer-events-none" />
+        )}
+      </div>
+
+      {/* Instagram-style 'see more' / 'see less' toggle */}
+      {isLong && (
+        <div className="pt-2 flex items-center">
+          <button
+            type="button"
+            onClick={() => setIsExpanded(prev => !prev)}
+            className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 hover:text-emerald-950 transition-colors cursor-pointer py-0.5"
+          >
+            <span>{isExpanded ? 'see less' : '... see more'}</span>
+            {isExpanded ? (
+              <ChevronUp className="w-3.5 h-3.5 text-emerald-700" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5 text-emerald-700" />
+            )}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
