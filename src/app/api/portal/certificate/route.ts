@@ -15,10 +15,11 @@ export async function GET(req: NextRequest) {
 
     // 1. Mode A: Public Download via Verified ID (from /verify/[id] page)
     if (verifyId) {
+      const cleanSuffix = verifyId.replace(/^AIB-/i, '').trim();
       const { data: verifiedCert, error: verifyErr } = await adminClient
         .from('certificates')
         .select('*')
-        .or(`certificate_id.ilike.${verifyId},verification_code.ilike.${verifyId},legacy_certificate_id.ilike.${verifyId}`)
+        .or(`certificate_id.ilike.${verifyId},certificate_id.ilike.AIB-${cleanSuffix},certificate_id.ilike.%${cleanSuffix}%,verification_code.ilike.${verifyId},legacy_certificate_id.ilike.${verifyId}`)
         .maybeSingle();
 
       if (verifyErr || !verifiedCert) {
@@ -58,10 +59,26 @@ export async function GET(req: NextRequest) {
 
       if (!userCert) {
         // Self-heal: attempt to evaluate 3 gates and issue certificate
-        const { data: issueResult, error: issueErr } = await adminClient.rpc(
+        let issueResult: any = null;
+        let issueErr: any = null;
+
+        const adminRpcRes = await adminClient.rpc(
           'issue_certificate_for_user',
           { p_user_id: user.id }
         );
+        issueResult = adminRpcRes.data;
+        issueErr = adminRpcRes.error;
+
+        // Safety fallback: if admin client encounters any permission or network error, use user session
+        if (issueErr) {
+          console.warn('Admin RPC error, trying authenticated user client fallback:', issueErr);
+          const userRpcRes = await supabase.rpc(
+            'issue_certificate_for_user',
+            { p_user_id: user.id }
+          );
+          issueResult = userRpcRes.data;
+          issueErr = userRpcRes.error;
+        }
 
         if (issueErr) {
           console.error('Certificate issuance RPC error:', issueErr);
