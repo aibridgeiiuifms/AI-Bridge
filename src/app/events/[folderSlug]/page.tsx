@@ -150,7 +150,7 @@ export default function FolderGalleryPage() {
         </div>
       </div>
 
-      {/* Main Sticky Card Stack Container */}
+      {/* Events — Simple Vertical Scroll */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {events.length === 0 ? (
           <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-3">
@@ -161,20 +161,16 @@ export default function FolderGalleryPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-12 relative">
+          <div className="space-y-10">
             {events.map((evt, idx) => {
               const pictures = evt.pictures || [];
               const coverPic = pictures.find(p => p.is_cover) || pictures[0];
               const remainingPics = pictures.filter(p => p.id !== coverPic?.id);
 
-              // Distinct sticky offset so each subsequent card stacks cleanly over the previous
-              const stickyTopPx = 88 + (idx * 10);
-
               return (
                 <article
                   key={evt.id || idx}
-                  style={{ top: `${stickyTopPx}px` }}
-                  className="sticky z-10 bg-white rounded-3xl border border-slate-200/90 shadow-xl shadow-slate-200/60 hover:shadow-2xl hover:shadow-slate-300/60 transition-all duration-300 overflow-hidden"
+                  className="bg-white rounded-3xl border border-slate-200/90 shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden"
                 >
                   {/* Decorative Card Top Indicator */}
                   <div className="h-1.5 bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-700" />

@@ -3,7 +3,8 @@
 **Target Location:** `Documentation/Event-Gallery/EVENT_GALLERY_SPECIFICATION.md`  
 **Base Schema Source:** `supabase/Sql-Updated-Code.sql`  
 **System Status:** Approved Specification & Database Architecture  
-**UI/UX Pattern:** 2-Tier Collection Architecture with Scroll-Driven Sticky Card Stack  
+**Specification Version:** v1.1 (Updated: Clean Vertical Scroll Stack & Mobile Photo Carousel)  
+**UI/UX Pattern:** 2-Tier Collection Architecture with Clean Vertical Scroll Card Layout  
 
 ---
 
@@ -14,7 +15,7 @@ The **Event Gallery** module provides a dynamic, media-rich documentation stream
 ### Structural Paradigm (2-Tier Folders):
 - **Folders (Albums/Collections):** Top-level category cards displayed on the main gallery page (`/events`), grouping events by initiative, phase, or academic cohort (e.g., *"Faculty Training Series"*, *"Campus Awareness Drive"*).
 - **Events (Single Card per Event):** Individual sessions located strictly within a folder. Each event has a title, venue, optional/hideable date, external recap links, a rich Markdown caption/description, and an ordered photo set.
-- **Sticky Card Stack UI:** In the folder view (`/events/[folderSlug]`), events do not render as small detached cards; each event is a full **Sticky Card** that stacks progressively over previous cards on scroll.
+- **Vertical Scroll Card Layout:** In the folder view (`/events/[folderSlug]`), events render as clean, distinct cards in a standard vertical scroll stream with gentle hover elevation, providing an intuitive, uncluttered browsing experience across desktop and mobile.
 - **Rich Rendered Markdown:** Each event has a single comprehensive caption/story written in Markdown by managers and rendered cleanly as formatted HTML (bold, italic, bulleted lists, links) without exposing raw Markdown markers.
 - **Team Member Tagging (Multi-Person):** For every picture in an event, managers can tag multiple team members from `public.members`. Tagged members (with their avatar and name) appear on the photo in the public card and interactive lightbox.
 
@@ -403,18 +404,21 @@ WITH CHECK (public.can_manage_event_gallery());
 ```
 /events (Gallery Landing Page: Folder Grid)
    │
-   └───► /events/[folderSlug] (Folder Page: Sticky Card Stack of Events)
+   └───► /events/[folderSlug] (Folder Page: Vertical Scroll Event Cards)
             │
             └───► Fullscreen Lightbox Modal (Triggered by clicking any photo)
 ```
 
-### 6.2. The Sticky Card Stack UX Pattern (Folder View)
+### 6.2. The Vertical Scroll Card Layout UX Pattern (Folder View)
 Inside `/events/[folderSlug]`:
-- **Sticky Behavior:** Each event card is wrapped in a container configured with `sticky top-20` (or `top-24`).
-- **Scroll Stacking Effect:**
-  - As the visitor scrolls down, Card 1 sticks near the top of the viewport.
-  - Card 2 scrolls upward and slides seamlessly over Card 1.
-  - Successive cards stack with subtle elevation shadows (`shadow-xl`) and border accents, giving an organic physical album feel.
+- **Clean Vertical Stream:** Each event card renders in standard document flow within an uncluttered `space-y-10` container.
+- **Natural Scrolling:**
+  - Visitors scroll smoothly through each documented session without viewport pinning or overlapping cards.
+  - Cards feature a subtle top emerald accent bar, clean border, and subtle elevation transition (`shadow-sm hover:shadow-md`).
+- **Mobile Photo Enhancements:**
+  - High-visibility photo count pill (`X Photos • Tap to open`) overlaid on the cover image.
+  - Horizontal swipeable photo carousel strip on mobile devices (`snap-x`) allowing quick visual discovery of all event photos.
+  - Dedicated full-width "View All Photos in Fullscreen" action button.
 - **Anatomy of an Event Card:**
   1. **Top Badge Bar:**
      - **Location Pill:** MapPin icon + Location string.
