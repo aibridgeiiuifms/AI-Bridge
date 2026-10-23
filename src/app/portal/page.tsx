@@ -24,6 +24,28 @@ import { createClient } from '@/lib/supabase/client';
 import SurveySelectionModal from '@/components/SurveySelectionModal';
 import PortalSkeleton from '@/components/skeletons/PortalSkeleton';
 
+function buildLinkedInCertUrl(certId: string, completionDate?: string): string {
+  const params = new URLSearchParams({
+    startTask: 'CERTIFICATION_NAME',
+    name: 'The AI Bridge: Source-Grounded AI & NotebookLM Mastery',
+    organizationName: 'International Islamic University, Islamabad',
+    issueYear: '2026',
+    issueMonth: '10',
+    certUrl: `https://ai-bridge-iiui.vercel.app/verify/${certId}`,
+    certId: certId,
+  });
+
+  if (completionDate) {
+    const d = new Date(completionDate);
+    if (!isNaN(d.getTime())) {
+      params.set('issueYear', String(d.getFullYear()));
+      params.set('issueMonth', String(d.getMonth() + 1));
+    }
+  }
+
+  return `https://www.linkedin.com/profile/add?${params.toString()}`;
+}
+
 export default function StudentPortal() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -678,7 +700,7 @@ export default function StudentPortal() {
 
           <div>
             {certificateReady ? (
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row flex-wrap gap-2.5">
                 {/* FR-1 fix: Verify Status only shown when certificate_id is confirmed in DB */}
                 {certificate?.certificate_id ? (
                   <Link
@@ -715,6 +737,21 @@ export default function StudentPortal() {
                     </>
                   )}
                 </button>
+
+                {/* 3. Add to LinkedIn (Authenticated Owner Only) */}
+                {certificate?.certificate_id ? (
+                  <a
+                    href={buildLinkedInCertUrl(certificate.certificate_id, certificate.completion_date)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-3 rounded-xl font-bold text-xs bg-[#0a66c2] text-white hover:bg-[#004182] shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <svg className="w-3.5 h-3.5 fill-white" viewBox="0 0 24 24">
+                      <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.25V10.9H6.46M7.86 6.54a1.64 1.64 0 1 0 0 3.28 1.64 1.64 0 0 0 0-3.28Z" />
+                    </svg>
+                    <span>Add to LinkedIn</span>
+                  </a>
+                ) : null}
               </div>
             ) : (
               <div className="px-5 py-3 rounded-xl bg-slate-100 text-slate-500 font-semibold text-xs flex items-center gap-2 border border-slate-200">
