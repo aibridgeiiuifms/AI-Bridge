@@ -11,10 +11,7 @@ import {
   LayoutDashboard, 
   GraduationCap, 
   Calendar, 
-  Menu, 
-  X, 
   LogOut, 
-  LogIn, 
   User as UserIcon,
   Users
 } from 'lucide-react';
@@ -22,7 +19,6 @@ import {
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -109,7 +105,7 @@ export default function Navbar() {
     return 'U';
   };
 
-  // Base public links — no Verify Certificate (removed until real certs are ready)
+  // Desktop navigation links
   const publicLinks = [
     { name: 'Home', href: '/', icon: Sparkles },
     { name: 'Team & Leadership', href: '/team', icon: Users },
@@ -117,7 +113,6 @@ export default function Navbar() {
     { name: 'Student Portal', href: '/portal', icon: GraduationCap },
   ];
 
-  // Dashboard is only shown to admins / team managers
   const navLinks = isPrivileged
     ? [...publicLinks, { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard }]
     : publicLinks;
@@ -154,7 +149,7 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation (Hidden on mobile where bottom nav is active) */}
           <nav className="hidden lg:flex items-center gap-1">
             {navLinks.map((link) => {
               const isActive = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href));
@@ -176,14 +171,14 @@ export default function Navbar() {
             })}
           </nav>
 
-          {/* Auth Actions: Desktop Profile Circle Avatar & Popdown */}
-          <div className="hidden lg:flex items-center gap-2.5 flex-shrink-0 relative" ref={profileDropdownRef}>
+          {/* Round Profile Button & Popdown (Unified for both Mobile & Desktop) */}
+          <div className="flex items-center gap-2 flex-shrink-0 relative" ref={profileDropdownRef}>
             {!loading && user ? (
               <div className="relative">
                 <button
                   type="button"
                   onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                  className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-bold text-sm shadow-sm ring-2 ring-emerald-500/20 hover:ring-emerald-500 hover:shadow-md transition-all cursor-pointer focus:outline-none overflow-hidden"
+                  className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-xs sm:text-sm font-bold text-white shadow-xs ring-2 ring-emerald-500/20 hover:ring-emerald-500 hover:shadow-md transition-all cursor-pointer focus:outline-none"
                   aria-label="User Profile"
                   aria-expanded={profileDropdownOpen}
                   title={`${displayName} (${user.email})`}
@@ -199,13 +194,13 @@ export default function Navbar() {
                   )}
                 </button>
 
-                {/* Popdown Menu */}
+                {/* Popdown Menu (Portal, Dashboard, Logout) */}
                 {profileDropdownOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-200/90 py-3 px-3 z-50 animate-fade-in divide-y divide-slate-100">
+                  <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-1.5rem)] bg-white rounded-2xl shadow-xl border border-slate-200/90 py-3 px-3 z-50 animate-fade-in divide-y divide-slate-100">
                     {/* User Info Header with Name and Email */}
                     <div className="pb-3 px-1">
                       <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-bold text-sm flex items-center justify-center flex-shrink-0 shadow-xs overflow-hidden">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center flex-shrink-0 shadow-xs overflow-hidden">
                           {profile?.avatar_url ? (
                             <img 
                               src={profile.avatar_url} 
@@ -272,191 +267,16 @@ export default function Navbar() {
             ) : (
               <Link
                 href="/login"
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-700 text-white hover:bg-emerald-800 shadow-sm shadow-emerald-800/20 transition-all hover:shadow cursor-pointer"
+                className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200/80 shadow-2xs hover:shadow-sm transition-all cursor-pointer"
+                aria-label="Sign In"
+                title="Sign In / Register"
               >
-                <LogIn className="w-3.5 h-3.5 text-emerald-200" />
-                <span>Sign In</span>
+                <UserIcon className="w-4 h-4 sm:w-5 sm:h-5" />
               </Link>
             )}
-          </div>
-
-          {/* Mobile Right Bar: Profile Avatar & Drawer Menu Button */}
-          <div className="flex shrink-0 items-center gap-1 lg:hidden sm:gap-2">
-            <Link
-              href="/team"
-              aria-label="Team & Leadership"
-              aria-current={pathname.startsWith('/team') ? 'page' : undefined}
-              className={`flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg px-1.5 py-2 text-[clamp(0.55rem,2.7vw,0.75rem)] font-semibold transition-colors sm:gap-1.5 sm:px-2 sm:text-xs ${
-                pathname.startsWith('/team')
-                  ? 'bg-emerald-50 text-emerald-800'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-              }`}
-            >
-              <Users className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-              <span>Team &amp; Leadership</span>
-            </Link>
-
-            {!loading && user && (
-              <button
-                type="button"
-                onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
-                className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-xs font-bold text-white shadow-xs ring-1 ring-emerald-500/30 cursor-pointer"
-                aria-label="User Profile"
-              >
-                {profile?.avatar_url ? (
-                  <img 
-                    src={profile.avatar_url} 
-                    alt={displayName} 
-                    className="w-full h-full object-cover" 
-                  />
-                ) : (
-                  <span>{getInitials(displayName, user.email)}</span>
-                )}
-              </button>
-            )}
-
-            <button
-              onClick={() => {
-                setMobileMenuOpen(!mobileMenuOpen);
-                setProfileDropdownOpen(false);
-              }}
-              className="shrink-0 rounded-xl p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 focus:outline-none cursor-pointer sm:p-2"
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
           </div>
         </div>
-
-        {/* Mobile Profile Popdown (Positioned when tapped on mobile) */}
-        {!loading && user && profileDropdownOpen && (
-          <div className="absolute right-0 top-full mt-2 w-[calc(100vw-1.5rem)] max-w-sm lg:hidden rounded-2xl border border-slate-200/90 bg-white px-3 py-3 shadow-2xl z-50 animate-fade-in divide-y divide-slate-100">
-            <div className="pb-3 px-1">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-xs overflow-hidden">
-                  {profile?.avatar_url ? (
-                    <img 
-                      src={profile.avatar_url} 
-                      alt={displayName} 
-                      className="w-full h-full object-cover" 
-                    />
-                  ) : (
-                    <span>{getInitials(displayName, user.email)}</span>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-bold text-slate-900 truncate">{displayName}</p>
-                  <p className="text-[11px] text-slate-500 truncate" title={user.email}>{user.email}</p>
-                  <span className="inline-block mt-0.5 text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200/60">
-                    {profile?.role ? profile.role.toUpperCase() : 'PARTICIPANT'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="py-2 space-y-1">
-              <Link
-                href="/portal"
-                onClick={() => setProfileDropdownOpen(false)}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors"
-              >
-                <GraduationCap className="w-4 h-4 text-emerald-600" />
-                <span>Student Portal</span>
-              </Link>
-              {isPrivileged && (
-                <Link
-                  href="/dashboard"
-                  onClick={() => setProfileDropdownOpen(false)}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors"
-                >
-                  <LayoutDashboard className="w-4 h-4 text-emerald-600" />
-                  <span>Leadership Dashboard</span>
-                </Link>
-              )}
-            </div>
-
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setProfileDropdownOpen(false);
-                  handleLogout();
-                }}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer text-left"
-              >
-                <LogOut className="w-4 h-4 text-rose-500" />
-                <span>Logout</span>
-              </button>
-            </div>
-          </div>
-        )}
       </div>
-
-      {/* Mobile Drawer */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden border-t border-slate-200 bg-white px-3 pt-3 pb-6 shadow-lg animate-fade-in sm:px-4">
-          <nav className="mx-auto grid w-full max-w-7xl gap-2">
-          {navLinks.map((link) => {
-            const isActive = pathname === link.href;
-            const Icon = link.icon;
-            return (
-              <Link
-                key={link.name}
-                href={link.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-base font-medium ${
-                  isActive
-                    ? 'bg-emerald-50 text-emerald-800 font-semibold'
-                    : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                {Icon && <Icon className="w-5 h-5 text-slate-400" />}
-                {link.name}
-              </Link>
-            );
-          })}
-          </nav>
-          <div className="pt-4 border-t border-slate-100">
-            {user ? (
-              <div className="space-y-3 p-3 rounded-2xl bg-slate-50 border border-slate-200/80">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 overflow-hidden">
-                    {profile?.avatar_url ? (
-                      <img src={profile.avatar_url} alt={displayName} className="w-full h-full object-cover" />
-                    ) : (
-                      <span>{getInitials(displayName, user.email)}</span>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-slate-900 truncate">{displayName}</p>
-                    <p className="text-[11px] text-slate-500 truncate">{user.email}</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleLogout();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-colors cursor-pointer"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Logout</span>
-                </button>
-              </div>
-            ) : (
-              <Link
-                href="/login"
-                onClick={() => setMobileMenuOpen(false)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold bg-emerald-700 text-white"
-              >
-                <LogIn className="w-4 h-4" />
-                <span>Sign In / Register</span>
-              </Link>
-            )}
-          </div>
-        </div>
-      )}
     </header>
   );
 }
