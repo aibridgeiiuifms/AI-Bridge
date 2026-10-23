@@ -4,7 +4,6 @@ import {
   ShieldAlert,
   Award, 
   Calendar, 
-  User, 
   BookOpen, 
   Building2, 
   CheckCircle, 
@@ -13,6 +12,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 interface VerifyPageProps {
   params: Promise<{ id: string }>;
@@ -156,6 +156,64 @@ export default async function VerifyPage({ params }: VerifyPageProps) {
     // fallback to raw completion_date
   }
 
+  // ── Department Resolution (Fixes the "FMS Everywhere" fallback bug) ──────────
+  // Priority: student_id dept code → cert.department if not generic → graceful fallback
+  const adminClient = createAdminClient();
+  let deptDisplay = '';
+  let facultyDisplay = '';
+
+  if (cert.student_id) {
+    // student_id format: "000627/BSBA/S24" — dept code is at index [1]
+    const deptCode = cert.student_id.split('/')[1]?.toUpperCase();
+    if (deptCode) {
+      const { data: deptMap } = await adminClient
+        .from('department_mappings')
+        .select('standard_dept_name, faculty_name')
+        .eq('code', deptCode)
+        .maybeSingle();
+      if (deptMap && deptMap.faculty_name !== 'Pending Assignment') {
+        deptDisplay = deptMap.standard_dept_name;
+        facultyDisplay = deptMap.faculty_name;
+      } else {
+        // Known code but no mapping yet — show raw code with IIUI as parent
+        deptDisplay = deptCode;
+        facultyDisplay = 'International Islamic University Islamabad (IIUI)';
+      }
+    }
+  }
+
+  // Fallbacks if dept code extraction failed
+  if (!deptDisplay) {
+    if (cert.department && cert.department !== 'Faculty of Management Sciences (FMS)') {
+      deptDisplay = cert.department;
+    } else if (!cert.student_id) {
+      // External / non-IIUI participant with no roll number
+      deptDisplay = 'Verified Participant';
+      facultyDisplay = 'International Islamic University Islamabad (IIUI)';
+    } else {
+      // IIUI student whose dept could not be resolved from mappings
+      deptDisplay = 'International Islamic University Islamabad (IIUI)';
+    }
+  }
+
+  // ── Quiz Score (Best passing attempt for this user) ───────────────────────
+  let quizScore: number | null = null;
+  let quizTotal: number | null = null;
+  if (cert.user_id) {
+    const { data: attempt } = await adminClient
+      .from('quiz_attempts')
+      .select('score, total_questions')
+      .eq('user_id', cert.user_id)
+      .eq('passed', true)
+      .order('score', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (attempt) {
+      quizScore = attempt.score;
+      quizTotal = attempt.total_questions ?? 12;
+    }
+  }
+
   // 3. Valid Verified Credential View
   return (
     <div className="max-w-3xl mx-auto px-4 py-16 space-y-8 animate-fade-in">
@@ -202,10 +260,15 @@ export default async function VerifyPage({ params }: VerifyPageProps) {
             <p className="text-xs text-slate-500 font-medium">
               {cert.student_id ? (
                 <>
-                  Registration / Roll No: <span className="font-mono text-slate-800 font-bold">{cert.student_id}</span> •{' '}
+                  Registration / Roll No:{' '}
+                  <span className="font-mono text-slate-800 font-bold">{cert.student_id}</span>
+                  {' • '}
                 </>
               ) : null}
-              {cert.department || 'Faculty of Management Sciences (FMS)'}
+              <span className="text-slate-700 font-semibold">{deptDisplay}</span>
+              {facultyDisplay && (
+                <span className="text-slate-400"> · {facultyDisplay}</span>
+              )}
             </p>
           </div>
 
@@ -247,29 +310,46 @@ export default async function VerifyPage({ params }: VerifyPageProps) {
             </div>
           </div>
 
+          {/* Exam Score Badge — above download button */}
+          {quizScore !== null && (
+            <div className="flex items-center justify-between gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <div className="flex items-center gap-1.5">
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span className="text-[11px] font-semibold text-emerald-800">
+                  12-MCQ Exam
+                </span>
+              </div>
+              <span className="text-[11px] font-bold text-emerald-900 tabular-nums">
+                {quizScore}/{quizTotal ?? 12} · {Math.round((quizScore / (quizTotal ?? 12)) * 100)}%
+              </span>
+            </div>
+          )}
+
           {/* Download Official PDF Button */}
-          <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="text-xs text-emerald-900">
+          <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-3 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3">
+            <div className="text-xs text-emerald-900 text-center sm:text-left">
               <p className="font-bold">Official Document Copy</p>
-              <p className="text-[11px] text-emerald-700">Generate and download an official verified PDF copy on the spot.</p>
+              <p className="text-[11px] text-emerald-700 hidden sm:block">Generate and download an official verified PDF copy on the spot.</p>
             </div>
             <a
               href={`/api/portal/certificate?verify_id=${cert.certificate_id}`}
-              className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all whitespace-nowrap"
+              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all whitespace-nowrap"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Download Official PDF</span>
             </a>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs">
-            <div className="text-slate-500">
-              Certificate Serial: <span className="font-mono font-bold text-slate-900">{cert.certificate_id}</span>
-            </div>
-            <div className="flex items-center gap-2 text-emerald-700 font-semibold">
-              <CheckCircle className="w-4 h-4" />
-              <span>3-Step Evaluation Verified (Pre-Survey • 12-MCQ Quiz • Post-Survey)</span>
-            </div>
+          {/* Footer: Serial & Audit Summary */}
+          <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-1.5 text-[11px] text-slate-400">
+            <span>
+              Serial:{' '}
+              <span className="font-mono font-bold text-slate-700">{cert.certificate_id}</span>
+            </span>
+            <span className="flex items-center gap-1 text-emerald-600 font-medium">
+              <CheckCircle className="w-3 h-3" />
+              Pre-Survey · Exam · Post-Survey Verified
+            </span>
           </div>
         </div>
       </div>
