@@ -1,7 +1,7 @@
 // AI Bridge – Service Worker
 // Strategy: Network-first for pages, Cache-first for static assets, Background Sync for offline submissions
 
-const CACHE_NAME = 'ai-bridge-v2';
+const CACHE_NAME = 'ai-bridge-v3';
 const STATIC_ASSETS = [
   '/',
   '/team',
