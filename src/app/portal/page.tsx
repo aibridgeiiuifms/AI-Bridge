@@ -468,7 +468,7 @@ export default function StudentPortal() {
                     type="button"
                     onClick={() => handleClaimSurvey(surveySuggestion.id, surveySuggestion.participant_type)}
                     disabled={isClaiming}
-                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 px-4 py-2 text-xs font-bold text-palette-haiti shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all disabled:opacity-50 cursor-pointer"
                   >
                     {isClaiming ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                     Yes, That&apos;s Me — Link My Survey
@@ -632,7 +632,7 @@ export default function StudentPortal() {
       {/* Official Certificate Download Card */}
       <div className={`rounded-3xl p-8 border transition-all ${
         certificateReady
-          ? 'bg-gradient-to-br from-emerald-900 to-teal-950 text-white border-emerald-700 shadow-xl'
+          ? 'bg-[#0F4C3A] text-white border-emerald-700 shadow-xl'
           : 'bg-white border-slate-200 text-slate-900 shadow-sm'
       }`}>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">

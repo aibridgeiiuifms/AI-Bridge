@@ -1,17 +1,12 @@
 // AI Bridge – Service Worker
 // Strategy: Network-first for pages, Cache-first for static assets, Background Sync for offline submissions
 
-const CACHE_NAME = 'ai-bridge-v2';
+const CACHE_NAME = 'ai-bridge-v3';
 const STATIC_ASSETS = [
   '/',
-  '/team',
-  '/events',
-  '/portal',
-  '/login',
   '/offline.html',
   '/manifest.json',
   '/logo.webp',
-  '/logo.jpg',
   '/iiui-logo.webp',
   '/hhp-logo.webp',
 ];
@@ -91,7 +86,6 @@ self.addEventListener('fetch', (event) => {
       .catch(async () => {
         const cached = await caches.match(request);
         if (cached) return cached;
-        // If navigation or HTML request fails and nothing in cache, show offline fallback
         if (request.mode === 'navigate' || request.headers.get('accept')?.includes('text/html')) {
           return caches.match('/offline.html');
         }
@@ -107,7 +101,6 @@ self.addEventListener('sync', (event) => {
 });
 
 async function processQueuedPortalSubmissions() {
-  // Notify open clients that background sync is processing
   const clients = await self.clients.matchAll();
   clients.forEach((client) => {
     client.postMessage({ type: 'SYNC_PORTAL_SUBMISSIONS' });

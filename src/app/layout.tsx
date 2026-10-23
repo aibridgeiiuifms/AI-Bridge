@@ -7,18 +7,18 @@ import ChunkLoadRecovery from '@/components/ChunkLoadRecovery';
 import PWAInit from '@/components/PWAInit';
 import BottomNav from '@/components/BottomNav';
 import PWAInstallBanner from '@/components/PWAInstallBanner';
-import MobileSwipeNav from '@/components/MobileSwipeNav';
 
 const inter = Inter({
   subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
   display: 'swap',
   variable: '--font-inter',
 });
 
 export const metadata: Metadata = {
-  title: 'The AI Bridge | FMS IIUI - Hum Hain Pakistan SDG Youth Campaign',
+  title: 'The AI Bridge | FMS IIUI — Hum Hain Pakistan SDG Youth Campaign',
   description:
-    'Empowering and bridging the gap for non-IT educators and learners through source-grounded AI tools and NotebookLM.',
+    'Empowering and bridging the gap for non-IT educators and scholars through source-grounded AI tools and NotebookLM at International Islamic University Islamabad.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -31,11 +31,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#065f46',
+  themeColor: '#0F4C3A',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 export default function RootLayout({
@@ -44,20 +42,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <head>
-        {/* PWA: Apple touch icon */}
         <link rel="apple-touch-icon" href="/logo.webp" />
       </head>
-      <body className={`${inter.variable} font-sans flex flex-col min-h-screen bg-slate-50 text-slate-900 antialiased`}>
+      <body className="font-sans flex flex-col min-h-screen bg-[#F8F7F4] text-[#0F172A] antialiased selection:bg-[#0F4C3A] selection:text-white">
         <PWAInit />
-        <MobileSwipeNav />
         <ChunkLoadRecovery />
         <Navbar />
-        {/* pb-20 lg:pb-0 → reserves space for the bottom nav on mobile */}
-        <main className="flex-1 pb-20 lg:pb-0">{children}</main>
-        {/* Footer hidden on mobile; BottomNav replaces it */}
-        <div className="hidden lg:block">
+        <main className="flex-1">{children}</main>
+        <div className="pb-16 lg:pb-0">
           <Footer />
         </div>
         <PWAInstallBanner />

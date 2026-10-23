@@ -1,15 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  X, 
-  GraduationCap, 
-  BookOpen, 
-  ExternalLink, 
-  Sparkles, 
-  CheckCircle2, 
+import {
+  X,
+  GraduationCap,
+  BookOpen,
+  ExternalLink,
+  Sparkles,
   ArrowRight,
-  Info
+  Info,
 } from 'lucide-react';
 
 export interface SurveyConfig {
@@ -38,7 +37,8 @@ export const SURVEY_DATA: Record<'pre' | 'post', SurveyConfig> = {
     type: 'pre',
     title: 'Pre-Training Assessment Survey',
     subtitle: 'Baseline AI & Workflow Assessment',
-    description: 'Please select your role (Student or Teacher) to launch your pre-training survey. Complete this prior to starting the training session.',
+    description:
+      'Please select your role (Student or Teacher) to launch your pre-training survey. Complete this prior to starting the training session.',
     forms: {
       student: {
         roleTitle: 'Student Assessment',
@@ -58,7 +58,8 @@ export const SURVEY_DATA: Record<'pre' | 'post', SurveyConfig> = {
     type: 'post',
     title: 'Post-Training Assessment Survey',
     subtitle: 'Impact & Efficiency Evaluation',
-    description: 'Please select your role (Student or Teacher) to launch your post-training evaluation survey. Required to verify training impact.',
+    description:
+      'Please select your role (Student or Teacher) to launch your post-training evaluation survey. Required to verify training impact.',
     forms: {
       student: {
         roleTitle: 'Student Assessment',
@@ -89,7 +90,7 @@ export default function SurveySelectionModal({
   surveyType,
   userEmail,
 }: SurveySelectionModalProps) {
-  const [selectedRole, setSelectedRole] = useState<'student' | 'teacher' | null>(null);
+  const [, setSelectedRole] = useState<'student' | 'teacher' | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -116,18 +117,18 @@ export default function SurveySelectionModal({
   };
 
   return (
-    <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#0F172A]/70 backdrop-blur-sm animate-fade-in"
       onClick={onClose}
       aria-modal="true"
       role="dialog"
     >
-      <div 
-        className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden transform transition-all animate-scale-in"
+      <div
+        className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-[#E2DFD7] overflow-hidden transform transition-all animate-scale-in"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header Ribbon */}
-        <div className="bg-gradient-to-r from-emerald-800 to-teal-800 text-white p-5 sm:p-6 relative">
+        {/* Solid Emerald Header Ribbon */}
+        <div className="bg-[#0F4C3A] text-white p-5 sm:p-6 relative">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-2 rounded-xl text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
@@ -136,22 +137,22 @@ export default function SurveySelectionModal({
             <X className="w-5 h-5" />
           </button>
 
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-700/60 text-emerald-200 text-[10px] font-bold uppercase tracking-wider mb-2 border border-emerald-500/30">
-            <Sparkles className="w-3 h-3 text-amber-300" />
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#093528] text-[#EAD1A7] text-[10px] font-bold uppercase tracking-wider mb-2 border border-white/15">
+            <Sparkles className="w-3 h-3 text-[#C88A2B]" />
             <span>{surveyType === 'pre' ? 'Pre-Training Survey' : 'Post-Training Survey'}</span>
           </div>
 
           <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white">
             {currentSurvey.title}
           </h2>
-          <p className="text-xs sm:text-sm text-emerald-100/90 mt-1 leading-relaxed">
+          <p className="text-xs sm:text-sm text-slate-200 mt-1 leading-relaxed">
             {currentSurvey.description}
           </p>
         </div>
 
         {/* Modal Body: Selection Options */}
         <div className="p-5 sm:p-6 space-y-4">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+          <div className="text-xs font-semibold text-[#64748B] uppercase tracking-wider">
             Select Your Role to Open Form:
           </div>
 
@@ -162,25 +163,27 @@ export default function SurveySelectionModal({
                 setSelectedRole('student');
                 handleOpenForm('student');
               }}
-              className="group relative flex flex-col justify-between p-4 rounded-2xl border-2 border-emerald-200 bg-emerald-50/40 hover:bg-emerald-50 hover:border-emerald-600 transition-all cursor-pointer shadow-xs hover:shadow-md text-left"
+              className="group relative flex flex-col justify-between p-4 rounded-2xl border-2 border-[#C3DCD2] bg-[#F8F7F4] hover:bg-[#E6F0EC] hover:border-[#0F4C3A] transition-all cursor-pointer shadow-xs hover:shadow-md text-left"
             >
               <div>
-                <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center mb-3 group-hover:scale-105 transition-transform shadow-xs">
+                <div className="w-10 h-10 rounded-xl bg-[#0F4C3A] text-white flex items-center justify-center mb-3 group-hover:scale-105 transition-transform shadow-xs">
                   <GraduationCap className="w-5 h-5" />
                 </div>
-                <div className="inline-block px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase tracking-wider mb-1">
+                <div className="inline-block px-2 py-0.5 rounded-full bg-[#E6F0EC] text-[#0F4C3A] text-[10px] font-bold uppercase tracking-wider mb-1 border border-[#C3DCD2]">
                   Learners
                 </div>
-                <h3 className="font-bold text-slate-900 text-sm sm:text-base group-hover:text-emerald-800 transition-colors">
+                <h3 className="font-bold text-[#0F172A] text-sm sm:text-base group-hover:text-[#0F4C3A] transition-colors">
                   {currentSurvey.forms.student.roleTitle}
                 </h3>
-                <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                <p className="text-[11px] text-[#334155] mt-1 leading-relaxed">
                   {currentSurvey.forms.student.description}
                 </p>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-emerald-100 flex items-center justify-between text-xs font-bold text-emerald-700 group-hover:text-emerald-900">
-                <span className="flex items-center gap-1">Open Form <ExternalLink className="w-3.5 h-3.5" /></span>
+              <div className="mt-4 pt-3 border-t border-[#E2DFD7] flex items-center justify-between text-xs font-bold text-[#0F4C3A]">
+                <span className="flex items-center gap-1">
+                  Open Form <ExternalLink className="w-3.5 h-3.5" />
+                </span>
                 <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
@@ -191,40 +194,42 @@ export default function SurveySelectionModal({
                 setSelectedRole('teacher');
                 handleOpenForm('teacher');
               }}
-              className="group relative flex flex-col justify-between p-4 rounded-2xl border-2 border-teal-200 bg-teal-50/40 hover:bg-teal-50 hover:border-teal-600 transition-all cursor-pointer shadow-xs hover:shadow-md text-left"
+              className="group relative flex flex-col justify-between p-4 rounded-2xl border-2 border-[#EAD1A7] bg-[#F8F7F4] hover:bg-[#FDF6EA] hover:border-[#C88A2B] transition-all cursor-pointer shadow-xs hover:shadow-md text-left"
             >
               <div>
-                <div className="w-10 h-10 rounded-xl bg-teal-700 text-white flex items-center justify-center mb-3 group-hover:scale-105 transition-transform shadow-xs">
+                <div className="w-10 h-10 rounded-xl bg-[#1E293B] text-white flex items-center justify-center mb-3 group-hover:scale-105 transition-transform shadow-xs">
                   <BookOpen className="w-5 h-5" />
                 </div>
-                <div className="inline-block px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 text-[10px] font-bold uppercase tracking-wider mb-1">
+                <div className="inline-block px-2 py-0.5 rounded-full bg-[#FDF6EA] text-[#B0761E] text-[10px] font-bold uppercase tracking-wider mb-1 border border-[#EAD1A7]">
                   Faculty
                 </div>
-                <h3 className="font-bold text-slate-900 text-sm sm:text-base group-hover:text-teal-900 transition-colors">
+                <h3 className="font-bold text-[#0F172A] text-sm sm:text-base group-hover:text-[#1E293B] transition-colors">
                   {currentSurvey.forms.teacher.roleTitle}
                 </h3>
-                <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                <p className="text-[11px] text-[#334155] mt-1 leading-relaxed">
                   {currentSurvey.forms.teacher.description}
                 </p>
               </div>
 
-              <div className="mt-4 pt-3 border-t border-teal-100 flex items-center justify-between text-xs font-bold text-teal-700 group-hover:text-teal-900">
-                <span className="flex items-center gap-1">Open Form <ExternalLink className="w-3.5 h-3.5" /></span>
+              <div className="mt-4 pt-3 border-t border-[#E2DFD7] flex items-center justify-between text-xs font-bold text-[#B0761E]">
+                <span className="flex items-center gap-1">
+                  Open Form <ExternalLink className="w-3.5 h-3.5" />
+                </span>
                 <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
           </div>
 
           {/* Sync Information / Note */}
-          <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 sm:p-3.5 text-xs text-slate-600 flex items-start gap-2.5">
-            <Info className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+          <div className="bg-[#F8F7F4] border border-[#E2DFD7] rounded-2xl p-3 sm:p-3.5 text-xs text-[#334155] flex items-start gap-2.5">
+            <Info className="w-4 h-4 text-[#0F4C3A] flex-shrink-0 mt-0.5" />
             <div className="space-y-0.5">
-              <p className="font-semibold text-slate-800">
+              <p className="font-semibold text-[#0F172A]">
                 Important: Submit with your registered email
               </p>
-              <p className="text-[11px] text-slate-500 leading-relaxed">
+              <p className="text-[11px] text-[#64748B] leading-relaxed">
                 When filling the Google Form, ensure you enter{' '}
-                <span className="font-mono font-bold text-slate-700">
+                <span className="font-mono font-bold text-[#0F172A]">
                   {userEmail || 'your registered account email'}
                 </span>
                 . Your responses will automatically sync to verify your portal progress.
@@ -234,13 +239,13 @@ export default function SurveySelectionModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="bg-slate-50/80 border-t border-slate-100 px-5 py-3.5 sm:px-6 flex items-center justify-between text-xs">
-          <span className="text-[11px] text-slate-400">
+        <div className="bg-[#F8F7F4] border-t border-[#E2DFD7] px-5 py-3.5 sm:px-6 flex items-center justify-between text-xs">
+          <span className="text-[11px] text-[#64748B]">
             IIUI FMS • Hum Hain Pakistan SDG Campaign
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+            className="px-4 py-1.5 rounded-xl text-xs font-semibold text-[#334155] hover:bg-[#E2DFD7] transition-colors cursor-pointer"
           >
             Close
           </button>
