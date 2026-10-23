@@ -64,6 +64,9 @@ const config: Config = {
         brand: paletteScale,
         gold: paletteScale,
       },
+      fontFamily: {
+        sans: ['var(--font-inter)', 'system-ui', '-apple-system', 'sans-serif'],
+      },
     },
   },
   plugins: [],

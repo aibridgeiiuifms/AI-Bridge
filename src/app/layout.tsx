@@ -1,10 +1,19 @@
 import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ChunkLoadRecovery from '@/components/ChunkLoadRecovery';
 import PWAInit from '@/components/PWAInit';
 import BottomNav from '@/components/BottomNav';
+import PWAInstallBanner from '@/components/PWAInstallBanner';
+import MobileSwipeNav from '@/components/MobileSwipeNav';
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+});
 
 export const metadata: Metadata = {
   title: 'The AI Bridge | FMS IIUI - Hum Hain Pakistan SDG Youth Campaign',
@@ -38,10 +47,11 @@ export default function RootLayout({
     <html lang="en">
       <head>
         {/* PWA: Apple touch icon */}
-        <link rel="apple-touch-icon" href="/logo.jpg" />
+        <link rel="apple-touch-icon" href="/logo.webp" />
       </head>
-      <body className="flex flex-col min-h-screen bg-slate-50 text-slate-900 antialiased">
+      <body className={`${inter.variable} font-sans flex flex-col min-h-screen bg-slate-50 text-slate-900 antialiased`}>
         <PWAInit />
+        <MobileSwipeNav />
         <ChunkLoadRecovery />
         <Navbar />
         {/* pb-20 lg:pb-0 → reserves space for the bottom nav on mobile */}
@@ -50,6 +60,7 @@ export default function RootLayout({
         <div className="hidden lg:block">
           <Footer />
         </div>
+        <PWAInstallBanner />
         <BottomNav />
       </body>
     </html>

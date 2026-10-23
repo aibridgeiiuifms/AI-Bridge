@@ -8,6 +8,8 @@ import { requireAmbassadorPortalAccess } from '@/lib/ambassador-access';
  * Backed by the consolidated `members` table (roster + invite role + permissions).
  */
 
+export const revalidate = 300; // Cache team data for 5 minutes
+
 export async function GET(req: NextRequest) {
   try {
     const supabase = createAdminClient();
@@ -33,7 +35,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, team: [] });
     }
 
-    return NextResponse.json({ success: true, team: data || [] });
+    return NextResponse.json(
+      { success: true, team: data || [] },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
+        },
+      }
+    );
   } catch (err: any) {
     return NextResponse.json(
       { success: false, error: err.message || 'Internal server error fetching team members' },

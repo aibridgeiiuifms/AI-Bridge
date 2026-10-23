@@ -1,11 +1,29 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/server';
+import dynamic from 'next/dynamic';
+import { getCurrentUser, getCurrentUserProfile } from '@/lib/supabase/queries';
 import { hasAmbassadorPortalRole } from '@/lib/access';
-import HighlightsCarousel from '@/components/HighlightsCarousel';
-import SdgSharedLayoutWheel from '@/components/sdg-wheel/SdgSharedLayoutWheel';
-import humHainPakistanLogo from '../../Assets/hum hain pak logo.jpg';
-import sdgLogo from '../../Assets/SDG Logo.png';
+import HighlightsCarouselSkeleton from '@/components/skeletons/HighlightsCarouselSkeleton';
+import SdgWheelSkeleton from '@/components/skeletons/SdgWheelSkeleton';
+
+const HighlightsCarousel = dynamic(
+  () => import('@/components/HighlightsCarousel'),
+  {
+    ssr: false,
+    loading: () => <HighlightsCarouselSkeleton />,
+  }
+);
+
+const SdgSharedLayoutWheel = dynamic(
+  () => import('@/components/sdg-wheel/SdgSharedLayoutWheel'),
+  {
+    ssr: false,
+    loading: () => <SdgWheelSkeleton />,
+  }
+);
+
+import humHainPakistanLogo from '../../Assets/hum hain pak logo.webp';
+import sdgLogo from '../../Assets/SDG Logo.webp';
 import { 
   Sparkles, 
   ArrowRight, 
@@ -22,11 +40,8 @@ import {
 } from 'lucide-react';
 
 export default async function HomePage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const { data: profile } = user
-    ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
-    : { data: null };
+  const user = await getCurrentUser();
+  const profile = user ? await getCurrentUserProfile(user.id) : null;
   const canAccessAmbassadorPortal = hasAmbassadorPortalRole(profile?.role);
 
   return (

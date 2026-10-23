@@ -1,15 +1,12 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { HeartHandshake, ShieldCheck, ExternalLink } from 'lucide-react';
-import { createClient } from '@/lib/supabase/server';
+import { getCurrentUser, getCurrentUserProfile } from '@/lib/supabase/queries';
 import { hasAmbassadorPortalRole } from '@/lib/access';
 
 export default async function Footer() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const { data: profile } = user
-    ? await supabase.from('profiles').select('role').eq('id', user.id).maybeSingle()
-    : { data: null };
+  const user = await getCurrentUser();
+  const profile = user ? await getCurrentUserProfile(user.id) : null;
   const canAccessAmbassadorPortal = hasAmbassadorPortalRole(profile?.role);
 
   return (
@@ -21,7 +18,7 @@ export default async function Footer() {
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="w-10 h-10 rounded-xl bg-white border border-slate-700/80 p-0.5 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-sm">
                 <Image
-                  src="/logo.jpg"
+                  src="/logo.webp"
                   alt="The AI Bridge logo"
                   width={40}
                   height={40}
@@ -43,11 +40,11 @@ export default async function Footer() {
               </span>
               <div className="flex items-center gap-2 pt-1">
                 <div className="flex items-center gap-1.5 bg-slate-800/80 px-2 py-1 rounded border border-slate-700/60 text-[10px] text-palette-ecru">
-                  <Image src="/iiui-logo.jpg" alt="IIUI Logo" width={16} height={16} className="w-4 h-4 object-contain rounded-full bg-white" />
+                  <Image src="/iiui-logo.webp" alt="IIUI Logo" width={16} height={16} className="w-4 h-4 object-contain rounded-full bg-white" />
                   <span>IIUI FMS</span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-slate-800/80 px-2 py-1 rounded border border-slate-700/60 text-[10px] text-palette-ecru">
-                  <Image src="/hhp-logo.jpeg" alt="HHP Logo" width={16} height={16} className="w-4 h-4 object-contain rounded-full bg-white" />
+                  <Image src="/hhp-logo.webp" alt="HHP Logo" width={16} height={16} className="w-4 h-4 object-contain rounded-full bg-white" />
                   <span>HHP Youth</span>
                 </div>
               </div>

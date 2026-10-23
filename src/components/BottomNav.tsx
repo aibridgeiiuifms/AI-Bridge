@@ -26,6 +26,14 @@ const NAV_ITEMS = [
 export default function BottomNav() {
   const pathname = usePathname();
 
+  const handleTabClick = () => {
+    if (typeof window !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate(8);
+      } catch {}
+    }
+  };
+
   return (
     /* Safe-area padding handles iPhone home-bar notch */
     <nav
@@ -49,6 +57,7 @@ export default function BottomNav() {
             <li key={href} className="flex-1">
               <Link
                 href={href}
+                onClick={handleTabClick}
                 aria-label={label}
                 aria-current={isActive ? 'page' : undefined}
                 className="flex flex-col items-center justify-center gap-0.5 h-full w-full transition-colors"

@@ -18,6 +18,7 @@ import {
   Layers,
   ChevronRight
 } from 'lucide-react';
+import { TeamSectionSkeleton } from '@/components/skeletons/TeamCardSkeleton';
 
 interface TeamMember {
   id: string;
@@ -101,13 +102,8 @@ export default function TeamPage() {
       {/* Main Content Area */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 space-y-12">
         {loading ? (
-          <div className="text-center py-20 space-y-3">
-            <Image
-              src={sdgWheel}
-              alt="Sustainable Development Goals wheel"
-              className="w-16 h-16 mx-auto animate-[spin_4s_linear_infinite]"
-            />
-            <p className="text-xs text-slate-500 font-medium">Loading team profiles from Supabase...</p>
+          <div className="pt-8">
+            <TeamSectionSkeleton />
           </div>
         ) : (
           <>

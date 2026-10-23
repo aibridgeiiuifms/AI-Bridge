@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import SurveySelectionModal from '@/components/SurveySelectionModal';
+import PortalSkeleton from '@/components/skeletons/PortalSkeleton';
 
 export default function StudentPortal() {
   const [user, setUser] = useState<any>(null);
@@ -52,6 +53,13 @@ export default function StudentPortal() {
 
   const handleClaimSurvey = async (surveyId: string, participantType: string) => {
     setIsClaiming(true);
+    // Optimistic UI: Immediately mark completed and dismiss banner
+    const prevPreSurveyState = preSurveyCompleted;
+    const prevSuggestion = surveySuggestion;
+    setPreSurveyCompleted(true);
+    setSurveySuggestion(null);
+    setClaimToast('🎉 Survey successfully linked to your account! Pre-Assessment is now marked complete.');
+
     try {
       const res = await fetch('/api/portal/link-survey', {
         method: 'POST',
@@ -60,13 +68,19 @@ export default function StudentPortal() {
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setClaimToast('🎉 Survey successfully linked to your account! Pre-Assessment is now marked complete.');
-        setSurveySuggestion(null);
         await checkCertificationProgress();
       } else {
+        // Revert optimistic update on failure
+        setPreSurveyCompleted(prevPreSurveyState);
+        setSurveySuggestion(prevSuggestion);
+        setClaimToast(null);
         alert(data.error || 'Failed to link survey.');
       }
     } catch (err: any) {
+      // Revert optimistic update on error
+      setPreSurveyCompleted(prevPreSurveyState);
+      setSurveySuggestion(prevSuggestion);
+      setClaimToast(null);
       alert('Network error while linking survey: ' + err.message);
     } finally {
       setIsClaiming(false);
@@ -322,6 +336,10 @@ export default function StudentPortal() {
       }
     }
   }, []);
+
+  if (loading) {
+    return <PortalSkeleton />;
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">

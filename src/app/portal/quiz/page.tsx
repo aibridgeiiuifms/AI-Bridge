@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Hourglass
 } from 'lucide-react';
+import { queueSubmission } from '@/lib/offline-sync';
 
 interface Question {
   id: string;
@@ -318,14 +319,13 @@ export default function QuizPage() {
   const handleSubmitAttempt = async () => {
     setSubmitting(true);
     setShowConfirmModal(false);
+    // Build answers payload: send question IDs with their chosen option text
+    const formattedAnswers: Record<string, { text: string; index: number }> = {};
+    Object.entries(selectedAnswers).forEach(([qId, ans]) => {
+      formattedAnswers[qId] = ans;
+    });
 
     try {
-      // Build answers payload: send question IDs with their chosen option text
-      const formattedAnswers: Record<string, { text: string; index: number }> = {};
-      Object.entries(selectedAnswers).forEach(([qId, ans]) => {
-        formattedAnswers[qId] = ans;
-      });
-
       const res = await fetch('/api/portal/quiz', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -360,7 +360,16 @@ export default function QuizPage() {
 
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
-      alert(`Submission error: ${err.message}`);
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        queueSubmission('/api/portal/quiz', {
+          drawn_question_ids: questions.map((q) => q.id),
+          answers: formattedAnswers,
+          started_at: startedAt,
+        });
+        alert('You are offline. Your quiz answers have been safely saved to your device and will submit automatically when connectivity is restored.');
+      } else {
+        alert(`Submission error: ${err.message}`);
+      }
     } finally {
       setSubmitting(false);
     }
