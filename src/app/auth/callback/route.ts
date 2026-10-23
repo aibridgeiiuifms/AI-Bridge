@@ -14,9 +14,10 @@ export async function GET(request: Request) {
       if (error) {
         console.error('exchangeCodeForSession error:', error);
       } else if (data.user) {
+        const adminSupabase = createAdminClient();
+
         // Refresh the access role on every login from members + survey forms
         try {
-          const adminSupabase = createAdminClient();
           await adminSupabase.rpc('sync_user_role', { p_user_id: data.user.id });
         } catch (roleErr) {
           console.error('Error syncing user role on login:', roleErr);
@@ -26,7 +27,6 @@ export async function GET(request: Request) {
         const userEmail = (data.user.email || '').replace(/\s+/g, '').toLowerCase();
         if (userEmail) {
           try {
-            const adminSupabase = createAdminClient();
             await Promise.all([
               adminSupabase
                 .from('student_surveys')
