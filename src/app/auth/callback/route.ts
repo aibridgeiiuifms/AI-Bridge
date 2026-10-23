@@ -43,23 +43,12 @@ export async function GET(request: Request) {
             console.error('Error auto-linking pre-registered surveys:', linkErr);
           }
         }
-
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', data.user.id)
-          .maybeSingle();
-        if (profileError) {
-          console.error('Failed to load profile after sign in:', profileError);
-        } else if (profile?.role === 'admin' || profile?.role === 'team-member') {
-          return NextResponse.redirect(`${origin}/dashboard`);
-        }
       }
     } catch (err) {
       console.error('Error during auth exchange:', err);
     }
   }
 
-  // URL to redirect to after sign in process completes
-  return NextResponse.redirect(`${origin}/portal`);
+  // Redirect all users (guest, student, teacher, admin, member) directly to Home page on login
+  return NextResponse.redirect(`${origin}/`);
 }

@@ -65,18 +65,10 @@ export async function updateSession(request: NextRequest) {
       }
     }
 
-    // 3. Convenience: If logged-in user visits /login, redirect to their home portal
+    // 3. Convenience: If logged-in user visits /login, redirect to Home page
     if (pathname === '/login' && user) {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
-
       const url = request.nextUrl.clone();
-      url.pathname = !error && hasAmbassadorPortalRole(profile?.role)
-        ? '/dashboard'
-        : '/portal';
+      url.pathname = '/';
       return NextResponse.redirect(url);
     }
   }

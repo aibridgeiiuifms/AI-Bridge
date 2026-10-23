@@ -64,7 +64,7 @@ export default function StudentPortal() {
   const [postSurveyCompleted, setPostSurveyCompleted] = useState(false);
   const [certificateReady, setCertificateReady] = useState(false);
   const [certificate, setCertificate] = useState<any>(null);
-  const [isDownloadingCert, setIsDownloadingCert] = useState(false);
+  const [downloadingFormat, setDownloadingFormat] = useState<'pdf' | 'png' | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshToast, setRefreshToast] = useState<string | null>(null);
 
@@ -111,10 +111,10 @@ export default function StudentPortal() {
     }
   };
 
-  const handleDownloadCertificate = async () => {
-    setIsDownloadingCert(true);
+  const handleDownloadCertificate = async (format: 'pdf' | 'png' = 'pdf') => {
+    setDownloadingFormat(format);
     try {
-      const res = await fetch('/api/portal/certificate');
+      const res = await fetch(`/api/portal/certificate?format=${format}`);
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         alert(errData.error || 'Failed to generate certificate.');
@@ -124,7 +124,8 @@ export default function StudentPortal() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `The_AI_Bridge_Certificate_${certificate?.certificate_id || 'Verified'}.pdf`;
+      const ext = format === 'png' ? 'png' : 'pdf';
+      a.download = `The_AI_Bridge_Certificate_${certificate?.certificate_id || 'Verified'}.${ext}`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -141,7 +142,7 @@ export default function StudentPortal() {
     } catch (err: any) {
       alert('Error downloading certificate: ' + err.message);
     } finally {
-      setIsDownloadingCert(false);
+      setDownloadingFormat(null);
     }
   };
 
@@ -650,7 +651,7 @@ export default function StudentPortal() {
           ? 'bg-gradient-to-br from-amber-950 via-slate-900 to-amber-900 text-white border-amber-500/60 shadow-xl ring-1 ring-amber-400/30'
           : 'bg-white border-slate-200 text-slate-900 shadow-sm'
       }`}>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="flex flex-col lg:flex-row justify-between items-center gap-8">
           <div className="space-y-3 max-w-xl">
             <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
               certificate?.certificate_id
@@ -698,53 +699,70 @@ export default function StudentPortal() {
             </p>
           </div>
 
-          <div>
+          <div className="w-full lg:w-auto flex justify-center">
             {certificateReady ? (
-              <div className="flex flex-col sm:flex-row flex-wrap gap-2.5">
-                {/* FR-1 fix: Verify Status only shown when certificate_id is confirmed in DB */}
+              <div className="flex flex-col items-center justify-center gap-2.5 w-full max-w-xs sm:max-w-sm">
+                {/* 1. Verify Status (Centered) */}
                 {certificate?.certificate_id ? (
                   <Link
                     href={`/verify/${certificate.certificate_id}`}
-                    className="px-5 py-3 rounded-xl font-bold text-xs bg-white text-emerald-950 hover:bg-emerald-50 shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    className="w-full px-5 py-2.5 rounded-xl font-bold text-xs bg-white text-emerald-950 hover:bg-emerald-50 shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer border border-emerald-200"
                   >
                     <ShieldCheck className="w-4 h-4 text-emerald-700" />
                     <span>Verify Status</span>
                   </Link>
                 ) : null}
-                <button
-                  onClick={handleDownloadCertificate}
-                  disabled={isDownloadingCert}
-                  className={`px-6 py-3 rounded-xl font-bold text-xs shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 ${
-                    certificate?.certificate_id
-                      ? 'bg-emerald-400 text-slate-950 hover:bg-emerald-300'
-                      : 'bg-amber-400 text-slate-950 hover:bg-amber-300'
-                  }`}
-                >
-                  {isDownloadingCert ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Generating Certificate...</span>
-                    </>
-                  ) : certificate?.certificate_id ? (
-                    <>
-                      <Download className="w-4 h-4" />
-                      <span>Download PDF Certificate</span>
-                    </>
-                  ) : (
-                    <>
-                      <Award className="w-4 h-4" />
-                      <span>Generate &amp; Download Certificate</span>
-                    </>
-                  )}
-                </button>
 
-                {/* 3. Add to LinkedIn (Authenticated Owner Only) */}
+                {/* 2. [Pdf Download] [Png Download] (Side by Side, Centered) */}
+                <div className="flex items-center justify-center gap-2.5 w-full">
+                  <button
+                    onClick={() => handleDownloadCertificate('pdf')}
+                    disabled={downloadingFormat !== null}
+                    className={`flex-1 px-4 py-3 rounded-xl font-bold text-xs shadow-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 ${
+                      certificate?.certificate_id
+                        ? 'bg-emerald-400 text-slate-950 hover:bg-emerald-300'
+                        : 'bg-amber-400 text-slate-950 hover:bg-amber-300'
+                    }`}
+                  >
+                    {downloadingFormat === 'pdf' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>PDF...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        <span>PDF Download</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => handleDownloadCertificate('png')}
+                    disabled={downloadingFormat !== null}
+                    className="flex-1 px-4 py-3 rounded-xl font-bold text-xs shadow-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 bg-teal-300 text-slate-950 hover:bg-teal-200"
+                  >
+                    {downloadingFormat === 'png' ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>PNG...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-4 h-4" />
+                        <span>PNG Download</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* 3. Add to LinkedIn (Centered) */}
                 {certificate?.certificate_id ? (
                   <a
                     href={buildLinkedInCertUrl(certificate.certificate_id, certificate.completion_date)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-4 py-3 rounded-xl font-bold text-xs bg-[#0a66c2] text-white hover:bg-[#004182] shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                    className="w-full px-5 py-2.5 rounded-xl font-bold text-xs bg-[#0a66c2] text-white hover:bg-[#004182] shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >
                     <svg className="w-3.5 h-3.5 fill-white" viewBox="0 0 24 24">
                       <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.25V10.9H6.46M7.86 6.54a1.64 1.64 0 1 0 0 3.28 1.64 1.64 0 0 0 0-3.28Z" />

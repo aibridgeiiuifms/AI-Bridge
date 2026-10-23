@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { stampCertificatePdfOnTheSpot } from '@/lib/certificate/generator';
+import { stampCertificatePdfOnTheSpot, stampCertificatePngOnTheSpot } from '@/lib/certificate/generator';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
     const adminClient = createAdminClient();
     const searchParams = req.nextUrl.searchParams;
     const verifyId = searchParams.get('verify_id')?.trim();
+    const format = searchParams.get('format')?.toLowerCase();
 
     let cert: any = null;
 
@@ -111,7 +112,28 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 3. Generate Stamped PDF on the spot in RAM (~50-80ms)
+    // 3. Format Branch: High-Resolution PNG
+    if (format === 'png') {
+      const pngBytes = await stampCertificatePngOnTheSpot({
+        certificateId: cert.certificate_id,
+        recipientName: cert.recipient_name,
+      });
+
+      const safeFilename = `The_AI_Bridge_Certificate_${cert.certificate_id.replace(/[^a-zA-Z0-9_-]/g, '_')}.png`;
+
+      return new NextResponse(Buffer.from(pngBytes), {
+        status: 200,
+        headers: {
+          'Content-Type': 'image/png',
+          'Content-Disposition': `attachment; filename="${safeFilename}"`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
+      });
+    }
+
+    // 4. Default Format: Stamped Vector PDF on the spot in RAM (~50-80ms)
     const pdfBytes = await stampCertificatePdfOnTheSpot({
       certificateId: cert.certificate_id,
       recipientName: cert.recipient_name,
@@ -119,7 +141,7 @@ export async function GET(req: NextRequest) {
 
     const safeFilename = `The_AI_Bridge_Certificate_${cert.certificate_id.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
 
-    // 4. Stream binary directly to user (Zero file storage)
+    // Stream binary directly to user (Zero file storage)
     return new NextResponse(Buffer.from(pdfBytes), {
       status: 200,
       headers: {

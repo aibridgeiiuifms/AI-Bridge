@@ -1,5 +1,6 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import QRCode from 'qrcode';
+import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
 
@@ -121,4 +122,67 @@ export async function stampCertificatePdfOnTheSpot(input: StampingInput): Promis
 
   // Return generated binary PDF directly
   return await pdfDoc.save();
+}
+
+/**
+ * Creates the official high-resolution PNG certificate on the spot in RAM using Sharp.
+ */
+export async function stampCertificatePngOnTheSpot(input: StampingInput): Promise<Buffer> {
+  const templatePath = path.join(process.cwd(), 'Assets', 'AI_BRIDGE_Certificate_Template.png');
+
+  if (!fs.existsSync(templatePath)) {
+    throw new Error(`Certificate PNG template not found at: ${templatePath}`);
+  }
+
+  const cleanName = normalizePdfText(input.recipientName) || 'Participant';
+
+  // Dynamic font sizing (base 112px at scale 2)
+  let fontSize = 112;
+  if (cleanName.length > 25) {
+    fontSize = Math.floor(112 * (25 / cleanName.length));
+  }
+
+  const safeName = cleanName
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+
+  const envUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  const baseUrl = (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1'))
+    ? envUrl.replace(/\/+$/, '')
+    : 'https://ai-bridge-iiui.vercel.app';
+  const verifyUrl = `${baseUrl}/verify/${input.certificateId}`;
+
+  const qrBuffer = await QRCode.toBuffer(verifyUrl, {
+    width: 200,
+    margin: 1,
+    color: { dark: '#0a2756', light: '#ffffff' },
+  });
+
+  const svgOverlay = `
+  <svg width="2880" height="2037" xmlns="http://www.w3.org/2000/svg">
+    <text x="190" y="1005" font-family="'Times New Roman', Times, serif" font-weight="bold" font-size="${fontSize}" fill="#0a2756">
+      ${safeName}
+    </text>
+    <!-- White backing card for QR -->
+    <rect x="2278" y="1528" width="216" height="216" fill="#ffffff" rx="4" />
+    <!-- Sub-labels under QR -->
+    <text x="2386" y="1774" font-family="Helvetica, Arial, sans-serif" font-weight="bold" font-size="22" fill="#ffffff" text-anchor="middle">
+      Scan to verify
+    </text>
+    <text x="2386" y="1801" font-family="Helvetica, Arial, sans-serif" font-weight="bold" font-size="22" fill="#ffffff" text-anchor="middle">
+      certificate
+    </text>
+  </svg>
+  `;
+
+  return await sharp(templatePath)
+    .composite([
+      { input: Buffer.from(svgOverlay), top: 0, left: 0 },
+      { input: qrBuffer, top: 1536, left: 2286 },
+    ])
+    .png({ quality: 95 })
+    .toBuffer();
 }
