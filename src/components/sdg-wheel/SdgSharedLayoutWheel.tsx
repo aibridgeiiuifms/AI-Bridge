@@ -1,22 +1,5 @@
 'use client';
 
-/**
- * SdgSharedLayoutWheel.tsx
- * ─────────────────────────────────────────────────────────────────────────────
- * Authentic United Nations SDG Wheel scroll-driven layout animation.
- *
- * Requirements:
- * 1. The full wheel displays ALL 17 SDGs accurately aligned in a circular wheel
- *    using pure vector SVG assets (matching sdg-logo-wheel).
- * 2. When the user scrolls, the wheel STAYS on screen, and ONLY SDGs 4, 8, 10,
- *    and 17 separate and detach from the wheel, gliding smoothly into their
- *    respective Details cards.
- * 3. The 13 remaining SDGs rebalance evenly around the wheel when targets detach.
- * 4. Scrolling back restores all slices to their original positions.
- * 5. Pure SVG files (no raster .webp images).
- * 6. Hardware-accelerated GPU transforms (x, y, scale, rotate) with spring physics.
- */
-
 import React, { useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import {
@@ -98,7 +81,8 @@ const StaticSdgSlice = React.memo(function StaticSdgSlice({
         src={slice.src}
         alt={slice.title}
         className="h-full w-full object-contain pointer-events-none select-none filter-none md:drop-shadow-md"
-        loading="eager"
+        loading="lazy"
+        decoding="async"
         style={slice.num === 1 || slice.num === 17 ? { transform: 'scale(1.02)' } : undefined}
       />
     </motion.div>
@@ -153,6 +137,8 @@ const TargetSdgSlice = React.memo(function TargetSdgSlice({
       <img
         src={slice.src}
         alt={slice.title}
+        loading="lazy"
+        decoding="async"
         className="pointer-events-none h-full w-full object-contain filter-none md:drop-shadow-md"
       />
     </motion.div>
@@ -257,17 +243,16 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
   });
   const alignedOpacity = useTransform(dockingProgress, [0, 1], [1, 0]);
   const decoupledOpacity = useTransform(dockingProgress, [0, 1], [0, 1]);
-  const statusColor = useTransform(dockingProgress, [0, 1], ['#10b981', '#14b8a6']);
-  const cardBorderColor = useTransform(dockingProgress, [0, 1], ['#e2e8f0', '#cbd5e1']);
+  const statusColor = useTransform(dockingProgress, [0, 1], ['#0F4C3A', '#C88A2B']);
+  const cardBorderColor = useTransform(dockingProgress, [0, 1], ['#E2DFD7', '#CBD5E1']);
   const cardShadow = useTransform(
     dockingProgress,
     [0, 1],
     ['0 1px 2px rgb(0 0 0 / 0.05)', '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'],
   );
-  const guideBorderColor = useTransform(dockingProgress, [0, 1], ['#cbd5e1', 'transparent']);
+  const guideBorderColor = useTransform(dockingProgress, [0, 1], ['#CBD5E1', 'rgba(203, 213, 225, 0)']);
   const watermarkOpacity = useTransform(dockingProgress, [0, 1], [0.4, 0]);
 
-  // 2. Measure pinpoint screen translation vectors from wheel slots to card slots
   const measureDeltas = useCallback(() => {
     if (!wheelRef.current) return;
     const wheelRect = wheelRef.current.getBoundingClientRect();
@@ -277,7 +262,6 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
       if (!cardEl) return;
       const cardRect = cardEl.getBoundingClientRect();
 
-      // Wheel coordinates of the slice center before the wheel's 45° rotation.
       const sliceLeft = wheelRect.left + (slice.leftPct / 100) * wheelRect.width;
       const sliceTop = wheelRect.top + (slice.topPct / 100) * wheelRect.height;
       const sliceWidth = (slice.widthPct / 100) * wheelRect.width;
@@ -286,7 +270,6 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
       const sliceCenterX = sliceLeft + (slice.localCenterXPct / 100) * sliceWidth;
       const sliceCenterY = sliceTop + (slice.localCenterYPct / 100) * sliceHeight;
 
-      // Convert the card center into the rotated wheel layer's local coordinates.
       const cardCenterX = cardRect.left + cardRect.width / 2;
       const cardCenterY = cardRect.top + cardRect.height / 2;
       const targetX = cardCenterX - wheelRect.left - wheelRect.width / 2;
@@ -297,7 +280,6 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
       const sourceLocalX = sliceCenterX - wheelRect.left - wheelRect.width / 2;
       const sourceLocalY = sliceCenterY - wheelRect.top - wheelRect.height / 2;
 
-      // Target scale factor: fit the slice comfortably into the card slot
       const maxSliceDim = Math.max(sliceWidth, sliceHeight);
       const targetDim = cardRect.width * 0.95;
       const scale = Math.min(1.4, Math.max(0.6, targetDim / maxSliceDim));
@@ -310,8 +292,6 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
     });
   }, []);
 
-  // The wheel and its card docks share a sticky stage, so scrolling does not
-  // change their relative positions; remeasure only when the layout resizes.
   useEffect(() => {
     measureDeltas();
     const resizeObserver = new ResizeObserver(measureDeltas);
@@ -340,42 +320,37 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
       top: Math.min(targetScrollY, maxScrollY),
       behavior: 'smooth',
     });
-  }, []);
+  }, [smoothProgress]);
 
   return (
     <div
+      id="sdg-alignment"
       ref={containerRef}
       className={`relative min-h-[175vh] w-full select-none ${className}`}
       aria-label="Interactive UN SDG Wheel Separation"
     >
-      {/* ──────────────────────────────────────────────────────────────────
-          Sticky Viewport Stage: Keeps Wheel & Cards in view during scroll
-      ────────────────────────────────────────────────────────────────── */}
       <div className="sticky top-0 flex min-h-screen w-full flex-col items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
-        
         {/* Header */}
         <div className="mb-4 max-w-2xl text-center sm:mb-8">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-800">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#C3DCD2] bg-[#E6F0EC] px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-[#0F4C3A]">
             Interactive SDG Alignment
           </span>
-          <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
+          <h2 className="mt-2.5 text-2xl font-extrabold tracking-tight text-[#0F172A] sm:text-3xl lg:text-4xl">
             United Nations Sustainable Development Goals
           </h2>
-          <p className="mt-1 text-xs sm:text-sm text-slate-600">
-            Scroll down to separate target goals (SDG 4, 8, 10 & 17) from the wheel and dock them into our initiatives.
+          <p className="mt-1.5 text-xs sm:text-sm text-[#334155]">
+            Scroll down (or tap any goal card) to separate target goals (SDG 4, 8, 10 &amp; 17) from the wheel and dock them into our initiatives.
           </p>
         </div>
 
-        {/* ── Main Stage: Wheel on Left / Cards on Right (responsive flex) ──── */}
+        {/* Main Stage */}
         <div className="flex w-full max-w-6xl flex-col items-center justify-center gap-6 lg:flex-row lg:items-center lg:gap-12">
-          
-          {/* ── 1. The SDG Wheel (STAYS ON SCREEN!) ──────────────────────── */}
+          {/* 1. The SDG Wheel */}
           <div className="relative z-30 flex flex-col items-center justify-center flex-shrink-0">
             <div
               ref={wheelRef}
               className="relative aspect-square w-[220px] transform-gpu will-change-transform sm:w-[320px] md:w-[360px] lg:w-[410px]"
               style={{
-                // Paint containment would clip target slices as they travel to the cards.
                 contain: 'layout size',
                 transform: 'translate3d(0, 0, 0)',
                 backfaceVisibility: 'hidden',
@@ -386,20 +361,21 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
                 scrollProgress={smoothProgress}
                 deltas={deltas}
               />
-              <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 flex aspect-square w-[38%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white bg-white p-[2%] shadow-md ring-1 ring-slate-200/80">
+              <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 flex aspect-square w-[38%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[#E2DFD7] bg-white p-[2%] shadow-md">
                 <Image
                   src="/sdg-logo-for-wheel.webp"
                   alt="Sustainable Development Goals"
-                  width={1311}
-                  height={776}
+                  width={160}
+                  height={95}
+                  sizes="160px"
+                  loading="lazy"
                   className="h-full w-full object-contain"
-                  priority
                 />
               </div>
             </div>
 
             {/* Status indicator pill */}
-            <div className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-slate-500">
+            <div className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-[#64748B]">
               <motion.span
                 className="inline-block h-2 w-2 rounded-full"
                 style={{ backgroundColor: statusColor }}
@@ -415,10 +391,10 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
             </div>
           </div>
 
-          {/* ── 2. The 4 Target Details Cards (2x2 grid on mobile and desktop) ─ */}
+          {/* 2. The 4 Target Details Cards */}
           <div
             ref={cardsRef}
-            className="relative z-0 grid w-full max-w-xl flex-1 grid-cols-2 items-stretch gap-1.5 sm:gap-4"
+            className="relative z-0 grid w-full max-w-xl flex-1 grid-cols-2 items-stretch gap-2 sm:gap-4"
           >
             {TARGET_SDGS.map((target) => (
               <motion.button
@@ -426,13 +402,9 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
                 type="button"
                 onClick={toggleGoalsDocking}
                 aria-label={`Toggle SDG ${target.num} between the wheel and its card`}
-                className="group relative flex h-full min-w-0 cursor-pointer flex-row items-start gap-1.5 rounded-xl border bg-white/95 p-1.5 text-left shadow-xs backdrop-blur-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 sm:gap-3 sm:rounded-2xl sm:p-4"
+                className="group relative flex h-full min-w-0 cursor-pointer flex-row items-start gap-2 rounded-xl border bg-[#F8F7F4] p-2 text-left shadow-xs transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0F4C3A] focus-visible:ring-offset-2 sm:gap-3 sm:rounded-2xl sm:p-4"
                 style={{ borderColor: cardBorderColor, boxShadow: cardShadow, borderTop: `4px solid ${target.color}` }}
               >
-                {/*
-                 * Target Landing Dock:
-                 * The SVG slice translates, scales, and rotates upright to dock into this slot!
-                 */}
                 <div
                   ref={(el) => {
                     cardSlotRefs.current[target.num] = el;
@@ -440,13 +412,10 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
                   className="relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md min-[360px]:h-7 min-[360px]:w-7 sm:h-16 sm:w-16 sm:rounded-xl"
                   style={{ backgroundColor: `${target.color}15` }}
                 >
-                  {/* Visual dashed slot guide */}
                   <motion.div
                     className="absolute inset-0 rounded-md sm:rounded-xl border border-dashed transition-colors"
                     style={{ borderColor: guideBorderColor }}
                   />
-
-                  {/* Faint goal number watermark before slice docks */}
                   <motion.span
                     className="text-[10px] sm:text-xs font-black transition-opacity"
                     style={{ color: target.color, opacity: watermarkOpacity }}
@@ -455,16 +424,15 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
                   </motion.span>
                 </div>
 
-                {/* Card Text Content */}
                 <div className="w-full min-w-0 flex-1">
                   <div className="mb-0.5 flex flex-wrap items-center gap-x-1 gap-y-0.5 sm:gap-1.5">
                     <span
-                      className="inline-flex items-center rounded-full px-1 py-0.5 text-[8px] font-extrabold text-white sm:px-2 sm:text-[9px]"
+                      className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[8px] font-extrabold text-white sm:px-2 sm:text-[9px]"
                       style={{ backgroundColor: target.color }}
                     >
                       SDG {target.num}
                     </span>
-                    <span className="inline-grid text-[8px] font-semibold text-slate-500 sm:text-[10px]">
+                    <span className="inline-grid text-[8px] font-semibold text-[#64748B] sm:text-[10px]">
                       <motion.span className="col-start-1 row-start-1" style={{ opacity: alignedOpacity }}>
                         In Wheel
                       </motion.span>
@@ -474,11 +442,11 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
                     </span>
                   </div>
 
-                  <h3 className="break-words text-[9px] font-bold leading-tight text-slate-900 sm:text-sm sm:leading-snug">
+                  <h3 className="break-words text-[9.5px] font-bold leading-tight text-[#0F172A] sm:text-sm sm:leading-snug">
                     {target.title}
                   </h3>
 
-                  <p className="mt-0.5 break-words text-[9px] leading-[1.25] text-slate-600 sm:mt-1 sm:text-[11px] sm:leading-relaxed">
+                  <p className="mt-0.5 break-words text-[9px] leading-[1.3] text-[#334155] sm:mt-1 sm:text-[11px] sm:leading-relaxed">
                     <ScrollTypewriter
                       text={target.description}
                       progress={smoothProgress}
@@ -489,11 +457,8 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
               </motion.button>
             ))}
           </div>
-
         </div>
-
       </div>
-
     </div>
   );
 }

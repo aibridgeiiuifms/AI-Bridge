@@ -2,327 +2,259 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { Sparkles, ChevronLeft, ChevronRight, X, Hand } from 'lucide-react';
+import Link from 'next/link';
+import {
+  GraduationCap,
+  ArrowRight,
+} from 'lucide-react';
 
 const slides = [
-  { src: '/highlights/p1.webp', alt: 'AI Bridge Campaign Highlight 1' },
-  { src: '/highlights/p2.webp', alt: 'AI Bridge Campaign Highlight 2' },
-  { src: '/highlights/p3.webp', alt: 'AI Bridge Campaign Highlight 3' },
-  { src: '/highlights/p4.webp', alt: 'AI Bridge Campaign Highlight 4' },
-  { src: '/highlights/p5.webp', alt: 'AI Bridge Campaign Highlight 5' },
-  { src: '/highlights/p6.webp', alt: 'AI Bridge Campaign Highlight 6' },
-  { src: '/highlights/p7.webp', alt: 'AI Bridge Campaign Highlight 7' },
-  { src: '/highlights/p8.webp', alt: 'AI Bridge Campaign Highlight 8' },
-  { src: '/highlights/p9.webp', alt: 'AI Bridge Campaign Highlight 9' },
-  { src: '/highlights/p10.webp', alt: 'AI Bridge Campaign Highlight 10' },
-  { src: '/highlights/p11.webp', alt: 'AI Bridge Campaign Highlight 11' },
+  {
+    src: '/highlights/p5.webp',
+    alt: 'IIUI Faculty of Management Sciences AI Bridge Workshop Session',
+    caption: 'Faculty & Ambassador Training Session at FMS IIUI',
+  },
+  {
+    src: '/highlights/p1.webp',
+    alt: 'AI Bridge Campaign Highlight 1',
+    caption: 'Hum Hain Pakistan SDG Youth Campaign Launch',
+  },
+  {
+    src: '/highlights/p2.webp',
+    alt: 'AI Bridge Campaign Highlight 2',
+    caption: 'Interactive Source-Grounded AI Walkthrough',
+  },
+  {
+    src: '/highlights/p3.webp',
+    alt: 'AI Bridge Campaign Highlight 3',
+    caption: 'Academic Leadership & SDG Ambassadors Briefing',
+  },
+  {
+    src: '/highlights/p4.webp',
+    alt: 'AI Bridge Campaign Highlight 4',
+    caption: 'Hands-on NotebookLM Curriculum Synthesis',
+  },
+  {
+    src: '/highlights/p6.webp',
+    alt: 'AI Bridge Campaign Highlight 6',
+    caption: 'Cross-Departmental Scholar Engagement',
+  },
+  {
+    src: '/highlights/p7.webp',
+    alt: 'AI Bridge Campaign Highlight 7',
+    caption: 'Student Evaluation & Verification Orientation',
+  },
+  {
+    src: '/highlights/p8.webp',
+    alt: 'AI Bridge Campaign Highlight 8',
+    caption: 'FMS SDG Functional Teams in Action',
+  },
+  {
+    src: '/highlights/p9.webp',
+    alt: 'AI Bridge Campaign Highlight 9',
+    caption: 'Bridging the Digital Divide in Non-IT Disciplines',
+  },
+  {
+    src: '/highlights/p10.webp',
+    alt: 'AI Bridge Campaign Highlight 10',
+    caption: 'Collaborative Research & Audio Overviews Demo',
+  },
+  {
+    src: '/highlights/p11.webp',
+    alt: 'AI Bridge Campaign Highlight 11',
+    caption: 'IIUI Islamabad Campus Awareness Drive',
+  },
 ];
 
-// The slide visible on first paint — only this one is eagerly loaded.
-const INITIAL_SLIDE = 4;
-
-interface HighlightsCarouselProps {
-  className?: string;
-}
-
-export default function HighlightsCarousel({ className = '' }: HighlightsCarouselProps) {
-  // ── Main carousel state ──────────────────────────────────────────────────
-  const [activeSlide, setActiveSlide] = useState(INITIAL_SLIDE);
-  const [isPaused, setIsPaused] = useState(false);
+export default function HighlightsCarousel() {
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [hasHydrated, setHasHydrated] = useState(false);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
-  // ── Lightbox preview state ────────────────────────────────────────────────
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewIndex, setPreviewIndex] = useState(0);
-  const [previewTouchStartX, setPreviewTouchStartX] = useState<number | null>(null);
-  const [showSwipeHint, setShowSwipeHint] = useState(true);
-
-  // ── Preview helpers ───────────────────────────────────────────────────────
-  const openPreview = (index: number) => {
-    setPreviewIndex(index);
-    setPreviewOpen(true);
-    setShowSwipeHint(true);
-  };
-
-  const closePreview = useCallback(() => setPreviewOpen(false), []);
-
-  const handlePrevPreview = useCallback(() => {
-    setPreviewIndex((prev) => (prev - 1 + slides.length) % slides.length);
-    setShowSwipeHint(false);
-  }, []);
-
-  const handleNextPreview = useCallback(() => {
-    setPreviewIndex((prev) => (prev + 1) % slides.length);
-    setShowSwipeHint(false);
-  }, []);
-
-  // ── Auto-hide swipe hint after 3 seconds on mobile ───────────────────────
+  // Mark hydrated after initial paint so only slide 0 is fetched during initial paint
   useEffect(() => {
-    if (!previewOpen) return;
-    const timer = setTimeout(() => {
-      setShowSwipeHint(false);
-    }, 3200);
+    const timer = setTimeout(() => setHasHydrated(true), 1200);
     return () => clearTimeout(timer);
-  }, [previewOpen]);
+  }, []);
 
-  // ── Preview swipe handlers ────────────────────────────────────────────────
-  const handlePreviewTouchStart = (e: React.TouchEvent) => {
-    setPreviewTouchStartX(e.touches[0].clientX);
-  };
-
-  const handlePreviewTouchEnd = (e: React.TouchEvent) => {
-    if (previewTouchStartX === null) return;
-    const diff = previewTouchStartX - e.changedTouches[0].clientX;
-    if (Math.abs(diff) > 40) {
-      if (diff > 0) handleNextPreview();
-      else handlePrevPreview();
-    }
-    setPreviewTouchStartX(null);
-  };
-
-  // ── Keyboard + scroll lock ────────────────────────────────────────────────
-  useEffect(() => {
-    if (!previewOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closePreview();
-      if (e.key === 'ArrowLeft') handlePrevPreview();
-      if (e.key === 'ArrowRight') handleNextPreview();
-    };
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.body.style.overflow = '';
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [previewOpen, handlePrevPreview, handleNextPreview, closePreview]);
-
-  // ── Main carousel helpers ─────────────────────────────────────────────────
   const goToSlide = useCallback((index: number) => {
+    setHasHydrated(true);
     setActiveSlide((index + slides.length) % slides.length);
   }, []);
 
-  const handlePrev = useCallback(() => goToSlide(activeSlide - 1), [activeSlide, goToSlide]);
   const handleNext = useCallback(() => goToSlide(activeSlide + 1), [activeSlide, goToSlide]);
+  const handlePrev = useCallback(() => goToSlide(activeSlide - 1), [activeSlide, goToSlide]);
 
   useEffect(() => {
-    if (isPaused) return;
-    const interval = setInterval(() => goToSlide(activeSlide + 1), 3200);
+    const interval = setInterval(() => {
+      setHasHydrated(true);
+      setActiveSlide((prev) => (prev + 1) % slides.length);
+    }, 6000);
     return () => clearInterval(interval);
-  }, [activeSlide, isPaused, goToSlide]);
+  }, []);
 
-  // ── Main carousel swipe ───────────────────────────────────────────────────
   const handleTouchStart = (e: React.TouchEvent) => {
-    setIsPaused(true);
     setTouchStartX(e.touches[0].clientX);
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    setIsPaused(false);
     if (touchStartX === null) return;
     const diff = touchStartX - e.changedTouches[0].clientX;
-    if (Math.abs(diff) > 40) {
+    if (Math.abs(diff) > 45) {
       if (diff > 0) handleNext();
       else handlePrev();
     }
     setTouchStartX(null);
   };
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div
-      className={`flex flex-col w-full ${className}`}
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
+    <section
+      id="hero"
+      aria-label="The AI Bridge Hero"
+      className="relative w-full min-h-[100svh] flex flex-col justify-between overflow-hidden bg-[#07231A] text-white select-none pt-20 sm:pt-24"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Header */}
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-200 sm:text-xs">
-          <Sparkles className="h-3 w-3 text-amber-300" />
-          <span>Week 2 Highlights</span>
-        </span>
-        <div className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-200/80 sm:text-xs">
-          <span className="font-bold text-white">{activeSlide + 1}</span>
-          <span>/</span>
-          <span>{slides.length}</span>
-        </div>
-      </div>
+      {/* Full-Viewport Background Image Slider (GPU-Optimized Crossfade) */}
+      <div className="absolute inset-0 z-0 overflow-hidden">
+        {slides.map((slide, index) => {
+          const isCurrent = index === activeSlide;
+          const isNext = index === (activeSlide + 1) % slides.length;
+          const shouldRender = index === 0 || (hasHydrated && (isCurrent || isNext));
 
-      {/* Carousel track */}
-      <div className="relative group overflow-hidden rounded-2xl border border-white/20 bg-slate-950/80 shadow-2xl backdrop-blur-md">
-        <div
-          className="flex transition-transform duration-500 ease-out will-change-transform"
-          style={{ transform: `translateX(-${activeSlide * 100}%)` }}
-        >
-          {slides.map((slide, index) => {
-            // Only mount the image for the active slide and its immediate
-            // neighbours. The rest stay as empty placeholders so the
-            // translateX strip animation keeps working without triggering a
-            // request for every off-screen image.
-            const isInWindow = Math.abs(index - activeSlide) <= 1;
-            return (
-              <article
-                key={slide.src}
-                className="relative aspect-video w-full shrink-0 overflow-hidden bg-slate-950 flex items-center justify-center"
-                aria-label={`Highlight ${index + 1} of ${slides.length}`}
-              >
-                {isInWindow && (
-                  <Image
-                    src={slide.src}
-                    alt={slide.alt}
-                    fill
-                    priority={index === INITIAL_SLIDE}
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 40vw"
-                    onClick={() => openPreview(index)}
-                    className="object-cover w-full h-full z-10 cursor-pointer"
-                  />
-                )}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/60 via-transparent to-black/20 pointer-events-none z-10" />
-              </article>
-            );
-          })}
-        </div>
+          if (!shouldRender) return null;
 
-        {/* Prev / Next arrows */}
-        <button
-          type="button"
-          onClick={handlePrev}
-          aria-label="Previous highlight"
-          className="absolute left-2 top-1/2 -translate-y-1/2 z-20 flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-slate-950/70 text-white border border-white/20 backdrop-blur-sm opacity-80 hover:opacity-100 hover:bg-slate-900 transition-all shadow-md active:scale-95"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={handleNext}
-          aria-label="Next highlight"
-          className="absolute right-2 top-1/2 -translate-y-1/2 z-20 flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-slate-950/70 text-white border border-white/20 backdrop-blur-sm opacity-80 hover:opacity-100 hover:bg-slate-900 transition-all shadow-md active:scale-95"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-
-        {/* Indicator dots */}
-        <div className="absolute inset-x-0 bottom-2.5 z-20 flex items-center justify-center gap-1 sm:gap-1.5 pointer-events-auto px-4">
-          {slides.map((_, dotIndex) => (
-            <button
-              key={dotIndex}
-              type="button"
-              aria-label={`Go to highlight ${dotIndex + 1}`}
-              aria-current={activeSlide === dotIndex ? 'true' : undefined}
-              onClick={() => goToSlide(dotIndex)}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                activeSlide === dotIndex
-                  ? 'w-5 sm:w-6 bg-white shadow-sm'
-                  : 'w-1.5 bg-white/45 hover:bg-white/75'
+          return (
+            <div
+              key={slide.src}
+              aria-hidden={!isCurrent}
+              className={`absolute inset-0 transition-opacity duration-700 ease-out will-change-[opacity] ${
+                isCurrent ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
               }`}
-            />
-          ))}
-        </div>
+            >
+              <div className="relative w-full h-full">
+                <Image
+                  src={slide.src}
+                  alt={slide.alt}
+                  fill
+                  priority={index === 0}
+                  fetchPriority={index === 0 ? 'high' : 'auto'}
+                  loading={index === 0 ? 'eager' : 'lazy'}
+                  sizes="100vw"
+                  quality={75}
+                  className="object-cover object-center"
+                />
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Restrained Solid Dark Overlay for Reliable Text Contrast */}
+        <div className="absolute inset-0 z-20 bg-[#0A1F17]/75 pointer-events-none" />
       </div>
 
-      {/* ── Lightbox overlay ─────────────────────────────────────────────────
-          All images are pre-rendered in a CSS translateX strip so navigating
-          is pure CSS — zero network latency between images.
-      ──────────────────────────────────────────────────────────────────────── */}
-      {previewOpen && (
-        <div
-          className="fixed inset-0 z-[100] bg-slate-950/95 backdrop-blur-md overflow-hidden select-none"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Highlight preview"
-          onTouchStart={handlePreviewTouchStart}
-          onTouchEnd={handlePreviewTouchEnd}
-        >
-          {/* Explicit backdrop layers: clicking the top or bottom outer padding triggers close */}
-          <div
-            className="absolute inset-x-0 top-0 h-16 cursor-pointer z-10"
-            onClick={closePreview}
-            aria-hidden="true"
-          />
-          <div
-            className="absolute inset-x-0 bottom-0 h-20 cursor-pointer z-10"
-            onClick={closePreview}
-            aria-hidden="true"
-          />
-
-          {/* Top Counter */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 rounded-full bg-slate-900/80 px-3.5 py-1 text-xs font-semibold text-white border border-white/20 pointer-events-none shadow-md backdrop-blur-sm">
-            {previewIndex + 1} / {slides.length}
+      {/* Main Hero Content Container */}
+      <div className="relative z-30 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 my-auto">
+        <div className="max-w-3xl space-y-6">
+          {/* Sleek Redesigned Campaign Pill */}
+          <div className="inline-flex items-center gap-2.5 rounded-full bg-[#0F172A]/75 border border-white/20 backdrop-blur-md px-3.5 py-1.5 shadow-sm">
+            <div className="flex items-center gap-2 pr-2.5 border-r border-white/20">
+              <Image
+                src="/iiui-logo.webp"
+                alt="IIUI Logo"
+                width={20}
+                height={20}
+                priority
+                className="h-5 w-5 rounded-full bg-white p-0.5 object-contain"
+              />
+              <span className="text-[11px] sm:text-xs font-bold tracking-wide text-white">
+                FMS • IIUI Islamabad
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-[#EAD1A7]">
+              <span className="inline-block h-2 w-2 rounded-full bg-[#C88A2B] animate-pulse" />
+              <span>Hum Hain Pakistan • UN SDG Youth Campaign</span>
+            </div>
           </div>
 
-          {/* Close (X) Button */}
-          <button
-            type="button"
-            onClick={closePreview}
-            aria-label="Close preview"
-            className="absolute right-4 top-4 z-30 rounded-full border border-white/25 bg-slate-900/90 p-2 text-white shadow-lg hover:bg-slate-800 hover:text-gray-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 transition-colors"
-          >
-            <X className="h-6 w-6" />
-          </button>
+          {/* Concise, Distinctive Heading */}
+          <div className="space-y-4">
+            <h1 className="text-balance text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-[1.1]">
+              Source-Grounded AI for{' '}
+              <span className="text-[#EAD1A7] underline decoration-[#C88A2B] decoration-2 underline-offset-8">
+                Non-IT Educators &amp; Scholars
+              </span>
+            </h1>
 
-          {/* Mobile Swipe Guidance Badge */}
-          {showSwipeHint && (
-            <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 sm:hidden flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/90 border border-emerald-400/40 text-[11px] font-medium text-emerald-200 shadow-lg animate-fade-in pointer-events-none">
-              <Hand className="w-3.5 h-3.5 animate-pulse text-amber-300" />
-              <span>Swipe left or right to browse</span>
-            </div>
-          )}
+            <p className="text-sm sm:text-lg text-slate-200 max-w-2xl leading-relaxed font-normal">
+              Pioneered at the Faculty of Management Sciences (IIUI) under the mentorship of{' '}
+              <strong className="font-semibold text-white">Dr. Abdul Zahid Khan</strong>. Transforming classical curricula into verified, interactive study guides and audio overviews with zero hallucinations.
+            </p>
+          </div>
 
-          {/* Image Stage Container — Clicking black margins inside here DOES NOT close preview */}
-          <div className="absolute inset-x-12 top-16 bottom-20 sm:inset-x-16">
-            <div
-              className="flex h-full transition-transform duration-200 ease-out will-change-transform"
-              style={{ transform: `translateX(-${previewIndex * 100}%)` }}
+          {/* Primary CTA (Gallery button removed per request) */}
+          <div className="pt-2">
+            <Link
+              href="/portal"
+              className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-[#C88A2B] hover:bg-[#B0761E] text-[#0F172A] font-extrabold text-sm sm:text-base px-7 py-3.5 shadow-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#07231A]"
             >
-              {slides.map((slide, index) => (
-                <div
-                  key={slide.src}
-                  className="relative h-full w-full shrink-0 flex items-center justify-center"
-                >
-                  <Image
-                    src={slide.src}
-                    alt={slide.alt}
-                    fill
-                    sizes="100vw"
-                    priority={index === previewIndex}
-                    className="object-contain pointer-events-none"
-                  />
-                </div>
+              <GraduationCap className="h-5 w-5 shrink-0" />
+              <span>Enter Student &amp; Educator Portal</span>
+              <ArrowRight className="h-4 w-4 shrink-0" />
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Bar: 100% Transparent with crisp white text */}
+      <div className="relative z-30 border-t border-white/15 bg-transparent">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          {/* Metrics Strip */}
+          <div className="grid grid-cols-3 gap-4 sm:gap-8 w-full md:w-auto">
+            <div>
+              <div className="text-sm sm:text-lg font-extrabold text-white">3-Step Verified</div>
+              <div className="text-[11px] sm:text-xs text-white/80">QR Credential System</div>
+            </div>
+            <div className="border-l border-white/20 pl-4 sm:pl-8">
+              <div className="text-sm sm:text-lg font-extrabold text-white">11 Ambassadors</div>
+              <div className="text-[11px] sm:text-xs text-white/80">FMS SDG Core Team</div>
+            </div>
+            <div className="border-l border-white/20 pl-4 sm:pl-8">
+              <div className="text-sm sm:text-lg font-extrabold text-white">100% Free</div>
+              <div className="text-[11px] sm:text-xs text-white/80">Zero-Cost Scaling</div>
+            </div>
+          </div>
+
+          {/* Clean Caption & Slide Indicators */}
+          <div className="flex items-center justify-between md:justify-end gap-3 w-full md:w-auto pt-2 md:pt-0 border-t border-white/10 md:border-t-0">
+            <span className="text-xs text-white font-medium truncate max-w-[200px] sm:max-w-xs">
+              {slides[activeSlide].caption}
+            </span>
+
+            {/* Slide Indicator Dots */}
+            <div className="flex items-center gap-1.5 px-1">
+              {slides.map((_, dotIndex) => (
+                <button
+                  key={dotIndex}
+                  type="button"
+                  aria-label={`Go to slide ${dotIndex + 1}`}
+                  aria-current={activeSlide === dotIndex ? 'true' : undefined}
+                  onClick={() => goToSlide(dotIndex)}
+                  className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                    activeSlide === dotIndex
+                      ? 'w-6 bg-white shadow-xs'
+                      : 'w-1.5 bg-white/40 hover:bg-white/90'
+                  }`}
+                />
               ))}
             </div>
+
+            <span className="text-xs font-mono font-bold text-white shrink-0 pl-1">
+              {String(activeSlide + 1).padStart(2, '0')} / {String(slides.length).padStart(2, '0')}
+            </span>
           </div>
-
-          {/* Prev arrow */}
-          <button
-            type="button"
-            onClick={handlePrevPreview}
-            aria-label="Previous highlight"
-            className="absolute left-2 top-1/2 z-30 -translate-y-1/2 rounded-full border border-white/25 bg-slate-900/80 p-2 text-white shadow-lg hover:bg-slate-800 hover:text-emerald-200 sm:left-4 transition-transform active:scale-95"
-          >
-            <ChevronLeft className="h-8 w-8" />
-          </button>
-
-          {/* Next arrow */}
-          <button
-            type="button"
-            onClick={handleNextPreview}
-            aria-label="Next highlight"
-            className="absolute right-2 top-1/2 z-30 -translate-y-1/2 rounded-full border border-white/25 bg-slate-900/80 p-2 text-white shadow-lg hover:bg-slate-800 hover:text-emerald-200 sm:right-4 transition-transform active:scale-95"
-          >
-            <ChevronRight className="h-8 w-8" />
-          </button>
-
-          {/* Go Back (Closes instantly) */}
-          <button
-            type="button"
-            onClick={closePreview}
-            className="absolute bottom-6 left-6 z-30 flex items-center gap-2 rounded-full border border-white/30 bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-xl hover:bg-slate-800 hover:text-emerald-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 sm:left-16 transition-all active:scale-95"
-          >
-            ← Go Back
-          </button>
         </div>
-      )}
-    </div>
+      </div>
+    </section>
   );
 }
