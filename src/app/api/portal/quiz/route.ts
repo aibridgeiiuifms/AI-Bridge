@@ -147,8 +147,10 @@ export async function GET(req: NextRequest) {
     const { data: preStudent } = await dbClient
       .from('student_surveys')
       .select('id')
-      .or(`user_id.eq.${user.id},student_email.ilike.${userEmail}`)
+      .or(`user_id.eq.${user.id},student_email.ilike.${userEmail},login_email.ilike.${userEmail}`)
       .eq('survey_type', 'pre')
+      .order('submitted_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (preStudent) {
@@ -160,6 +162,8 @@ export async function GET(req: NextRequest) {
         .select('id')
         .filter('answers->>Student Email Address', 'ilike', userEmail)
         .eq('survey_type', 'pre')
+        .order('submitted_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (preByAnswers) {
@@ -169,8 +173,10 @@ export async function GET(req: NextRequest) {
         const { data: preTeacher } = await dbClient
           .from('teacher_surveys')
           .select('id')
-          .or(`user_id.eq.${user.id},teacher_email.ilike.${userEmail}`)
+          .or(`user_id.eq.${user.id},teacher_email.ilike.${userEmail},login_email.ilike.${userEmail}`)
           .eq('survey_type', 'pre')
+          .order('submitted_at', { ascending: false })
+          .limit(1)
           .maybeSingle();
 
         if (preTeacher) {

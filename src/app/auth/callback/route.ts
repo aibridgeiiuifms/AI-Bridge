@@ -16,14 +16,7 @@ export async function GET(request: Request) {
       } else if (data.user) {
         const adminSupabase = createAdminClient();
 
-        // Refresh the access role on every login from members + survey forms
-        try {
-          await adminSupabase.rpc('sync_user_role', { p_user_id: data.user.id });
-        } catch (roleErr) {
-          console.error('Error syncing user role on login:', roleErr);
-        }
-
-        // Auto-link any pre-registered surveys for this user's email
+        // 1. Auto-link any pre-registered surveys for this user's email (checking student_email, login_email & answers)
         const userEmail = (data.user.email || '').replace(/\s+/g, '').toLowerCase();
         if (userEmail) {
           try {
@@ -31,17 +24,29 @@ export async function GET(request: Request) {
               adminSupabase
                 .from('student_surveys')
                 .update({ user_id: data.user.id })
-                .ilike('student_email', userEmail)
+                .or(`student_email.ilike.${userEmail},login_email.ilike.${userEmail}`)
+                .is('user_id', null),
+              adminSupabase
+                .from('student_surveys')
+                .update({ user_id: data.user.id })
+                .filter('answers->>Student Email Address', 'ilike', userEmail)
                 .is('user_id', null),
               adminSupabase
                 .from('teacher_surveys')
                 .update({ user_id: data.user.id })
-                .ilike('teacher_email', userEmail)
+                .or(`teacher_email.ilike.${userEmail},login_email.ilike.${userEmail}`)
                 .is('user_id', null),
             ]);
           } catch (linkErr) {
             console.error('Error auto-linking pre-registered surveys:', linkErr);
           }
+        }
+
+        // 2. Refresh the access role after linking surveys so role elevates from guest to student
+        try {
+          await adminSupabase.rpc('sync_user_role', { p_user_id: data.user.id });
+        } catch (roleErr) {
+          console.error('Error syncing user role on login:', roleErr);
         }
       }
     } catch (err) {

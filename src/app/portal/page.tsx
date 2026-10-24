@@ -168,8 +168,10 @@ export default function StudentPortal() {
         const { data: preStudent } = await supabase
           .from('student_surveys')
           .select('id, user_id')
-          .or(`user_id.eq.${user.id},student_email.ilike.${userEmail}`)
+          .or(`user_id.eq.${user.id},student_email.ilike.${userEmail},login_email.ilike.${userEmail}`)
           .eq('survey_type', 'pre')
+          .order('submitted_at', { ascending: false })
+          .limit(1)
           .maybeSingle();
 
         if (preStudent) {
@@ -185,6 +187,8 @@ export default function StudentPortal() {
             .select('id, user_id')
             .filter('answers->>Student Email Address', 'ilike', userEmail)
             .eq('survey_type', 'pre')
+            .order('submitted_at', { ascending: false })
+            .limit(1)
             .maybeSingle();
 
           if (preByAnswers) {
@@ -200,8 +204,10 @@ export default function StudentPortal() {
             const { data: preTeacher } = await supabase
               .from('teacher_surveys')
               .select('id, user_id')
-              .or(`user_id.eq.${user.id},teacher_email.ilike.${userEmail}`)
+              .or(`user_id.eq.${user.id},teacher_email.ilike.${userEmail},login_email.ilike.${userEmail}`)
               .eq('survey_type', 'pre')
+              .order('submitted_at', { ascending: false })
+              .limit(1)
               .maybeSingle();
 
             if (preTeacher) {
@@ -251,8 +257,10 @@ export default function StudentPortal() {
         const { data: postStudent } = await supabase
           .from('student_surveys')
           .select('id, user_id')
-          .or(`user_id.eq.${user.id},student_email.ilike.${userEmail}`)
+          .or(`user_id.eq.${user.id},student_email.ilike.${userEmail},login_email.ilike.${userEmail}`)
           .eq('survey_type', 'post')
+          .order('submitted_at', { ascending: false })
+          .limit(1)
           .maybeSingle();
 
         if (postStudent) {
@@ -267,6 +275,8 @@ export default function StudentPortal() {
             .select('id, user_id')
             .filter('answers->>Student Email Address', 'ilike', userEmail)
             .eq('survey_type', 'post')
+            .order('submitted_at', { ascending: false })
+            .limit(1)
             .maybeSingle();
 
           if (postByAnswers) {
@@ -280,8 +290,10 @@ export default function StudentPortal() {
             const { data: postTeacher } = await supabase
               .from('teacher_surveys')
               .select('id, user_id')
-              .or(`user_id.eq.${user.id},teacher_email.ilike.${userEmail}`)
+              .or(`user_id.eq.${user.id},teacher_email.ilike.${userEmail},login_email.ilike.${userEmail}`)
               .eq('survey_type', 'post')
+              .order('submitted_at', { ascending: false })
+              .limit(1)
               .maybeSingle();
 
             if (postTeacher) {
@@ -299,6 +311,8 @@ export default function StudentPortal() {
           .from('certificates')
           .select('*')
           .eq('user_id', user.id)
+          .order('issued_at', { ascending: false })
+          .limit(1)
           .maybeSingle();
         if (cert) {
           setCertificate(cert);
