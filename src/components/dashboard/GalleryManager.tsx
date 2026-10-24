@@ -135,7 +135,8 @@ export default function GalleryManager() {
       const data = await adminFetchAllFolders();
       setFolders(data);
     } catch (err: any) {
-      console.warn('Error fetching folders:', err.message);
+      console.error('Error fetching folders:', err);
+      showFeedbackMsg(`Failed to load gallery albums: ${err.message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -390,7 +391,10 @@ export default function GalleryManager() {
         if (currentEvt) setSelectedEvent(currentEvt);
       }
     } catch (err: any) {
-      showFeedbackMsg(`Error during upload: ${err.message}`, 'error');
+      const partialUploadMessage = successCount > 0
+        ? ` Uploaded ${successCount} photo${successCount === 1 ? '' : 's'} before the failure.`
+        : '';
+      showFeedbackMsg(`Error during upload: ${err.message}.${partialUploadMessage}`, 'error');
     } finally {
       setActionLoading(false);
       // Reset input
@@ -562,6 +566,10 @@ export default function GalleryManager() {
             />
           </label>
         </div>
+
+        <p className="text-xs text-slate-600 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          Photos appear publicly only when both this event and its album are published and not archived.
+        </p>
 
         {/* Photos Grid */}
         {pictures.length === 0 ? (
@@ -895,11 +903,15 @@ export default function GalleryManager() {
                           {!evt.is_date_visible && <span className="font-bold text-[9px] uppercase ml-1">(Hidden on Public View)</span>}
                         </span>
                       )}
-                      {!evt.is_published && (
+                      {evt.is_archived ? (
+                        <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          Archived
+                        </span>
+                      ) : !evt.is_published ? (
                         <span className="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
                           Draft
                         </span>
-                      )}
+                      ) : null}
                     </div>
 
                     <h3 className="text-lg font-bold text-slate-900 leading-snug">
@@ -931,10 +943,14 @@ export default function GalleryManager() {
 
                     <button
                       onClick={() => handleArchiveEvent(evt.id, evt.is_archived)}
-                      className="p-2 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
-                      title="Archive event"
+                      className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                        evt.is_archived
+                          ? 'hover:bg-emerald-50 text-emerald-700 hover:text-emerald-800'
+                          : 'hover:bg-red-50 text-slate-400 hover:text-red-600'
+                      }`}
+                      title={evt.is_archived ? 'Restore event' : 'Archive event'}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      {evt.is_archived ? <RefreshCw className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
@@ -1223,9 +1239,13 @@ export default function GalleryManager() {
                   />
                   <div className="absolute top-3 right-3 flex items-center gap-1">
                     <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                      folder.is_published ? 'bg-emerald-800/90 text-white' : 'bg-slate-700/90 text-white'
+                      folder.is_archived
+                        ? 'bg-amber-800/90 text-white'
+                        : folder.is_published
+                          ? 'bg-emerald-800/90 text-white'
+                          : 'bg-slate-700/90 text-white'
                     }`}>
-                      {folder.is_published ? 'Published' : 'Draft'}
+                      {folder.is_archived ? 'Archived' : folder.is_published ? 'Published' : 'Draft'}
                     </span>
                   </div>
                 </div>
@@ -1263,10 +1283,14 @@ export default function GalleryManager() {
                   </button>
                   <button
                     onClick={() => handleArchiveFolder(folder.id, folder.is_archived)}
-                    className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
-                    title="Archive album"
+                    className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                      folder.is_archived
+                        ? 'hover:bg-emerald-50 text-emerald-700 hover:text-emerald-800'
+                        : 'hover:bg-red-50 text-slate-400 hover:text-red-600'
+                    }`}
+                    title={folder.is_archived ? 'Restore album' : 'Archive album'}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    {folder.is_archived ? <RefreshCw className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
                   </button>
                 </div>
               </div>

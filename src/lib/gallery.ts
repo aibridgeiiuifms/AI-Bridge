@@ -11,7 +11,7 @@ import {
 } from '@/types/database';
 
 // ============================================================================
-// Fallback Seed Data (used when database table is not yet populated or offline)
+// Static sample content retained for design previews; public gallery queries use Supabase only.
 // ============================================================================
 export const SEED_GALLERY_FOLDERS: GalleryFolderWithEvents[] = [
   {
@@ -254,26 +254,19 @@ export async function uploadGalleryImage(file: File, folderPrefix: string = 'eve
  */
 export async function fetchPublishedFolders(): Promise<GalleryFolderWithEvents[]> {
   const supabase = createClient();
-  try {
-    const { data: folders, error } = await supabase
-      .from('gallery_folders')
-      .select('*, gallery_events(id)')
-      .eq('is_published', true)
-      .eq('is_archived', false)
-      .order('display_order', { ascending: true });
+  const { data: folders, error } = await supabase
+    .from('gallery_folders')
+    .select('*, gallery_events(id)')
+    .eq('is_published', true)
+    .eq('is_archived', false)
+    .order('display_order', { ascending: true });
 
-    if (error || !folders || folders.length === 0) {
-      return SEED_GALLERY_FOLDERS;
-    }
+  if (error) throw error;
 
-    return folders.map((f: any) => ({
-      ...f,
-      events_count: f.gallery_events ? f.gallery_events.length : 0
-    }));
-  } catch (err) {
-    console.warn('Using seed gallery folders (database table not yet created):', err);
-    return SEED_GALLERY_FOLDERS;
-  }
+  return (folders || []).map((f: any) => ({
+    ...f,
+    events_count: f.gallery_events ? f.gallery_events.length : 0
+  }));
 }
 
 /**
@@ -281,63 +274,50 @@ export async function fetchPublishedFolders(): Promise<GalleryFolderWithEvents[]
  */
 export async function fetchFolderWithEventsBySlug(slug: string): Promise<GalleryFolderWithEvents | null> {
   const supabase = createClient();
-  try {
-    const { data: folder, error: folderErr } = await supabase
-      .from('gallery_folders')
-      .select('*')
-      .eq('slug', slug)
-      .eq('is_published', true)
-      .eq('is_archived', false)
-      .maybeSingle();
+  const { data: folder, error: folderErr } = await supabase
+    .from('gallery_folders')
+    .select('*')
+    .eq('slug', slug)
+    .eq('is_published', true)
+    .eq('is_archived', false)
+    .maybeSingle();
 
-    if (folderErr || !folder) {
-      const seed = SEED_GALLERY_FOLDERS.find(f => f.slug === slug);
-      return seed || null;
-    }
+  if (folderErr) throw folderErr;
+  if (!folder) return null;
 
-    // Fetch published events for this folder
-    const { data: events, error: eventsErr } = await supabase
-      .from('gallery_events')
-      .select(`
+  const { data: events, error: eventsErr } = await supabase
+    .from('gallery_events')
+    .select(`
+      *,
+      pictures:gallery_pictures(
         *,
-        pictures:gallery_pictures(
-          *,
-          tags:gallery_picture_tags(
-            id,
-            member:members(id, full_name, avatar_url, designation, team_tag)
-          )
+        tags:gallery_picture_tags(
+          id,
+          member:members(id, full_name, avatar_url, designation, team_tag)
         )
-      `)
-      .eq('folder_id', folder.id)
-      .eq('is_published', true)
-      .eq('is_archived', false)
-      .order('display_order', { ascending: true });
+      )
+    `)
+    .eq('folder_id', folder.id)
+    .eq('is_published', true)
+    .eq('is_archived', false)
+    .order('display_order', { ascending: true });
 
-    if (eventsErr || !events) {
-      const seed = SEED_GALLERY_FOLDERS.find(f => f.slug === slug);
-      return seed || null;
-    }
+  if (eventsErr) throw eventsErr;
 
-    // Sort pictures inside each event by display_order
-    const formattedEvents: GalleryEventWithPictures[] = events.map((evt: any) => {
-      const rawPics = Array.isArray(evt.pictures) ? evt.pictures : [];
-      rawPics.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
-      return {
-        ...evt,
-        pictures: rawPics
-      };
-    });
-
+  const formattedEvents: GalleryEventWithPictures[] = (events || []).map((evt: any) => {
+    const rawPics = Array.isArray(evt.pictures) ? evt.pictures : [];
+    rawPics.sort((a: any, b: any) => (a.display_order || 0) - (b.display_order || 0));
     return {
-      ...folder,
-      events_count: formattedEvents.length,
-      events: formattedEvents
+      ...evt,
+      pictures: rawPics
     };
-  } catch (err) {
-    console.warn('Error fetching folder by slug, falling back to seed:', err);
-    const seed = SEED_GALLERY_FOLDERS.find(f => f.slug === slug);
-    return seed || null;
-  }
+  });
+
+  return {
+    ...folder,
+    events_count: formattedEvents.length,
+    events: formattedEvents
+  };
 }
 
 /**
@@ -505,7 +485,15 @@ export async function adminAddPicture(
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    const { error: cleanupError } = await supabase.storage
+      .from('event-gallery')
+      .remove([storagePath]);
+    if (cleanupError) {
+      throw new Error(`Failed to save uploaded image: ${error.message}. Uploaded file cleanup also failed: ${cleanupError.message}`);
+    }
+    throw error;
+  }
 
   // Add tags if provided
   if (taggedMemberIds.length > 0) {

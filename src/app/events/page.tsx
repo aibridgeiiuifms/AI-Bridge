@@ -20,6 +20,7 @@ import EventsSkeleton from '@/components/skeletons/EventsSkeleton';
 export default function EventsGalleryPage() {
   const [folders, setFolders] = useState<GalleryFolderWithEvents[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -30,6 +31,7 @@ export default function EventsGalleryPage() {
         setFolders(data);
       } catch (err) {
         console.error('Failed to load folders:', err);
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
@@ -78,6 +80,14 @@ export default function EventsGalleryPage() {
       <div className="max-w-7xl mx-auto">
         {loading ? (
           <EventsSkeleton />
+        ) : loadError ? (
+          <div className="bg-white rounded-3xl border border-red-200 p-12 text-center space-y-3 max-w-lg mx-auto">
+            <Folder className="w-12 h-12 text-red-300 mx-auto" />
+            <h3 className="text-base font-bold text-slate-800">Gallery Temporarily Unavailable</h3>
+            <p className="text-xs text-slate-500">
+              Albums could not be loaded. Please try again later.
+            </p>
+          </div>
         ) : filteredFolders.length === 0 ? (
           <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center space-y-4 max-w-lg mx-auto">
             <Folder className="w-12 h-12 text-slate-300 mx-auto" />
