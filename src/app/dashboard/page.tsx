@@ -50,6 +50,7 @@ import GalleryManager from '@/components/dashboard/GalleryManager';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'team' | 'team_profiles' | 'departments' | 'mcqs' | 'gallery'>('team');
+  const [isHydrated, setIsHydrated] = useState(false);
   // Inline-edit state for team roster rows
   const [editingWhitelistEmail, setEditingWhitelistEmail] = useState<string | null>(null);
   const [editWhitelistDraft, setEditWhitelistDraft] = useState<{ full_name: string; team_role: 'admin' | 'team-member'; team_tag: string; assigned_tasks: string[]; notes: string }>({ full_name: '', team_role: 'team-member', team_tag: 'General', assigned_tasks: [], notes: '' });
@@ -639,6 +640,10 @@ export default function AdminDashboard() {
       setLoadingRoles(false);
     }
   };
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   useEffect(() => {
     // Check URL parameters for tab navigation (e.g. ?tab=team)
@@ -1304,16 +1309,18 @@ export default function AdminDashboard() {
             </span>
           </button>
         )}
-        <Link
-          href="/dashboard/analytics"
-          className="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap text-slate-600 hover:bg-slate-100"
-        >
-          <BarChart3 className="w-3.5 h-3.5 text-emerald-700" />
-          <span>Analytics</span>
-          <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-            Live
-          </span>
-        </Link>
+        {isHydrated && (
+          <Link
+            href="/dashboard/analytics"
+            className="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap text-slate-600 hover:bg-slate-100"
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-emerald-700" />
+            <span>Analytics</span>
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+              Live
+            </span>
+          </Link>
+        )}
       </div>
 
       {/* Quick Access Banner for Delegated Team Managers */}
