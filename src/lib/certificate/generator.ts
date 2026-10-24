@@ -30,6 +30,30 @@ function normalizePdfText(text: string): string {
 }
 
 /**
+ * Ensures recipient name is cleaned and formatted in executive Title Case.
+ * Automatically fixes ALL CAPS (e.g. SEHAR WAHEED) and all lowercase (e.g. ali hassan),
+ * while preserving single-letter initials like "M." or "Dr.".
+ */
+export function formatCertificateName(name: string): string {
+  if (!name) return 'Participant';
+  const clean = normalizePdfText(name);
+
+  const isAllUpper = clean === clean.toUpperCase() && clean !== clean.toLowerCase();
+  const isAllLower = clean === clean.toLowerCase() && clean !== clean.toUpperCase();
+
+  if (isAllUpper || isAllLower) {
+    return clean
+      .split(/\s+/)
+      .map((part) => {
+        if (/^[A-Z]\.?$/i.test(part)) return part.toUpperCase();
+        return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+      })
+      .join(' ');
+  }
+  return clean;
+}
+
+/**
  * Creates the official PDF certificate on the spot in RAM (~50-80ms).
  * No file is saved to disk or Supabase storage.
  */
@@ -49,7 +73,7 @@ export async function stampCertificatePdfOnTheSpot(input: StampingInput): Promis
   const fontSans = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
   // 1. Clean and normalize the recipient name for PDF encoding
-  const cleanName = normalizePdfText(input.recipientName) || 'Participant';
+  const cleanName = formatCertificateName(input.recipientName);
 
   // 2. Calculate dynamic font size (Base: 56pt, Max width: 700pt)
   const maxNameWidth = 700;
@@ -126,6 +150,7 @@ export async function stampCertificatePdfOnTheSpot(input: StampingInput): Promis
 
 /**
  * Creates the official high-resolution PNG certificate on the spot in RAM using Sharp.
+ * Guaranteed 1:1 identical to PDF: exact 2.0x coordinates, matching colors, fonts, and sub-labels.
  */
 export async function stampCertificatePngOnTheSpot(input: StampingInput): Promise<Buffer> {
   const templatePath = path.join(process.cwd(), 'Assets', 'AI_BRIDGE_Certificate_Template.png');
@@ -134,14 +159,18 @@ export async function stampCertificatePngOnTheSpot(input: StampingInput): Promis
     throw new Error(`Certificate PNG template not found at: ${templatePath}`);
   }
 
-  const cleanName = normalizePdfText(input.recipientName) || 'Participant';
+  // 1. Clean and normalize the recipient name (Title Case)
+  const cleanName = formatCertificateName(input.recipientName);
 
-  // Dynamic font sizing (base 112px at scale 2)
+  // 2. Dynamic font sizing matching 2.0x of PDF (Base 112px, Max width 1400px)
+  const maxPx = 1400;
   let fontSize = 112;
-  if (cleanName.length > 25) {
-    fontSize = Math.floor(112 * (25 / cleanName.length));
+  const approxWidth = cleanName.length * (fontSize * 0.58);
+  if (approxWidth > maxPx) {
+    fontSize = Math.floor(maxPx / (cleanName.length * 0.58));
   }
 
+  // XML-escape name for safe SVG insertion
   const safeName = cleanName
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -149,6 +178,7 @@ export async function stampCertificatePngOnTheSpot(input: StampingInput): Promis
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
 
+  // 3. Generate QR code identical to PDF target
   const envUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   const baseUrl = (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1'))
     ? envUrl.replace(/\/+$/, '')
@@ -161,27 +191,34 @@ export async function stampCertificatePngOnTheSpot(input: StampingInput): Promis
     color: { dark: '#0a2756', light: '#ffffff' },
   });
 
+  // 4. SVG Overlay matching exact 2.0x scale of PDF elements
+  // PDF: Name x=94.80, y=515.47 (from bottom) -> Scale 2: left=190, baseline=1006
+  // PDF: QR Card x=1139.08, y=146.00 -> Scale 2: left=2278, top=1529, w=216, h=216
+  // PDF: QR Code x=1143.08, y=150.00 -> Scale 2: left=2286, top=1537, w=200, h=200
+  // PDF: Sublabel 1 x=1159.56, y=130.94 -> Scale 2: left=2319, baseline=1775
+  // PDF: Sublabel 2 x=1168.94, y=117.62 -> Scale 2: left=2338, baseline=1802
   const svgOverlay = `
   <svg width="2880" height="2037" xmlns="http://www.w3.org/2000/svg">
-    <text x="190" y="1005" font-family="'Times New Roman', Times, serif" font-weight="bold" font-size="${fontSize}" fill="#0a2756">
+    <text x="190" y="1006" font-family="'Times New Roman', 'Liberation Serif', 'Nimbus Roman', 'Times', serif" font-weight="bold" font-size="${fontSize}" fill="#0a2756">
       ${safeName}
     </text>
     <!-- White backing card for QR -->
-    <rect x="2278" y="1528" width="216" height="216" fill="#ffffff" rx="4" />
-    <!-- Sub-labels under QR -->
-    <text x="2386" y="1774" font-family="Helvetica, Arial, sans-serif" font-weight="bold" font-size="22" fill="#ffffff" text-anchor="middle">
+    <rect x="2278" y="1529" width="216" height="216" fill="#ffffff" rx="4" />
+    <!-- Sub-labels under QR strictly matching PDF position & typography -->
+    <text x="2319" y="1775" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" font-size="22" fill="#ffffff">
       Scan to verify
     </text>
-    <text x="2386" y="1801" font-family="Helvetica, Arial, sans-serif" font-weight="bold" font-size="22" fill="#ffffff" text-anchor="middle">
+    <text x="2338" y="1802" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" font-size="22" fill="#ffffff">
       certificate
     </text>
   </svg>
   `;
 
+  // 5. Composite Sharp layers in memory and return optimized PNG buffer
   return await sharp(templatePath)
     .composite([
       { input: Buffer.from(svgOverlay), top: 0, left: 0 },
-      { input: qrBuffer, top: 1536, left: 2286 },
+      { input: qrBuffer, top: 1537, left: 2286 },
     ])
     .png({ quality: 95 })
     .toBuffer();

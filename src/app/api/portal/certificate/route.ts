@@ -112,11 +112,13 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    const recipientName = cert.recipient_name || cert.student_name || 'Participant';
+
     // 3. Format Branch: High-Resolution PNG
     if (format === 'png') {
       const pngBytes = await stampCertificatePngOnTheSpot({
         certificateId: cert.certificate_id,
-        recipientName: cert.recipient_name,
+        recipientName,
       });
 
       const safeFilename = `The_AI_Bridge_Certificate_${cert.certificate_id.replace(/[^a-zA-Z0-9_-]/g, '_')}.png`;
@@ -136,7 +138,7 @@ export async function GET(req: NextRequest) {
     // 4. Default Format: Stamped Vector PDF on the spot in RAM (~50-80ms)
     const pdfBytes = await stampCertificatePdfOnTheSpot({
       certificateId: cert.certificate_id,
-      recipientName: cert.recipient_name,
+      recipientName,
     });
 
     const safeFilename = `The_AI_Bridge_Certificate_${cert.certificate_id.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
