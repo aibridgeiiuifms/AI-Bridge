@@ -31,7 +31,8 @@ function buildLinkedInCertUrl(certId: string, completionDate?: string): string {
   const params = new URLSearchParams({
     startTask: 'CERTIFICATION_NAME',
     name: 'The AI Bridge: Source-Grounded AI & NotebookLM Mastery',
-    organizationName: 'International Islamic University, Islamabad',
+    organizationName: 'The AI Bridge, IIUI',
+    organizationId: '135117107',
     issueYear: '2026',
     issueMonth: '10',
     certUrl: `https://ai-bridge-iiui.vercel.app/verify/${certId}`,
