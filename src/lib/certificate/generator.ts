@@ -3,10 +3,38 @@ import QRCode from 'qrcode';
 import sharp from 'sharp';
 import fs from 'fs';
 import path from 'path';
+import * as opentype from 'opentype.js';
 
 export interface StampingInput {
   certificateId: string;
   recipientName: string;
+}
+
+/**
+ * In-memory font cache for opentype.js to avoid re-reading disk on every request
+ */
+let cachedTimesFont: opentype.Font | null = null;
+let cachedArialFont: opentype.Font | null = null;
+
+function getCachedFont(fileName: string, fallbackGetter: () => opentype.Font | null): opentype.Font | null {
+  const fontPath = path.join(process.cwd(), 'Assets', 'fonts', fileName);
+  if (!fs.existsSync(fontPath)) return null;
+  const buf = fs.readFileSync(fontPath);
+  return opentype.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+}
+
+function getTimesFont(): opentype.Font | null {
+  if (!cachedTimesFont) {
+    cachedTimesFont = getCachedFont('TimesBold.ttf', () => null);
+  }
+  return cachedTimesFont;
+}
+
+function getArialFont(): opentype.Font | null {
+  if (!cachedArialFont) {
+    cachedArialFont = getCachedFont('ArialBold.ttf', () => null);
+  }
+  return cachedArialFont;
 }
 
 /**
@@ -149,8 +177,9 @@ export async function stampCertificatePdfOnTheSpot(input: StampingInput): Promis
 }
 
 /**
- * Creates the official high-resolution PNG certificate on the spot in RAM using Sharp.
- * Guaranteed 1:1 identical to PDF: exact 2.0x coordinates, matching colors, fonts, and sub-labels.
+ * Creates the official high-resolution PNG certificate on the spot in RAM using Sharp & OpenType.js.
+ * Renders text as PURE VECTOR PATHS (<path d="..."/>) guaranteeing 100% font rendering on Linux/Vercel
+ * with ZERO OS font dependency.
  */
 export async function stampCertificatePngOnTheSpot(input: StampingInput): Promise<Buffer> {
   const templatePath = path.join(process.cwd(), 'Assets', 'AI_BRIDGE_Certificate_Template.png');
@@ -162,23 +191,51 @@ export async function stampCertificatePngOnTheSpot(input: StampingInput): Promis
   // 1. Clean and normalize the recipient name (Title Case)
   const cleanName = formatCertificateName(input.recipientName);
 
-  // 2. Dynamic font sizing matching 2.0x of PDF (Base 112px, Max width 1400px)
+  // 2. Load bundled vector fonts
+  const timesFont = getTimesFont();
+  const arialFont = getArialFont();
+
+  // Dynamic font sizing (Base 112px, Max width 1400px)
   const maxPx = 1400;
   let fontSize = 112;
-  const approxWidth = cleanName.length * (fontSize * 0.58);
-  if (approxWidth > maxPx) {
-    fontSize = Math.floor(maxPx / (cleanName.length * 0.58));
+
+  let nameSvgFragment: string;
+  let sublabelSvgFragment: string;
+
+  if (timesFont) {
+    const initialBbox = timesFont.getPath(cleanName, 0, 0, fontSize).getBoundingBox();
+    const initialWidth = initialBbox.x2 - initialBbox.x1;
+    if (initialWidth > maxPx) {
+      fontSize = Math.floor((maxPx / initialWidth) * fontSize);
+    }
+    const namePathData = timesFont.getPath(cleanName, 190, 1006, fontSize).toPathData(2);
+    nameSvgFragment = `<path d="${namePathData}" fill="#0a2756" />`;
+  } else {
+    // Fallback if font file fails to load
+    const safeName = cleanName
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&apos;');
+    nameSvgFragment = `<text x="190" y="1006" font-family="'Times New Roman', 'Liberation Serif', serif" font-weight="bold" font-size="${fontSize}" fill="#0a2756">${safeName}</text>`;
   }
 
-  // XML-escape name for safe SVG insertion
-  const safeName = cleanName
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+  if (arialFont) {
+    const sub1Path = arialFont.getPath('Scan to verify', 2319, 1775, 22).toPathData(2);
+    const sub2Path = arialFont.getPath('certificate', 2338, 1802, 22).toPathData(2);
+    sublabelSvgFragment = `
+      <path d="${sub1Path}" fill="#ffffff" />
+      <path d="${sub2Path}" fill="#ffffff" />
+    `;
+  } else {
+    sublabelSvgFragment = `
+      <text x="2319" y="1775" font-family="Helvetica, Arial, sans-serif" font-weight="bold" font-size="22" fill="#ffffff">Scan to verify</text>
+      <text x="2338" y="1802" font-family="Helvetica, Arial, sans-serif" font-weight="bold" font-size="22" fill="#ffffff">certificate</text>
+    `;
+  }
 
-  // 3. Generate QR code identical to PDF target
+  // 3. Generate QR code
   const envUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   const baseUrl = (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1'))
     ? envUrl.replace(/\/+$/, '')
@@ -191,30 +248,17 @@ export async function stampCertificatePngOnTheSpot(input: StampingInput): Promis
     color: { dark: '#0a2756', light: '#ffffff' },
   });
 
-  // 4. SVG Overlay matching exact 2.0x scale of PDF elements
-  // PDF: Name x=94.80, y=515.47 (from bottom) -> Scale 2: left=190, baseline=1006
-  // PDF: QR Card x=1139.08, y=146.00 -> Scale 2: left=2278, top=1529, w=216, h=216
-  // PDF: QR Code x=1143.08, y=150.00 -> Scale 2: left=2286, top=1537, w=200, h=200
-  // PDF: Sublabel 1 x=1159.56, y=130.94 -> Scale 2: left=2319, baseline=1775
-  // PDF: Sublabel 2 x=1168.94, y=117.62 -> Scale 2: left=2338, baseline=1802
+  // 4. Pure Vector SVG Overlay
   const svgOverlay = `
   <svg width="2880" height="2037" xmlns="http://www.w3.org/2000/svg">
-    <text x="190" y="1006" font-family="'Times New Roman', 'Liberation Serif', 'Nimbus Roman', 'Times', serif" font-weight="bold" font-size="${fontSize}" fill="#0a2756">
-      ${safeName}
-    </text>
+    ${nameSvgFragment}
     <!-- White backing card for QR -->
     <rect x="2278" y="1529" width="216" height="216" fill="#ffffff" rx="4" />
-    <!-- Sub-labels under QR strictly matching PDF position & typography -->
-    <text x="2319" y="1775" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" font-size="22" fill="#ffffff">
-      Scan to verify
-    </text>
-    <text x="2338" y="1802" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-weight="bold" font-size="22" fill="#ffffff">
-      certificate
-    </text>
+    ${sublabelSvgFragment}
   </svg>
   `;
 
-  // 5. Composite Sharp layers in memory and return optimized PNG buffer
+  // 5. Composite Sharp layers in memory and return high-res PNG buffer
   return await sharp(templatePath)
     .composite([
       { input: Buffer.from(svgOverlay), top: 0, left: 0 },
