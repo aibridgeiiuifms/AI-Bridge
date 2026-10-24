@@ -18,10 +18,13 @@ import {
   ShieldAlert,
   RefreshCw,
   Sparkles,
-  Loader2
+  Loader2,
+  Info,
+  Clock
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import SurveySelectionModal from '@/components/SurveySelectionModal';
+import StudentTipsModal from '@/components/StudentTipsModal';
 import PortalSkeleton from '@/components/skeletons/PortalSkeleton';
 
 function buildLinkedInCertUrl(certId: string, completionDate?: string): string {
@@ -46,6 +49,13 @@ function buildLinkedInCertUrl(certId: string, completionDate?: string): string {
   return `https://www.linkedin.com/profile/add?${params.toString()}`;
 }
 
+
+function formatTimer(totalSeconds: number): string {
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
 export default function StudentPortal() {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -56,6 +66,9 @@ export default function StudentPortal() {
   // Survey Selection Modal State
   const [surveyModalOpen, setSurveyModalOpen] = useState(false);
   const [activeSurveyType, setActiveSurveyType] = useState<'pre' | 'post'>('pre');
+  const [tipsModalOpen, setTipsModalOpen] = useState(false);
+  const [cooldownSeconds, setCooldownSeconds] = useState<number>(0);
+  const [syncSecondsLeft, setSyncSecondsLeft] = useState<number | null>(null);
 
   // 3-Step Progress State
   const [preSurveyCompleted, setPreSurveyCompleted] = useState(false);
@@ -238,7 +251,7 @@ export default function StudentPortal() {
           }
         }
 
-        // 2. Check Quiz
+        // 2. Check Quiz & 5-minute retake cooldown
         const { data: quiz } = await supabase
           .from('quiz_attempts')
           .select('score, passed')
@@ -247,9 +260,32 @@ export default function StudentPortal() {
           .order('completed_at', { ascending: false })
           .limit(1)
           .maybeSingle();
+
         if (quiz) {
           setQuizPassed(true);
           setQuizScore(quiz.score);
+          setCooldownSeconds(0);
+        } else {
+          // Check if latest attempt is in cooldown (< 300s)
+          const { data: latestAttempt } = await supabase
+            .from('quiz_attempts')
+            .select('score, passed, completed_at')
+            .eq('user_id', user.id)
+            .order('completed_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (latestAttempt && !latestAttempt.passed) {
+            const completedTime = new Date(latestAttempt.completed_at).getTime();
+            const elapsed = Math.floor((Date.now() - completedTime) / 1000);
+            if (elapsed < 300) {
+              setCooldownSeconds(300 - elapsed);
+            } else {
+              setCooldownSeconds(0);
+            }
+          } else {
+            setCooldownSeconds(0);
+          }
         }
 
         // 3. Check Post-Survey (student_surveys -> teacher_surveys -> legacy surveys)
@@ -433,17 +469,48 @@ export default function StudentPortal() {
             <h2 className="text-base font-bold text-slate-900">Your Certification Progress</h2>
             <p className="text-xs text-slate-500 mt-0.5">Automated synchronization with Google Forms and Supabase</p>
           </div>
-          <button
-            type="button"
-            onClick={() => checkCertificationProgress(true)}
-            disabled={isRefreshing}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-xs font-semibold text-slate-700 hover:text-emerald-800 transition-all cursor-pointer shadow-xs"
-            title="Re-check if your Google Form submission has arrived"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-600' : 'text-slate-500'}`} />
-            <span>{isRefreshing ? 'Checking Supabase...' : 'Check Status / Refresh'}</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setTipsModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold text-emerald-800 transition-all cursor-pointer shadow-xs"
+              title="Open student tips & instructions guide"
+            >
+              <Info className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Tips & Help</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                checkCertificationProgress(true);
+                setSyncSecondsLeft(30);
+              }}
+              disabled={isRefreshing}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 text-xs font-semibold text-slate-700 hover:text-emerald-800 transition-all cursor-pointer shadow-xs"
+              title="Re-check if your Google Form submission has arrived and start 30s sync monitor"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-600' : 'text-slate-500'}`} />
+              <span>{isRefreshing ? 'Checking...' : 'Check Status / Refresh'}</span>
+            </button>
+          </div>
         </div>
+
+        
+        {syncSecondsLeft !== null && (
+          <div className="p-3 bg-sky-50 border border-sky-300 rounded-2xl text-xs font-semibold text-sky-900 flex items-center justify-between animate-fade-in shadow-xs">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="w-4 h-4 text-sky-600 animate-spin" />
+              <span>Syncing with Google Forms... auto-checking every 5s ({syncSecondsLeft}s remaining)</span>
+            </div>
+            <button 
+              type="button" 
+              onClick={() => setSyncSecondsLeft(null)} 
+              className="text-[11px] font-bold text-sky-700 hover:text-sky-900 underline cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
 
         {refreshToast && (
           <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-medium text-emerald-800 flex items-center gap-2 animate-fade-in">
@@ -593,12 +660,31 @@ export default function StudentPortal() {
                   <CheckCircle2 className="w-3.5 h-3.5" /> Passed ({quizScore ?? 9}/12)
                 </span>
               ) : preSurveyCompleted ? (
-                <Link
-                  href="/portal/quiz"
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 hover:text-amber-950"
-                >
-                  Attempt 12-MCQ Quiz →
-                </Link>
+                cooldownSeconds > 0 ? (
+                  <div className="space-y-2">
+                    <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-900 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-amber-600 animate-pulse" />
+                        <span className="font-bold">Cooldown Active: {formatTimer(cooldownSeconds)}</span>
+                      </div>
+                      <span className="text-[11px] text-amber-700 font-medium">Review notes before retake</span>
+                    </div>
+                    <button
+                      type="button"
+                      disabled
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-lg cursor-not-allowed opacity-75"
+                    >
+                      <Lock className="w-3.5 h-3.5" /> Retake Unlocks in {formatTimer(cooldownSeconds)}
+                    </button>
+                  </div>
+                ) : (
+                  <Link
+                    href="/portal/quiz"
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 hover:text-amber-950"
+                  >
+                    Attempt 12-MCQ Quiz →
+                  </Link>
+                )
               ) : (
                 <span className="text-xs text-slate-400 flex items-center gap-1">
                   <Lock className="w-3.5 h-3.5" /> Locked (Finish Step 1)
@@ -637,16 +723,22 @@ export default function StudentPortal() {
                   <CheckCircle2 className="w-3.5 h-3.5" /> Completed
                 </span>
               ) : quizPassed ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveSurveyType('post');
-                    setSurveyModalOpen(true);
-                  }}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-800 hover:text-teal-950 cursor-pointer"
-                >
-                  Submit Post-Training Survey →
-                </button>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveSurveyType('post');
+                      setSurveyModalOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-800 hover:text-teal-950 cursor-pointer"
+                  >
+                    Submit Post-Training Survey →
+                  </button>
+                  <div className="p-2 bg-teal-50/80 border border-teal-200/80 rounded-xl text-[11px] text-teal-900 flex items-start gap-1.5">
+                    <HelpCircle className="w-3.5 h-3.5 text-teal-600 shrink-0 mt-0.5" />
+                    <span>Google Forms take ~30s to sync. Once submitted, return here and wait for auto-sync.</span>
+                  </div>
+                </div>
               ) : (
                 <span className="text-xs text-slate-400 flex items-center gap-1">
                   <Lock className="w-3.5 h-3.5" /> Locked (Pass Step 2)
@@ -690,6 +782,9 @@ export default function StudentPortal() {
                 ? '🎉 Congratulations! Generate Your Official Certificate'
                 : 'Certificate Locked'}
             </h2>
+            <div className="text-xs text-amber-300 font-medium">
+              Credential Recipient: <span className="font-bold text-white underline">{certificate?.student_name || profile?.full_name || 'Participant'}</span>
+            </div>
             <p className={`text-xs sm:text-sm leading-relaxed ${
               certificate?.certificate_id
                 ? 'text-emerald-100'
@@ -798,9 +893,18 @@ export default function StudentPortal() {
       {/* Survey Role Selection Modal (Student vs Teacher) */}
       <SurveySelectionModal
         isOpen={surveyModalOpen}
-        onClose={() => setSurveyModalOpen(false)}
+        onClose={() => {
+          setSurveyModalOpen(false);
+          setSyncSecondsLeft(30);
+        }}
         surveyType={activeSurveyType}
         userEmail={user?.email}
+      />
+
+      {/* Student Tips & Help Guide Modal */}
+      <StudentTipsModal
+        isOpen={tipsModalOpen}
+        onClose={() => setTipsModalOpen(false)}
       />
     </div>
   );
