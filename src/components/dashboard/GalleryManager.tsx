@@ -36,7 +36,7 @@ import {
   adminFetchEventsByFolder,
   adminCreateEvent,
   adminUpdateEvent,
-  adminArchiveEvent,
+  adminDeleteEvent,
   uploadGalleryImage,
   adminAddPicture,
   adminUpdatePicture,
@@ -350,15 +350,19 @@ export default function GalleryManager() {
     }
   };
 
-  const handleArchiveEvent = async (id: string, currentArchived: boolean) => {
-    const action = currentArchived ? 'restore' : 'archive';
-    if (!confirm(`Are you sure you want to ${action} this event?`)) return;
+  const handleDeleteEvent = async (id: string, title: string) => {
+    if (!confirm(`Permanently delete "${title}" and all of its photos? This cannot be undone.`)) return;
+    setActionLoading(true);
     try {
-      await adminArchiveEvent(id, !currentArchived);
-      showFeedbackMsg(`Event ${action}d successfully`);
-      if (selectedFolder) loadEventsForFolder(selectedFolder);
+      await adminDeleteEvent(id);
+      showFeedbackMsg('Event and its photos deleted successfully');
+      setShowEventModal(false);
+      if (selectedFolder) await loadEventsForFolder(selectedFolder);
     } catch (err: any) {
       showFeedbackMsg(err.message, 'error');
+      if (selectedFolder) await loadEventsForFolder(selectedFolder);
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -552,19 +556,28 @@ export default function GalleryManager() {
             </p>
           </div>
 
-          {/* Upload Button */}
-          <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition-all shadow-sm cursor-pointer hover:scale-102">
-            <Upload className="w-4 h-4" />
-            <span>Upload Photos (Batch)</span>
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={handleBatchPhotoUpload}
-              className="hidden"
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleDeleteEvent(selectedEvent.id, selectedEvent.title)}
               disabled={actionLoading}
-            />
-          </label>
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs transition-colors cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete event</span>
+            </button>
+            <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs transition-all shadow-sm cursor-pointer hover:scale-102">
+              <Upload className="w-4 h-4" />
+              <span>Upload Photos (Batch)</span>
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleBatchPhotoUpload}
+                className="hidden"
+                disabled={actionLoading}
+              />
+            </label>
+          </div>
         </div>
 
         <p className="text-xs text-slate-600 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
@@ -942,15 +955,12 @@ export default function GalleryManager() {
                     </button>
 
                     <button
-                      onClick={() => handleArchiveEvent(evt.id, evt.is_archived)}
-                      className={`p-2 rounded-xl transition-colors cursor-pointer ${
-                        evt.is_archived
-                          ? 'hover:bg-emerald-50 text-emerald-700 hover:text-emerald-800'
-                          : 'hover:bg-red-50 text-slate-400 hover:text-red-600'
-                      }`}
-                      title={evt.is_archived ? 'Restore event' : 'Archive event'}
+                      onClick={() => handleDeleteEvent(evt.id, evt.title)}
+                      disabled={actionLoading}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs transition-colors cursor-pointer"
                     >
-                      {evt.is_archived ? <RefreshCw className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete event</span>
                     </button>
                   </div>
                 </div>
@@ -1143,6 +1153,7 @@ export default function GalleryManager() {
                   <button
                     type="button"
                     onClick={() => setShowEventModal(false)}
+                    disabled={actionLoading}
                     className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
                   >
                     Cancel
@@ -1150,10 +1161,23 @@ export default function GalleryManager() {
                   <button
                     type="submit"
                     disabled={actionLoading}
-                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer shadow-sm"
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer shadow-sm disabled:opacity-50"
                   >
                     {actionLoading ? 'Saving...' : 'Save Event'}
                   </button>
+                  {eventForm.id && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (eventForm.id) handleDeleteEvent(eventForm.id, eventForm.title);
+                      }}
+                      disabled={actionLoading}
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Delete Event
+                    </button>
+                  )}
                 </div>
               </form>
             </div>

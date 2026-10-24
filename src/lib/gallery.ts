@@ -453,6 +453,58 @@ export async function adminArchiveEvent(id: string, isArchived: boolean = true):
   if (error) throw error;
 }
 
+export async function adminDeleteEvent(id: string): Promise<void> {
+  const supabase = createClient();
+  const { data: pictures, error: picturesError } = await supabase
+    .from('gallery_pictures')
+    .select('id, storage_path')
+    .eq('event_id', id);
+
+  if (picturesError) throw picturesError;
+
+  const pictureIds = (pictures || []).map(picture => picture.id);
+  if (pictureIds.length > 0) {
+    const { error: tagsError } = await supabase
+      .from('gallery_picture_tags')
+      .delete()
+      .in('picture_id', pictureIds);
+
+    if (tagsError) throw tagsError;
+
+    const { error: picturesDeleteError } = await supabase
+      .from('gallery_pictures')
+      .delete()
+      .in('id', pictureIds);
+
+    if (picturesDeleteError) throw picturesDeleteError;
+  }
+
+  const { data: deletedEvents, error } = await supabase
+    .from('gallery_events')
+    .delete()
+    .eq('id', id)
+    .select('id');
+
+  if (error) throw error;
+  if (!deletedEvents?.length) {
+    throw new Error('Event was not deleted. Check that you have gallery management permission and try again.');
+  }
+
+  const storagePaths = (pictures || [])
+    .map(picture => picture.storage_path)
+    .filter((path): path is string => Boolean(path));
+
+  if (storagePaths.length > 0) {
+    const { error: storageError } = await supabase.storage
+      .from('event-gallery')
+      .remove(storagePaths);
+
+    if (storageError) {
+      throw new Error(`Event deleted, but its stored photos could not be fully removed: ${storageError.message}`);
+    }
+  }
+}
+
 export async function adminAddPicture(
   eventId: string, 
   imageUrl: string, 
