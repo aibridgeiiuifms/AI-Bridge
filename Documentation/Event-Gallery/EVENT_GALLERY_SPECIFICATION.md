@@ -439,7 +439,9 @@ Inside `/events/[folderSlug]`:
 
 ### 6.3. Admin & Event Gallery Manager Experience (`/dashboard/gallery`)
 
-Accessible to Superadmins (`profiles.role = 'admin'`) and authorized team members (`members.can_manage_gallery = true`).
+Accessible to Superadmins (`profiles.role = 'admin'`) and authorized team members (`members.can_manage_gallery = true` or `members.can_manage_team = true`). Database and Storage policies must grant the same roles.
+
+For images to appear publicly, the folder and its event must both be published and not archived. The image file is stored in the public `event-gallery` bucket, while its database record is returned only when its parent event and folder are public.
 
 1. **Folder Management:**
    - Create, edit, publish/draft toggle, and reorder folders.
@@ -467,9 +469,10 @@ Accessible to Superadmins (`profiles.role = 'admin'`) and authorized team member
 ## 7. Implementation Checklist
 
 - [x] **Database Migration File:** Created `supabase/017_event_gallery.sql` defining `gallery_folders`, `gallery_events`, `gallery_pictures`, `gallery_picture_tags`, RLS policies, and `members.can_manage_gallery`.
+- [x] **Manager Permission Alignment:** `supabase/018_gallery_manager_permissions.sql` aligns gallery and Storage write access with dashboard access for team managers.
 - [x] **Storage Bucket Setup:** Configured SQL in migration 017 for `event-gallery` bucket with public read and authenticated manager upload policies.
 - [x] **Public Gallery Routes:**
-  - [x] Updated `src/app/events/page.tsx` with dynamic folder cards grid, search filter, and seed fallback.
+  - [x] Updated `src/app/events/page.tsx` with dynamic folder cards grid and search filter; database errors are shown instead of substituting sample albums.
   - [x] Created dynamic route `src/app/events/[folderSlug]/page.tsx` implementing the **Sticky Card Stack** component.
   - [x] Implemented fullscreen `GalleryLightbox.tsx` with keyboard, touch swipe controls, and "In this photo" team tags.
   - [x] Implemented safe `MarkdownView.tsx` component rendering bold, italic, links, lists, and quotes without exposing raw markdown syntax.

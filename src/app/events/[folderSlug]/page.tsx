@@ -30,6 +30,7 @@ export default function FolderGalleryPage() {
 
   const [folder, setFolder] = useState<GalleryFolderWithEvents | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   // Lightbox State
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -46,6 +47,7 @@ export default function FolderGalleryPage() {
         setFolder(data);
       } catch (err) {
         console.error('Failed to load folder:', err);
+        setLoadError(true);
       } finally {
         setLoading(false);
       }
@@ -77,9 +79,13 @@ export default function FolderGalleryPage() {
         <div className="w-16 h-16 mx-auto rounded-3xl bg-amber-100 text-amber-800 flex items-center justify-center">
           <Folder className="w-8 h-8" />
         </div>
-        <h1 className="text-2xl font-black text-slate-900">Album Not Found</h1>
+        <h1 className="text-2xl font-black text-slate-900">
+          {loadError ? 'Gallery Temporarily Unavailable' : 'Album Not Found'}
+        </h1>
         <p className="text-sm text-slate-500 max-w-md mx-auto">
-          The requested event folder does not exist or may have been archived.
+          {loadError
+            ? 'The album could not be loaded. Please try again later.'
+            : 'The requested event folder does not exist, is unpublished, or may have been archived.'}
         </p>
         <Link
           href="/events"
@@ -478,4 +484,3 @@ function ExpandableEventDescription({ content }: { content?: string }) {
     </div>
   );
 }
-
