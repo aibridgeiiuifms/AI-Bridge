@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import { createAdminClient } from '@/lib/supabase/admin';
+import VerifyTracker from '@/components/VerifyTracker';
 
 interface VerifyPageProps {
   params: Promise<{ id: string }>;
@@ -41,6 +42,7 @@ export default async function VerifyPage({ params }: VerifyPageProps) {
   if (!cert) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-16 space-y-6">
+        <VerifyTracker certificateId={decodedId} isValid={false} />
         <BackButton label="Back" fallback="/portal" />
 
         <div className="bg-white rounded-3xl border border-rose-200 shadow-xl overflow-hidden">
@@ -98,6 +100,7 @@ export default async function VerifyPage({ params }: VerifyPageProps) {
   if (!cert.is_valid) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-16 space-y-6">
+        <VerifyTracker certificateId={decodedId} isValid={false} />
         <BackButton label="Back" fallback="/portal" />
 
         <div className="bg-white rounded-3xl border border-rose-300 shadow-xl overflow-hidden">
@@ -205,6 +208,7 @@ export default async function VerifyPage({ params }: VerifyPageProps) {
   // 3. Valid Verified Credential View
   return (
     <div className="max-w-3xl mx-auto px-4 py-16 space-y-8 animate-fade-in">
+      <VerifyTracker certificateId={cert.certificate_id} isValid={true} />
       <BackButton label="Back" fallback="/portal" />
 
       <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">

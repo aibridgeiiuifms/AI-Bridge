@@ -23,6 +23,10 @@ import { fetchFolderWithEventsBySlug } from '@/lib/gallery';
 import { GalleryFolderWithEvents, GalleryEventWithPictures, GalleryPictureWithTags } from '@/types/database';
 import MarkdownView from '@/components/MarkdownView';
 import GalleryLightbox from '@/components/gallery/GalleryLightbox';
+import EventLikeButton from '@/components/gallery/EventLikeButton';
+import { createClient } from '@/lib/supabase/client';
+import { trackEvent } from '@/lib/tracking/trackEvent';
+import { useTimeOnPage } from '@/hooks/useTimeOnPage';
 
 export default function FolderGalleryPage() {
   const params = useParams();
@@ -31,12 +35,24 @@ export default function FolderGalleryPage() {
   const [folder, setFolder] = useState<GalleryFolderWithEvents | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Time on album page tracking
+  useTimeOnPage(`/events/${folderSlug}`, { folder_slug: folderSlug });
 
   // Lightbox State
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxPictures, setLightboxPictures] = useState<GalleryPictureWithTags[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxEventTitle, setLightboxEventTitle] = useState('');
+
+  // Fetch current user auth state for Like functionality
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUserId(data?.user?.id ?? null);
+    });
+  }, []);
 
   useEffect(() => {
     if (!folderSlug) return;
@@ -45,6 +61,13 @@ export default function FolderGalleryPage() {
       try {
         const data = await fetchFolderWithEventsBySlug(folderSlug);
         setFolder(data);
+        if (data) {
+          trackEvent('event_folder_opened', `/events/${folderSlug}`, {
+            folder_slug: folderSlug,
+            folder_title: data.title,
+            events_count: data.events?.length || 0,
+          });
+        }
       } catch (err) {
         console.error('Failed to load folder:', err);
         setLoadError(true);
@@ -60,6 +83,12 @@ export default function FolderGalleryPage() {
     setLightboxIndex(index);
     setLightboxEventTitle(eventTitle);
     setLightboxOpen(true);
+    trackEvent('lightbox_opened', `/events/${folderSlug}`, {
+      folder_slug: folderSlug,
+      event_title: eventTitle,
+      photo_index: index,
+      total_photos: pictures.length,
+    });
   };
 
   if (loading) {
@@ -223,6 +252,13 @@ export default function FolderGalleryPage() {
                               href={link.url}
                               target="_blank"
                               rel="noopener noreferrer"
+                              onClick={() => {
+                                trackEvent('external_link_clicked', `/events/${folderSlug}`, {
+                                  url: link.url,
+                                  label: link.label,
+                                  event_title: evt.title,
+                                });
+                              }}
                               className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-md transition-colors border border-emerald-200/60"
                             >
                               <span>{link.label}</span>
@@ -409,8 +445,17 @@ export default function FolderGalleryPage() {
 
                     {/* Formatted Markdown Caption / Story (Placed below picture with Instagram-style 'see more') */}
                     {evt.description_markdown && (
-                      <ExpandableEventDescription content={evt.description_markdown} />
+                      <ExpandableEventDescription content={evt.description_markdown} eventTitle={evt.title} folderSlug={folderSlug} />
                     )}
+
+                    {/* Event Card Like Bar */}
+                    <div className="pt-4 border-t border-slate-100">
+                      <EventLikeButton
+                        eventId={evt.id}
+                        eventTitle={evt.title}
+                        currentUserId={currentUserId}
+                      />
+                    </div>
                   </div>
                 </article>
               );
@@ -436,7 +481,7 @@ export default function FolderGalleryPage() {
  * Shows first lines with a subtle fade and "... see more" button,
  * expanding smoothly to reveal full rich markdown content.
  */
-function ExpandableEventDescription({ content }: { content?: string }) {
+function ExpandableEventDescription({ content, eventTitle, folderSlug }: { content?: string; eventTitle?: string; folderSlug?: string }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (!content || !content.trim()) return null;
@@ -469,7 +514,17 @@ function ExpandableEventDescription({ content }: { content?: string }) {
         <div className="pt-2 flex items-center">
           <button
             type="button"
-            onClick={() => setIsExpanded(prev => !prev)}
+            onClick={() => {
+              setIsExpanded(prev => {
+                const next = !prev;
+                if (next) {
+                  trackEvent('event_description_expanded', `/events/${folderSlug || ''}`, {
+                    event_title: eventTitle || '',
+                  });
+                }
+                return next;
+              });
+            }}
             className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 hover:text-emerald-950 transition-colors cursor-pointer py-0.5"
           >
             <span>{isExpanded ? 'see less' : '... see more'}</span>

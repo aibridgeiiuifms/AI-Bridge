@@ -22,6 +22,7 @@ import {
   Hourglass
 } from 'lucide-react';
 import { queueSubmission } from '@/lib/offline-sync';
+import { trackEvent } from '@/lib/tracking/trackEvent';
 
 interface Question {
   id: string;
@@ -173,6 +174,9 @@ export default function QuizPage() {
         setSecondsElapsed(0);
         setStartedAt(newStartTime);
         setCooldownRemaining(0);
+        trackEvent('quiz_started', '/portal/quiz', {
+          question_count: data.questions.length,
+        });
 
         // Save fresh attempt to localStorage
         try {
@@ -352,6 +356,12 @@ export default function QuizPage() {
       // Submission successful: clear session storage
       clearQuizStorage();
       setQuizResult(data);
+      trackEvent('quiz_completed', '/portal/quiz', {
+        score: data.score,
+        total_questions: data.total_questions,
+        passed: data.passed,
+        percentage: data.percentage,
+      });
 
       // If failed, trigger the 5-minute cooldown timer
       if (!data.passed) {

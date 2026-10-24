@@ -13,6 +13,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { GalleryPictureWithTags } from '@/types/database';
+import { trackEvent } from '@/lib/tracking/trackEvent';
 
 interface GalleryLightboxProps {
   pictures: GalleryPictureWithTags[];
@@ -37,19 +38,43 @@ export default function GalleryLightbox({
   }, [initialIndex]);
 
   const handlePrev = useCallback(() => {
-    setCurrentIndex((prev) => (prev > 0 ? prev - 1 : pictures.length - 1));
-  }, [pictures.length]);
+    setCurrentIndex((prev) => {
+      const nextIdx = prev > 0 ? prev - 1 : pictures.length - 1;
+      trackEvent('lightbox_photo_navigated', typeof window !== 'undefined' ? window.location.pathname : '/events', {
+        from_index: prev,
+        to_index: nextIdx,
+        event_title: eventTitle || '',
+      });
+      return nextIdx;
+    });
+  }, [pictures.length, eventTitle]);
 
   const handleNext = useCallback(() => {
-    setCurrentIndex((prev) => (prev < pictures.length - 1 ? prev + 1 : 0));
-  }, [pictures.length]);
+    setCurrentIndex((prev) => {
+      const nextIdx = prev < pictures.length - 1 ? prev + 1 : 0;
+      trackEvent('lightbox_photo_navigated', typeof window !== 'undefined' ? window.location.pathname : '/events', {
+        from_index: prev,
+        to_index: nextIdx,
+        event_title: eventTitle || '',
+      });
+      return nextIdx;
+    });
+  }, [pictures.length, eventTitle]);
+
+  const handleClose = useCallback(() => {
+    trackEvent('lightbox_closed', typeof window !== 'undefined' ? window.location.pathname : '/events', {
+      event_title: eventTitle || '',
+      final_index: currentIndex,
+    });
+    onClose();
+  }, [eventTitle, currentIndex, onClose]);
 
   // Keyboard navigation (Escape, ArrowLeft, ArrowRight)
   useEffect(() => {
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') handleClose();
       if (e.key === 'ArrowLeft') handlePrev();
       if (e.key === 'ArrowRight') handleNext();
     };
@@ -62,7 +87,7 @@ export default function GalleryLightbox({
       window.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen, onClose, handlePrev, handleNext]);
+  }, [isOpen, handleClose, handlePrev, handleNext]);
 
   // Touch swipe gestures
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -105,7 +130,7 @@ export default function GalleryLightbox({
         </div>
 
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer hover:scale-105"
           title="Close (Esc)"
         >

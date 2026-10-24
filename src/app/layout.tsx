@@ -8,6 +8,7 @@ import PWAInit from '@/components/PWAInit';
 import BottomNav from '@/components/BottomNav';
 import PWAInstallBanner from '@/components/PWAInstallBanner';
 import MobileSwipeNav from '@/components/MobileSwipeNav';
+import AnalyticsProvider from '@/components/AnalyticsProvider';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -50,6 +51,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/logo.webp" />
       </head>
       <body className={`${inter.variable} font-sans flex flex-col min-h-screen bg-slate-50 text-slate-900 antialiased`}>
+        <AnalyticsProvider />
         <PWAInit />
         <MobileSwipeNav />
         <ChunkLoadRecovery />

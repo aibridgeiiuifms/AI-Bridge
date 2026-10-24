@@ -13,6 +13,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { trackEvent } from '@/lib/tracking/trackEvent';
 
 export default function PreSurveyPage() {
   const [user, setUser] = useState<any>(null);
@@ -24,7 +25,12 @@ export default function PreSurveyPage() {
     });
   }, []);
 
-  const openForm = (url: string) => {
+  const openForm = (url: string, role: string) => {
+    trackEvent('survey_started', '/portal/pre-survey', {
+      survey_type: 'pre',
+      academic_role: role,
+      url,
+    });
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
@@ -59,7 +65,7 @@ export default function PreSurveyPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Student Pre Assessment */}
           <div
-            onClick={() => openForm('https://forms.gle/YZNQSZXUKJVn5o1i7')}
+            onClick={() => openForm('https://forms.gle/YZNQSZXUKJVn5o1i7', 'student')}
             className="group relative flex flex-col justify-between p-6 rounded-3xl border-2 border-emerald-200 bg-white hover:bg-emerald-50/50 hover:border-emerald-600 transition-all cursor-pointer shadow-sm hover:shadow-xl"
           >
             <div>
@@ -87,7 +93,7 @@ export default function PreSurveyPage() {
 
           {/* Teacher Pre Assessment */}
           <div
-            onClick={() => openForm('https://forms.gle/RmHp9N6VuN88Xc279')}
+            onClick={() => openForm('https://forms.gle/RmHp9N6VuN88Xc279', 'teacher')}
             className="group relative flex flex-col justify-between p-6 rounded-3xl border-2 border-teal-200 bg-white hover:bg-teal-50/50 hover:border-teal-600 transition-all cursor-pointer shadow-sm hover:shadow-xl"
           >
             <div>

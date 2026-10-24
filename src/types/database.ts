@@ -222,3 +222,45 @@ export interface UserProgressStatus {
   certificate: Certificate | null;
   canDownloadCertificate: boolean;
 }
+
+export interface AnalyticsEvent {
+  id: string;
+  user_id: string | null;
+  session_id: string;
+  user_role: UserRole;
+  event_name: string;
+  page_path: string;
+  properties: Record<string, any>;
+  referrer: string | null;
+  device_type: 'mobile' | 'tablet' | 'desktop' | null;
+  browser: string | null;
+  country: string | null;
+  user_agent: string | null;
+  created_at: string;
+}
+
+export interface AnalyticsAccessControl {
+  member_id: string;
+  can_view_analytics: boolean;
+  granted_by: string | null;
+  granted_at: string;
+}
+
+export interface EventLike {
+  id: string;
+  event_id: string;
+  user_id: string;
+  created_at: string;
+}
+
+export interface EventLikerInfo {
+  full_name: string;
+  avatar_url: string | null;
+}
+
+export interface EventLikeSummary {
+  event_id: string;
+  like_count: number;
+  likers: EventLikerInfo[];
+}
+

@@ -23,6 +23,7 @@ import {
   Clock
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { trackEvent } from '@/lib/tracking/trackEvent';
 import SurveySelectionModal from '@/components/SurveySelectionModal';
 import StudentTipsModal from '@/components/StudentTipsModal';
 import PortalSkeleton from '@/components/skeletons/PortalSkeleton';
@@ -32,7 +33,7 @@ function buildLinkedInCertUrl(certId: string, completionDate?: string): string {
     startTask: 'CERTIFICATION_NAME',
     name: 'The AI Bridge: Source-Grounded AI & NotebookLM Mastery',
     organizationName: 'The AI Bridge, IIUI',
-    organizationId: '135117107',
+    organizationId: '145282223',
     issueYear: '2026',
     issueMonth: '10',
     certUrl: `https://ai-bridge-iiui.vercel.app/verify/${certId}`,
@@ -144,6 +145,11 @@ export default function StudentPortal() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+
+      trackEvent('certificate_downloaded', '/portal', {
+        certificate_id: certificate?.certificate_id || 'newly_issued',
+        format,
+      });
 
       // Refresh certificate state if newly issued
       await checkCertificationProgress();
