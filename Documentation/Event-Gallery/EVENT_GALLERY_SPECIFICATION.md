@@ -15,6 +15,7 @@ The **Event Gallery** module provides a dynamic, media-rich documentation stream
 ### Structural Paradigm (2-Tier Folders):
 - **Folders (Albums/Collections):** Top-level category cards displayed on the main gallery page (`/events`), grouping events by initiative, phase, or academic cohort (e.g., *"Faculty Training Series"*, *"Campus Awareness Drive"*).
 - **Events (Single Card per Event):** Individual sessions located strictly within a folder. Each event has a title, venue, optional/hideable date, external recap links, a rich Markdown caption/description, and an ordered photo set.
+- **Event Ordering:** Gallery managers can drag events into the desired order within an album; the saved order is used by the public album view.
 - **Vertical Scroll Card Layout:** In the folder view (`/events/[folderSlug]`), events render as clean, distinct cards in a standard vertical scroll stream with gentle hover elevation, providing an intuitive, uncluttered browsing experience across desktop and mobile.
 - **Rich Rendered Markdown:** Each event has a single comprehensive caption/story written in Markdown by managers and rendered cleanly as formatted HTML (bold, italic, bulleted lists, links) without exposing raw Markdown markers.
 - **Team Member Tagging (Multi-Person):** For every picture in an event, managers can tag multiple team members from `public.members`. Tagged members (with their avatar and name) appear on the photo in the public card and interactive lightbox.

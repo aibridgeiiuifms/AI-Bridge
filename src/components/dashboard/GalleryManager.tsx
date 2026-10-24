@@ -26,7 +26,8 @@ import {
   ArrowDown,
   Star,
   RefreshCw,
-  Search
+  Search,
+  GripVertical
 } from 'lucide-react';
 import { 
   adminFetchAllFolders, 
@@ -37,6 +38,7 @@ import {
   adminCreateEvent,
   adminUpdateEvent,
   adminDeleteEvent,
+  adminReorderEvents,
   uploadGalleryImage,
   adminAddPicture,
   adminUpdatePicture,
@@ -67,6 +69,8 @@ export default function GalleryManager() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [draggedEventId, setDraggedEventId] = useState<string | null>(null);
+  const [dropTargetEventId, setDropTargetEventId] = useState<string | null>(null);
 
   // Folder Modal state
   const [showFolderModal, setShowFolderModal] = useState(false);
@@ -361,6 +365,39 @@ export default function GalleryManager() {
     } catch (err: any) {
       showFeedbackMsg(err.message, 'error');
       if (selectedFolder) await loadEventsForFolder(selectedFolder);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleEventDrop = async (targetEventId: string) => {
+    if (!draggedEventId || draggedEventId === targetEventId || !selectedFolder || actionLoading) return;
+
+    const sourceIndex = events.findIndex(event => event.id === draggedEventId);
+    const targetIndex = events.findIndex(event => event.id === targetEventId);
+    if (sourceIndex < 0 || targetIndex < 0) return;
+
+    const previousEvents = events;
+    const reorderedEvents = [...events];
+    const [movedEvent] = reorderedEvents.splice(sourceIndex, 1);
+    reorderedEvents.splice(targetIndex, 0, movedEvent);
+    setEvents(reorderedEvents);
+    setDraggedEventId(null);
+    setDropTargetEventId(null);
+    setActionLoading(true);
+
+    try {
+      await adminReorderEvents(reorderedEvents.map(event => event.id));
+      showFeedbackMsg('Event order saved. The public album now uses this order.');
+    } catch (err: any) {
+      console.error('Failed to save event order:', err);
+      try {
+        setEvents(await adminFetchEventsByFolder(selectedFolder.id));
+      } catch (refreshError) {
+        console.error('Failed to refresh event order after save error:', refreshError);
+        setEvents(previousEvents);
+      }
+      showFeedbackMsg(`Failed to save event order: ${err.message || 'Unknown error'}`, 'error');
     } finally {
       setActionLoading(false);
     }
@@ -880,6 +917,12 @@ export default function GalleryManager() {
         </div>
 
         {/* Events Table / Cards */}
+        {events.length > 1 && (
+          <p className="text-xs text-slate-500 flex items-center gap-1.5">
+            <GripVertical className="w-4 h-4 text-slate-400" />
+            Drag events by the grip handle to set their order in the public album.
+          </p>
+        )}
         {events.length === 0 ? (
           <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center space-y-3">
             <Calendar className="w-12 h-12 text-slate-300 mx-auto" />
@@ -896,10 +939,42 @@ export default function GalleryManager() {
               return (
                 <div 
                   key={evt.id}
-                  className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs hover:border-slate-300 transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+                  onDragOver={(e) => {
+                    if (!draggedEventId || actionLoading) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    setDropTargetEventId(evt.id);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    void handleEventDrop(evt.id);
+                  }}
+                  className={`bg-white rounded-2xl border p-5 shadow-xs transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
+                    dropTargetEventId === evt.id
+                      ? 'border-emerald-500 ring-2 ring-emerald-200'
+                      : 'border-slate-200 hover:border-slate-300'
+                  } ${draggedEventId === evt.id ? 'opacity-50' : ''}`}
                 >
                   <div className="space-y-1.5 max-w-2xl">
                     <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span
+                        draggable={!actionLoading}
+                        onDragStart={(e) => {
+                          e.dataTransfer.effectAllowed = 'move';
+                          setDraggedEventId(evt.id);
+                        }}
+                        onDragEnd={() => {
+                          setDraggedEventId(null);
+                          setDropTargetEventId(null);
+                        }}
+                        title="Drag to reorder event"
+                        aria-label={`Drag to reorder ${evt.title}`}
+                        className={`inline-flex items-center text-slate-400 ${
+                          actionLoading ? 'cursor-not-allowed' : 'cursor-grab active:cursor-grabbing'
+                        }`}
+                      >
+                        <GripVertical className="w-4 h-4" />
+                      </span>
                       <span className="font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded text-[11px]">
                         Event #{idx + 1}
                       </span>
