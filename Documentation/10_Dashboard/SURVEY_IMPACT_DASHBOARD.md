@@ -319,8 +319,12 @@ ON CONFLICT (key) DO UPDATE SET
 
 Management requires fine-grained control: the Admin must be able to toggle which charts are visible to **Team Members** versus **External Reviewers (QR Code)** versus **Management Only**.
 
+Administrators can now change the Member and Reviewer visibility directly from each chart on the Survey Impact dashboard. The same permissions remain available in the Report QR & Reviewer Access matrix for bulk review; both controls save to this shared setting. Administrators continue to see every chart, including charts hidden from Members or Reviewers, so they can restore visibility in place.
+
 ### 5.1 Visibility Configuration Schema in `public.system_settings`
 Stored under the key: `survey_dashboard_chart_permissions`
+
+If this setting has not been created yet, the dashboard keeps the legacy behavior and shows each chart to both audiences until an Admin changes its visibility.
 
 ```json
 {

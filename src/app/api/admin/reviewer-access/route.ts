@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient as createServerSupabase } from '@/lib/supabase/server';
+import { mergeSurveyChartPermissions } from '@/lib/surveyChartPermissions';
 import QRCode from 'qrcode';
 
 // In-memory rate limiting map: ip -> { attempts: number, lockUntil: number }
@@ -114,7 +115,7 @@ export async function GET(req: NextRequest) {
       allow_chart_downloads: true,
     };
 
-    const chartPermissions = chartRes.data?.value || {};
+    const chartPermissions = mergeSurveyChartPermissions(chartRes.data?.value);
 
     // Generate live QR code data URL
     const targetUrl = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://ai-bridge-iiui.vercel.app'}/dashboard/survey-analytics?ref=report_qr`;
@@ -251,11 +252,31 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (body.chartPermissions) {
-      await admin.from('system_settings').upsert({
+      if (typeof body.chartPermissions !== 'object' || Array.isArray(body.chartPermissions)) {
+        return NextResponse.json({ error: 'Chart permissions must be an object.' }, { status: 400 });
+      }
+
+      const { data: current, error: currentError } = await admin
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'survey_dashboard_chart_permissions')
+        .maybeSingle();
+      if (currentError) {
+        throw new Error(`Failed to load chart permissions: ${currentError.message}`);
+      }
+      const currentPermissions = mergeSurveyChartPermissions(current?.value);
+      const updatedPermissions = {
+        ...currentPermissions,
+        ...body.chartPermissions,
+      };
+      const { error: chartPermissionSaveError } = await admin.from('system_settings').upsert({
         key: 'survey_dashboard_chart_permissions',
-        value: body.chartPermissions,
+        value: updatedPermissions,
         updated_at: new Date().toISOString(),
       });
+      if (chartPermissionSaveError) {
+        throw new Error(`Failed to save chart permissions: ${chartPermissionSaveError.message}`);
+      }
     }
 
     return NextResponse.json({ success: true, message: 'Reviewer settings updated successfully' });

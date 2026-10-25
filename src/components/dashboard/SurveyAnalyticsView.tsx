@@ -26,10 +26,16 @@ import {
   Lock,
   ChevronRight,
   ExternalLink,
-  ChevronDown
+  ChevronDown,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import ChartDownloadWrapper from '@/components/dashboard/ChartDownloadWrapper';
 import ReviewerPasswordModal from '@/components/dashboard/ReviewerPasswordModal';
+import {
+  DEFAULT_SURVEY_CHART_PERMISSIONS,
+  type SurveyChartPermission,
+} from '@/lib/surveyChartPermissions';
 
 export type SurveySubTab = 'overview' | 'hours' | 'before-after' | 'assets' | 'departments' | 'faculties' | 'teachers' | 'quiz-certs';
 
@@ -47,6 +53,8 @@ export default function SurveyAnalyticsView({
   const [loading, setLoading] = useState<boolean>(true);
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [chartPermissionError, setChartPermissionError] = useState<string | null>(null);
+  const [savingChartPermission, setSavingChartPermission] = useState<string | null>(null);
   const [internalTab, setInternalTab] = useState<SurveySubTab>('overview');
 
   const activeTab = controlledSubTab || internalTab;
@@ -123,12 +131,92 @@ export default function SurveyAnalyticsView({
   const recentCertificates = data?.recentCertificates || [];
   const permissions = data?.chartPermissions || {};
   const isReviewer = data?.isReviewer || false;
+  const isAdmin = data?.callerRole === 'admin';
 
   const isVisible = (chartKey: string) => {
-    if (!permissions[chartKey]) return true;
-    if (data?.callerRole === 'admin') return true;
-    if (isReviewer) return Boolean(permissions[chartKey].external_reviewer_visible);
-    return Boolean(permissions[chartKey].team_member_visible);
+    const permission = permissions[chartKey] || DEFAULT_SURVEY_CHART_PERMISSIONS[chartKey];
+    if (!permission) return true;
+    if (isReviewer) return Boolean(permission.external_reviewer_visible);
+    return Boolean(permission.team_member_visible);
+  };
+  const shouldRenderChart = (chartKey: string) => isAdmin || isVisible(chartKey);
+
+  const updateChartPermission = async (
+    chartKey: string,
+    field: 'team_member_visible' | 'external_reviewer_visible'
+  ) => {
+    const current: SurveyChartPermission =
+      permissions[chartKey] || DEFAULT_SURVEY_CHART_PERMISSIONS[chartKey];
+    if (!current || savingChartPermission) return;
+
+    const updated = { ...current, [field]: !current[field] };
+    setSavingChartPermission(`${chartKey}:${field}`);
+    setChartPermissionError(null);
+
+    try {
+      const res = await fetch('/api/admin/reviewer-access', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chartPermissions: { [chartKey]: updated } }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to save chart visibility');
+
+      setData((previous: any) => ({
+        ...previous,
+        chartPermissions: {
+          ...(previous?.chartPermissions || {}),
+          [chartKey]: updated,
+        },
+      }));
+    } catch (err: unknown) {
+      setChartPermissionError(err instanceof Error ? err.message : 'Failed to save chart visibility');
+    } finally {
+      setSavingChartPermission(null);
+    }
+  };
+
+  const renderVisibilityControls = (chartKey: string) => {
+    if (!isAdmin) return null;
+    const permission: SurveyChartPermission =
+      permissions[chartKey] || DEFAULT_SURVEY_CHART_PERMISSIONS[chartKey];
+    if (!permission) return null;
+
+    return (
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2">
+        <span className="mr-1 text-[10px] font-black uppercase tracking-wider text-amber-900">
+          Chart visibility
+        </span>
+        <button
+          type="button"
+          onClick={() => updateChartPermission(chartKey, 'team_member_visible')}
+          disabled={savingChartPermission !== null}
+          aria-pressed={permission.team_member_visible}
+          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-extrabold transition-colors disabled:cursor-wait disabled:opacity-60 ${
+            permission.team_member_visible
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+              : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-100'
+          }`}
+        >
+          {permission.team_member_visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+          Members {permission.team_member_visible ? 'Visible' : 'Hidden'}
+        </button>
+        <button
+          type="button"
+          onClick={() => updateChartPermission(chartKey, 'external_reviewer_visible')}
+          disabled={savingChartPermission !== null}
+          aria-pressed={permission.external_reviewer_visible}
+          className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-extrabold transition-colors disabled:cursor-wait disabled:opacity-60 ${
+            permission.external_reviewer_visible
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+              : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-100'
+          }`}
+        >
+          {permission.external_reviewer_visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+          Reviewers {permission.external_reviewer_visible ? 'Visible' : 'Hidden'}
+        </button>
+      </div>
+    );
   };
 
   return (
@@ -138,6 +226,12 @@ export default function SurveyAnalyticsView({
         isOpen={showPasswordModal}
         onSuccess={handlePasswordSuccess}
       />
+
+      {chartPermissionError && isAdmin && (
+        <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-800">
+          Could not save chart visibility: {chartPermissionError}
+        </div>
+      )}
 
       {/* Top Bar (if not hidden by parent) */}
       {!hideHeaderBar && (
@@ -211,42 +305,45 @@ export default function SurveyAnalyticsView({
       </div>
 
       {/* 6 Executive KPI Headline Cards */}
-      {isVisible('kpi_overview_cards') && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-1">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Student Surveys</span>
-            <p className="text-2xl font-black text-slate-900">{overview.totalStudentPre + overview.totalStudentPost || 0}</p>
-            <p className="text-[10px] text-emerald-700 font-semibold">{overview.totalStudentPre || 0} Pre · {overview.totalStudentPost || 0} Post</p>
-          </div>
+      {shouldRenderChart('kpi_overview_cards') && (
+        <div className="space-y-3">
+          {renderVisibilityControls('kpi_overview_cards')}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-1">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Student Surveys</span>
+              <p className="text-2xl font-black text-slate-900">{overview.totalStudentPre + overview.totalStudentPost || 0}</p>
+              <p className="text-[10px] text-emerald-700 font-semibold">{overview.totalStudentPre || 0} Pre · {overview.totalStudentPost || 0} Post</p>
+            </div>
 
-          <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-1">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Teacher Surveys</span>
-            <p className="text-2xl font-black text-slate-900">{overview.totalTeacherPre + overview.totalTeacherPost || 0}</p>
-            <p className="text-[10px] text-teal-700 font-semibold">{overview.totalTeacherPre || 0} Pre · {overview.totalTeacherPost || 0} Post</p>
-          </div>
+            <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-1">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Teacher Surveys</span>
+              <p className="text-2xl font-black text-slate-900">{overview.totalTeacherPre + overview.totalTeacherPost || 0}</p>
+              <p className="text-[10px] text-teal-700 font-semibold">{overview.totalTeacherPre || 0} Pre · {overview.totalTeacherPost || 0} Post</p>
+            </div>
 
-          <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-1">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Certificates</span>
-            <p className="text-2xl font-black text-emerald-700">{overview.totalCertificates || 0}</p>
-            <p className="text-[10px] text-slate-500 font-medium">100% Verifiable</p>
-          </div>
+            <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-1">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Certificates</span>
+              <p className="text-2xl font-black text-emerald-700">{overview.totalCertificates || 0}</p>
+              <p className="text-[10px] text-slate-500 font-medium">100% Verifiable</p>
+            </div>
 
-          <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-1">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">QIP Met (&ge;3h)</span>
-            <p className="text-2xl font-black text-emerald-700">{impact.studentsMeetingQIPTargetPct || 0}%</p>
-            <p className="text-[10px] text-emerald-700 font-semibold">Weekly Time Saved</p>
-          </div>
+            <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-1">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">QIP Met (&ge;3h)</span>
+              <p className="text-2xl font-black text-emerald-700">{impact.studentsMeetingQIPTargetPct || 0}%</p>
+              <p className="text-[10px] text-emerald-700 font-semibold">Weekly Time Saved</p>
+            </div>
 
-          <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-1">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Quiz Pass Rate</span>
-            <p className="text-2xl font-black text-teal-700">{overview.quizPassRate || 0}%</p>
-            <p className="text-[10px] text-slate-500 font-medium">{overview.totalQuizAttempts || 0} attempts</p>
-          </div>
+            <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-1">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Quiz Pass Rate</span>
+              <p className="text-2xl font-black text-teal-700">{overview.quizPassRate || 0}%</p>
+              <p className="text-[10px] text-slate-500 font-medium">{overview.totalQuizAttempts || 0} attempts</p>
+            </div>
 
-          <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-1">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Full Journey</span>
-            <p className="text-2xl font-black text-sky-700">{overview.studentsWithBothSurveys || 0}</p>
-            <p className="text-[10px] text-slate-500 font-medium">Pre + Quiz + Post</p>
+            <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-1">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Full Journey</span>
+              <p className="text-2xl font-black text-sky-700">{overview.studentsWithBothSurveys || 0}</p>
+              <p className="text-[10px] text-slate-500 font-medium">Pre + Quiz + Post</p>
+            </div>
           </div>
         </div>
       )}
@@ -254,15 +351,15 @@ export default function SurveyAnalyticsView({
       {/* Horizontal Pills for Sub-tabs on Mobile */}
       <div className="lg:hidden flex gap-2 overflow-x-auto border-b border-slate-200 pb-2 scrollbar-none">
         {[
-          { id: 'overview', label: 'Summary', icon: Sparkles },
-          { id: 'hours', label: 'Hours Saved', icon: Clock },
-          { id: 'before-after', label: 'Before/After AI', icon: TrendingUp },
-          { id: 'assets', label: 'AI Study Assets', icon: BookOpen },
-          { id: 'departments', label: 'Dept Matrix', icon: Building2 },
-          { id: 'faculties', label: 'Faculties', icon: Layers },
-          { id: 'teachers', label: 'Faculty Detail', icon: Users },
-          { id: 'quiz-certs', label: 'Quiz & Certs', icon: Award },
-        ].map((tab) => {
+          { id: 'overview', label: 'Summary', icon: Sparkles, chartKeys: ['kpi_overview_cards', 'hours_saved_target_chart', 'iiui_vs_non_iiui_distribution'] },
+          { id: 'hours', label: 'Hours Saved', icon: Clock, chartKeys: ['hours_saved_target_chart'] },
+          { id: 'before-after', label: 'Before/After AI', icon: TrendingUp, chartKeys: ['before_after_familiarity_meter'] },
+          { id: 'assets', label: 'AI Study Assets', icon: BookOpen, chartKeys: ['top_ai_assets_deployed'] },
+          { id: 'departments', label: 'Dept Matrix', icon: Building2, chartKeys: ['department_matrix_table'] },
+          { id: 'faculties', label: 'Faculties', icon: Layers, chartKeys: ['faculty_cards_grid'] },
+          { id: 'teachers', label: 'Faculty Detail', icon: Users, chartKeys: ['teacher_designation_analysis'] },
+          { id: 'quiz-certs', label: 'Quiz & Certs', icon: Award, chartKeys: ['quiz_score_distribution', 'certificate_issuance_registry'] },
+        ].filter((tab) => isAdmin || tab.chartKeys.some(isVisible)).map((tab) => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
           return (
@@ -285,7 +382,9 @@ export default function SurveyAnalyticsView({
       {/* ─── TAB 1: EXECUTIVE OVERVIEW ─── */}
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {isVisible('hours_saved_target_chart') && (
+          {shouldRenderChart('hours_saved_target_chart') && (
+            <div className="space-y-3">
+            {renderVisibilityControls('hours_saved_target_chart')}
             <ChartDownloadWrapper
               id="hours-saved-overview"
               title="Weekly Study & Lesson Prep Time Saved (QIP Target: 3-5h)"
@@ -312,9 +411,12 @@ export default function SurveyAnalyticsView({
                 ))}
               </div>
             </ChartDownloadWrapper>
+            </div>
           )}
 
-          {isVisible('iiui_vs_non_iiui_distribution') && (
+          {shouldRenderChart('iiui_vs_non_iiui_distribution') && (
+            <div className="space-y-3">
+            {renderVisibilityControls('iiui_vs_non_iiui_distribution')}
             <ChartDownloadWrapper
               id="institutional-outreach"
               title="Institutional Outreach & University Affiliation"
@@ -350,13 +452,15 @@ export default function SurveyAnalyticsView({
                 </p>
               </div>
             </ChartDownloadWrapper>
+            </div>
           )}
         </div>
       )}
 
       {/* ─── TAB 2: HOURS SAVED (QIP DETAIL) ─── */}
-      {activeTab === 'hours' && isVisible('hours_saved_target_chart') && (
+      {activeTab === 'hours' && shouldRenderChart('hours_saved_target_chart') && (
         <div className="space-y-6">
+          {renderVisibilityControls('hours_saved_target_chart')}
           <ChartDownloadWrapper
             id="hours-saved-detail"
             title="Comprehensive Hours Saved Analysis (Students vs. Teachers)"
@@ -415,8 +519,9 @@ export default function SurveyAnalyticsView({
       )}
 
       {/* ─── TAB 3: BEFORE VS AFTER AI ─── */}
-      {activeTab === 'before-after' && isVisible('before_after_familiarity_meter') && (
+      {activeTab === 'before-after' && shouldRenderChart('before_after_familiarity_meter') && (
         <div className="space-y-6">
+          {renderVisibilityControls('before_after_familiarity_meter')}
           <ChartDownloadWrapper
             id="before-after-familiarity"
             title="AI Competency & Tool Experience (Before vs. After Assessment)"
@@ -462,8 +567,9 @@ export default function SurveyAnalyticsView({
       )}
 
       {/* ─── TAB 4: TOP AI STUDY ASSETS ─── */}
-      {activeTab === 'assets' && isVisible('top_ai_assets_deployed') && (
+      {activeTab === 'assets' && shouldRenderChart('top_ai_assets_deployed') && (
         <div className="space-y-6">
+          {renderVisibilityControls('top_ai_assets_deployed')}
           <ChartDownloadWrapper
             id="top-ai-assets"
             title="Most Effective AI Study & Revision Assets Deployed"
@@ -497,8 +603,9 @@ export default function SurveyAnalyticsView({
       )}
 
       {/* ─── TAB 5: DEPARTMENT MATRIX ─── */}
-      {activeTab === 'departments' && isVisible('department_matrix_table') && (
+      {activeTab === 'departments' && shouldRenderChart('department_matrix_table') && (
         <div className="space-y-4">
+          {renderVisibilityControls('department_matrix_table')}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="relative flex-1 max-w-sm">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3.5 top-3" />
@@ -572,8 +679,9 @@ export default function SurveyAnalyticsView({
       )}
 
       {/* ─── TAB 6: FACULTY BREAKDOWN ─── */}
-      {activeTab === 'faculties' && isVisible('faculty_cards_grid') && (
+      {activeTab === 'faculties' && shouldRenderChart('faculty_cards_grid') && (
         <div className="space-y-6">
+          {renderVisibilityControls('faculty_cards_grid')}
           <ChartDownloadWrapper
             id="faculty-groupings"
             title="University Faculty Representation & Certified Cohort"
@@ -604,8 +712,9 @@ export default function SurveyAnalyticsView({
       )}
 
       {/* ─── TAB 7: TEACHERS BREAKDOWN ─── */}
-      {activeTab === 'teachers' && isVisible('teacher_designation_analysis') && (
+      {activeTab === 'teachers' && shouldRenderChart('teacher_designation_analysis') && (
         <div className="space-y-6">
+          {renderVisibilityControls('teacher_designation_analysis')}
           <ChartDownloadWrapper
             id="teacher-designations"
             title="Faculty Academic Designation & Engagement"
@@ -633,7 +742,9 @@ export default function SurveyAnalyticsView({
       {/* ─── TAB 8: QUIZ & CERTIFICATES ─── */}
       {activeTab === 'quiz-certs' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {isVisible('quiz_score_distribution') && (
+          {shouldRenderChart('quiz_score_distribution') && (
+            <div className="space-y-3">
+            {renderVisibilityControls('quiz_score_distribution')}
             <ChartDownloadWrapper
               id="quiz-scores"
               title="Course Assessment Score Distribution"
@@ -657,9 +768,12 @@ export default function SurveyAnalyticsView({
                 ))}
               </div>
             </ChartDownloadWrapper>
+            </div>
           )}
 
-          {isVisible('certificate_issuance_registry') && (
+          {shouldRenderChart('certificate_issuance_registry') && (
+            <div className="space-y-3">
+            {renderVisibilityControls('certificate_issuance_registry')}
             <ChartDownloadWrapper
               id="recent-certs"
               title="Official Certificate Verification Registry"
@@ -683,6 +797,7 @@ export default function SurveyAnalyticsView({
                 ))}
               </div>
             </ChartDownloadWrapper>
+            </div>
           )}
         </div>
       )}

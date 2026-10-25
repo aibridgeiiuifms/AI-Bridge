@@ -41,6 +41,7 @@ This directory contains the complete technical and management documentation for 
    - Admin manages visibility for each chart/card independently:
      * `Team Member Visible`: Toggle whether team ambassadors can see the chart.
      * `External Reviewer Visible`: Toggle whether QR code evaluators can see the chart.
+   - Admins can also change either setting directly from each chart in the Survey Impact dashboard; the Report QR & Reviewer Access matrix remains available as a central settings view.
 4. **Dedicated Admin Tab ("Report QR & Reviewer Access")**:
    - Live rendered QR code preview linked to `/dashboard/survey-analytics?ref=report_qr`.
    - 1-click Download PNG and SVG for embedding directly into printable PDF / Word reports.

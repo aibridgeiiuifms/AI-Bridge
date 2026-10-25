@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient as createServerSupabase } from '@/lib/supabase/server';
+import { mergeSurveyChartPermissions } from '@/lib/surveyChartPermissions';
 
 // 60-Second In-Memory Cache to prevent serverless overload on high QR traffic
 let cachedData: any = null;
@@ -122,8 +123,17 @@ export async function GET(req: NextRequest) {
 
     const now = Date.now();
     if (!forceRefresh && cachedData && (now - cacheTimestamp < CACHE_TTL_MS)) {
+      const admin = createAdminClient();
+      const { data: permissionSetting, error: permissionError } = await admin
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'survey_dashboard_chart_permissions')
+        .maybeSingle();
+      if (permissionError) throw new Error(`Failed to load chart permissions: ${permissionError.message}`);
+
       return NextResponse.json({
         ...cachedData,
+        chartPermissions: mergeSurveyChartPermissions(permissionSetting?.value),
         callerRole: authCheck.role,
         isReviewer: authCheck.isReviewer,
         cached: true,
@@ -151,7 +161,8 @@ export async function GET(req: NextRequest) {
     ]);
 
     // studentRows, teacherRows, deptRows, quizRows, certRows are already full arrays from fetchAllRows
-    const chartPermissions = permRes.data?.value || {};
+    if (permRes.error) throw new Error(`Failed to load chart permissions: ${permRes.error.message}`);
+    const chartPermissions = mergeSurveyChartPermissions(permRes.data?.value);
     // Re-sort certificates by created_at DESC (since fetchAllRows doesn't guarantee order)
     certRows.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
