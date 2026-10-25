@@ -600,6 +600,20 @@ export async function adminReorderPictures(pictureIdsInOrder: string[]): Promise
   await Promise.all(promises);
 }
 
+export async function adminReorderEvents(eventIdsInOrder: string[]): Promise<void> {
+  const supabase = createClient();
+  const results = await Promise.all(
+    eventIdsInOrder.map((id, index) =>
+      supabase
+        .from('gallery_events')
+        .update({ display_order: index + 1, updated_at: new Date().toISOString() })
+        .eq('id', id)
+    )
+  );
+  const failedUpdate = results.find(result => result.error);
+  if (failedUpdate?.error) throw failedUpdate.error;
+}
+
 export async function adminDeletePicture(pictureId: string, storagePath?: string): Promise<void> {
   const supabase = createClient();
   

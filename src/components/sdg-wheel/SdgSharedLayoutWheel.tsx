@@ -264,7 +264,7 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
     [0, 1],
     ['0 1px 2px rgb(0 0 0 / 0.05)', '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'],
   );
-  const guideBorderColor = useTransform(dockingProgress, [0, 1], ['#cbd5e1', 'transparent']);
+  const guideOpacity = useTransform(dockingProgress, [0, 1], [1, 0]);
   const watermarkOpacity = useTransform(dockingProgress, [0, 1], [0.4, 0]);
 
   // 2. Measure pinpoint screen translation vectors from wheel slots to card slots
@@ -442,8 +442,8 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
                 >
                   {/* Visual dashed slot guide */}
                   <motion.div
-                    className="absolute inset-0 rounded-md sm:rounded-xl border border-dashed transition-colors"
-                    style={{ borderColor: guideBorderColor }}
+                    className="absolute inset-0 rounded-md sm:rounded-xl border border-dashed border-slate-300"
+                    style={{ opacity: guideOpacity }}
                   />
 
                   {/* Faint goal number watermark before slice docks */}
