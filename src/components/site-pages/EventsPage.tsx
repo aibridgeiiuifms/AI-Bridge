@@ -16,6 +16,10 @@ import {
 import { fetchPublishedFolders } from '@/lib/gallery';
 import { GalleryFolderWithEvents } from '@/types/database';
 import EventsSkeleton from '@/components/skeletons/EventsSkeleton';
+import { readClientCache, writeClientCache } from '@/lib/clientCache';
+
+const GALLERY_CACHE_KEY = 'ai-bridge:public-gallery:v1';
+const PUBLIC_GALLERY_CACHE_TTL = 30 * 60 * 1000;
 
 export default function EventsGalleryPageContent() {
   const [folders, setFolders] = useState<GalleryFolderWithEvents[]>([]);
@@ -24,14 +28,22 @@ export default function EventsGalleryPageContent() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
+    const cachedFolders = readClientCache<GalleryFolderWithEvents[]>(GALLERY_CACHE_KEY);
+    if (cachedFolders) {
+      setFolders(cachedFolders);
+      setLoading(false);
+    }
+
     async function loadFolders() {
-      setLoading(true);
+      if (!cachedFolders) setLoading(true);
       try {
         const data = await fetchPublishedFolders();
         setFolders(data);
+        writeClientCache(GALLERY_CACHE_KEY, data, PUBLIC_GALLERY_CACHE_TTL);
+        setLoadError(false);
       } catch (err) {
         console.error('Failed to load folders:', err);
-        setLoadError(true);
+        if (!cachedFolders) setLoadError(true);
       } finally {
         setLoading(false);
       }

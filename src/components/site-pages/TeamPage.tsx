@@ -19,6 +19,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { TeamSectionSkeleton } from '@/components/skeletons/TeamCardSkeleton';
+import { readClientCache, writeClientCache } from '@/lib/clientCache';
 
 interface TeamMember {
   id: string;
@@ -34,18 +35,28 @@ interface TeamMember {
   is_published: boolean;
 }
 
+const TEAM_CACHE_KEY = 'ai-bridge:public-team:v1';
+const PUBLIC_CONTENT_CACHE_TTL = 6 * 60 * 60 * 1000;
+
 export default function TeamPageContent() {
   const [team, setTeam] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const cachedTeam = readClientCache<TeamMember[]>(TEAM_CACHE_KEY);
+    if (cachedTeam) {
+      setTeam(cachedTeam);
+      setLoading(false);
+    }
+
     async function fetchTeam() {
       try {
         const res = await fetch('/api/team');
         const data = await res.json();
-        if (data.success) {
-          setTeam(data.team || []);
-        }
+        if (!res.ok || !data.success) throw new Error(data.error || 'Failed to load team');
+        const nextTeam: TeamMember[] = data.team || [];
+        setTeam(nextTeam);
+        writeClientCache(TEAM_CACHE_KEY, nextTeam, PUBLIC_CONTENT_CACHE_TTL);
       } catch (err) {
         console.error('Failed to load team:', err);
       } finally {

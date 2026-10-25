@@ -21,8 +21,11 @@ import { TrainingResource, TrainingResourceType } from '@/types/database';
 import ResourceCard from '@/components/ResourceCard';
 import ResourcePreviewModal from '@/components/ResourcePreviewModal';
 import SdgLoading from '@/components/SdgLoading';
+import { readClientCache, writeClientCache } from '@/lib/clientCache';
 
 const GUEST_WATCHED_KEY = 'ai_bridge_guest_watched_resources';
+const PUBLIC_RESOURCES_CACHE_KEY = 'ai-bridge:public-resources:v1';
+const PUBLIC_RESOURCES_CACHE_TTL = 6 * 60 * 60 * 1000;
 
 export default function ResourcesHub() {
   const [resources, setResources] = useState<TrainingResource[]>([]);
@@ -35,26 +38,33 @@ export default function ResourcesHub() {
 
   // Fetch resources and initial watched status
   const fetchResources = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch('/api/portal/resources');
-      const data = await res.json();
-      if (data.success) {
-        setResources(data.resources || []);
+    const cachedResources = readClientCache<TrainingResource[]>(PUBLIC_RESOURCES_CACHE_KEY);
+    if (cachedResources) {
+      setResources(cachedResources);
+      setLoading(false);
+    }
 
-        // Combine DB watched IDs with any guest localStorage fallback
-        let serverWatched: string[] = data.watchedIds || [];
-        try {
-          const guestSaved = localStorage.getItem(GUEST_WATCHED_KEY);
-          if (guestSaved) {
-            const guestIds: string[] = JSON.parse(guestSaved);
-            serverWatched = Array.from(new Set([...serverWatched, ...guestIds]));
-          }
-        } catch (e) {
-          // Ignore localStorage errors
+    try {
+      if (!cachedResources) setLoading(true);
+      const res = await fetch('/api/portal/resources', { cache: 'no-store' });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'Failed to load resources');
+      const nextResources: TrainingResource[] = data.resources || [];
+      setResources(nextResources);
+      writeClientCache(PUBLIC_RESOURCES_CACHE_KEY, nextResources, PUBLIC_RESOURCES_CACHE_TTL);
+
+      // Combine live server progress with guest-local watched IDs; never cache account progress.
+      let serverWatched: string[] = data.watchedIds || [];
+      try {
+        const guestSaved = localStorage.getItem(GUEST_WATCHED_KEY);
+        if (guestSaved) {
+          const guestIds: string[] = JSON.parse(guestSaved);
+          serverWatched = Array.from(new Set([...serverWatched, ...guestIds]));
         }
-        setWatchedIds(serverWatched);
+      } catch (e) {
+        // Ignore invalid guest progress data.
       }
+      setWatchedIds(serverWatched);
     } catch (err) {
       console.error('Failed to load training resources:', err);
     } finally {
