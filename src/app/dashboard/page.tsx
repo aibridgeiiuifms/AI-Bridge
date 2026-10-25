@@ -44,14 +44,16 @@ import {
   ChevronUp,
   ChevronDown,
   EyeOff,
-  BookOpen
+  BookOpen,
+  QrCode
 } from 'lucide-react';
 import { compressImageToMaxKB, uploadTeamAvatar } from '@/lib/imageCompression';
 import GalleryManager from '@/components/dashboard/GalleryManager';
 import AdminResourcesPanel from '@/components/dashboard/AdminResourcesPanel';
+import ReportQRManager from '@/components/dashboard/ReportQRManager';
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'team' | 'team_profiles' | 'departments' | 'mcqs' | 'gallery' | 'resources'>('team');
+  const [activeTab, setActiveTab] = useState<'team' | 'team_profiles' | 'departments' | 'mcqs' | 'gallery' | 'resources' | 'reviewer_access'>('team');
   const [isHydrated, setIsHydrated] = useState(false);
   // Inline-edit state for team roster rows
   const [editingWhitelistEmail, setEditingWhitelistEmail] = useState<string | null>(null);
@@ -1334,6 +1336,36 @@ export default function AdminDashboard() {
               Manager
             </span>
           </button>
+        )}
+        {isHydrated && isSuperAdmin && (
+          <button
+            onClick={() => setActiveTab('reviewer_access')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              activeTab === 'reviewer_access'
+                ? 'bg-emerald-700 text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <QrCode className="w-3.5 h-3.5" />
+            <span>Report QR & Access</span>
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+              activeTab === 'reviewer_access' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+            }`}>
+              QR
+            </span>
+          </button>
+        )}
+        {isHydrated && (
+          <Link
+            href="/dashboard/survey-analytics"
+            className="px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap text-slate-600 hover:bg-slate-100"
+          >
+            <BarChart3 className="w-3.5 h-3.5 text-emerald-700" />
+            <span>Survey Impact</span>
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+              Impact
+            </span>
+          </Link>
         )}
         {isHydrated && (
           <Link
@@ -3159,6 +3191,13 @@ export default function AdminDashboard() {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+            {/* Tab Content: Report QR & Reviewer Access */}
+      {activeTab === 'reviewer_access' && (
+        <div className="space-y-6 animate-fade-in">
+          <ReportQRManager />
         </div>
       )}
 
