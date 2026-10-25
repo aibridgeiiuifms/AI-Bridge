@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { 
@@ -75,6 +75,7 @@ export type DashboardTab =
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<DashboardTab>('survey_impact');
   const [surveySubTab, setSurveySubTab] = useState<SurveySubTab>('overview');
+  const [visibleSurveySubTabs, setVisibleSurveySubTabs] = useState<SurveySubTab[] | null>(null);
   const [liveSubTab, setLiveSubTab] = useState<LiveAnalyticsSubTab>('overview');
   const [teamSubTab, setTeamSubTab] = useState<'roster' | 'tasks'>('roster');
   const [mcqSubTab, setMcqSubTab] = useState<'pool' | 'config' | 'audit'>('pool');
@@ -101,6 +102,9 @@ export default function AdminDashboard() {
       reviewer_access: expand,
     });
   };
+  const handleVisibleSurveySubTabsChange = useCallback((tabs: SurveySubTab[]) => {
+    setVisibleSurveySubTabs(tabs);
+  }, []);
   const [isHydrated, setIsHydrated] = useState(false);
   // Inline-edit state for team roster rows
   const [editingWhitelistEmail, setEditingWhitelistEmail] = useState<string | null>(null);
@@ -1460,6 +1464,7 @@ export default function AdminDashboard() {
               <SurveyAnalyticsView
                 activeSubTab={surveySubTab}
                 onSubTabChange={(sub) => setSurveySubTab(sub)}
+                onVisibleSubTabsChange={handleVisibleSurveySubTabsChange}
                 hideHeaderBar={false}
               />
             </div>
@@ -3337,6 +3342,7 @@ export default function AdminDashboard() {
                     { id: 'faculties', label: 'Faculty Breakdown', icon: Layers },
                     { id: 'teachers', label: 'Educator Insights', icon: Users },
                     { id: 'quiz-certs', label: 'Certificates & Quiz', icon: Award },
+                    { id: 'questions', label: 'Survey Question Charts', icon: FileSpreadsheet },
                   ]
                 },
                 {
@@ -3435,6 +3441,9 @@ export default function AdminDashboard() {
                 const isMainActive = activeTab === item.id;
                 const isExpanded = expandedTabs[item.id] ?? false;
                 const ItemIcon = item.icon;
+                const visibleSubTabs = item.id === 'survey_impact'
+                  ? item.subTabs.filter((sub) => visibleSurveySubTabs?.includes(sub.id as SurveySubTab))
+                  : item.subTabs;
 
                 return (
                   <div key={item.id} className="space-y-1">
@@ -3487,7 +3496,7 @@ export default function AdminDashboard() {
                             {item.badge}
                           </span>
                         )}
-                        {item.subTabs && item.subTabs.length > 0 && (
+                        {visibleSubTabs && visibleSubTabs.length > 0 && (
                           <button
                             type="button"
                             onClick={(e) => {
@@ -3507,9 +3516,9 @@ export default function AdminDashboard() {
                     </div>
 
                     {/* Nested Sub-Tabs Accordion */}
-                    {isExpanded && item.subTabs && item.subTabs.length > 0 && (
+                    {isExpanded && visibleSubTabs && visibleSubTabs.length > 0 && (
                       <div className="ml-4 pl-2.5 border-l-2 border-emerald-200/70 space-y-0.5 pt-0.5 pb-1 animate-fade-in">
-                        {item.subTabs.map((sub) => {
+                        {visibleSubTabs.map((sub) => {
                           let isSubActive = false;
                           if (item.id === 'survey_impact') {
                             isSubActive = isMainActive && surveySubTab === sub.id;

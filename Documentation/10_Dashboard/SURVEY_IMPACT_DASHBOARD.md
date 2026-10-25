@@ -321,6 +321,8 @@ Management requires fine-grained control: the Admin must be able to toggle which
 
 Administrators can now change the Member and Reviewer visibility directly from each chart on the Survey Impact dashboard. The same permissions remain available in the Report QR & Reviewer Access matrix for bulk review; both controls save to this shared setting. Administrators continue to see every chart, including charts hidden from Members or Reviewers, so they can restore visibility in place.
 
+The **Survey Question Charts** sub-tab summarizes structured student and teacher answers from all four pre/post survey datasets. Questions with the same wording after removing their question number are paired for pre/post comparison. Personal identifiers and open-text/comment fields are excluded; questions with more than 20 distinct answer options are omitted to keep charts readable. Multi-select responses are counted per selected option, so their percentages may exceed 100%.
+
 ### 5.1 Visibility Configuration Schema in `public.system_settings`
 Stored under the key: `survey_dashboard_chart_permissions`
 

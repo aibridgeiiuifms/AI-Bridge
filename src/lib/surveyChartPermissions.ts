@@ -66,6 +66,12 @@ export const DEFAULT_SURVEY_CHART_PERMISSIONS: Record<string, SurveyChartPermiss
     external_reviewer_visible: true,
     allow_download: true,
   },
+  survey_question_distributions: {
+    title: 'Survey Question Response Charts',
+    team_member_visible: true,
+    external_reviewer_visible: true,
+    allow_download: true,
+  },
 };
 
 export function mergeSurveyChartPermissions(storedPermissions: Record<string, unknown> | null | undefined) {

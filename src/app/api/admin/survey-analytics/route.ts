@@ -81,6 +81,92 @@ function parseStandardAssetCounts(postSurveys: any[]) {
     .sort((a, b) => b.count - a.count);
 }
 
+function normalizeQuestionKey(question: string): string {
+  return question
+    .replace(/^\s*(?:q(?:uestion)?\s*)?\d+(?:\s*\/\s*\d+)?\s*[:.)-]?\s*/i, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+}
+
+function isChartableQuestion(question: string): boolean {
+  return question.length > 4
+    && !/\b(email|name|phone|mobile|contact|timestamp|roll(?:\s+number)?|registration|reg no|student id|teacher id|address|signature)\b/i.test(question)
+    && !/\b(please (describe|explain|share|specify)|additional comments|open.?ended|write (about|your)|why did you)\b/i.test(question);
+}
+
+function aggregateQuestionResponses(
+  cohorts: Array<{ role: 'student' | 'teacher'; stage: 'pre' | 'post'; rows: any[] }>
+) {
+  const groups = new Map<string, {
+    role: 'student' | 'teacher';
+    question: string;
+    multiSelect: boolean;
+    pre: { responseCount: number; counts: Map<string, number> };
+    post: { responseCount: number; counts: Map<string, number> };
+  }>();
+
+  for (const cohort of cohorts) {
+    for (const row of cohort.rows) {
+      const answers = row.answers;
+      if (!answers || typeof answers !== 'object' || Array.isArray(answers)) continue;
+
+      for (const [question, rawAnswer] of Object.entries(answers)) {
+        if (!isChartableQuestion(question) || rawAnswer == null) continue;
+        const rawValues = Array.isArray(rawAnswer) ? rawAnswer : [rawAnswer];
+        const answerValues = rawValues
+          .flatMap((value) => String(value).split(/[;,\n]+/))
+          .map((value) => value.trim())
+          .filter((value) => value.length > 0 && value.length <= 100 && !/\S+@\S+\.\S+/.test(value));
+        if (answerValues.length === 0) continue;
+
+        const normalizedQuestion = normalizeQuestionKey(question);
+        const groupKey = `${cohort.role}:${normalizedQuestion}`;
+        let group = groups.get(groupKey);
+        if (!group) {
+          group = {
+            role: cohort.role,
+            question: question.replace(/^\s*(?:q(?:uestion)?\s*)?\d+(?:\s*\/\s*\d+)?\s*[:.)-]?\s*/i, '').trim(),
+            multiSelect: false,
+            pre: { responseCount: 0, counts: new Map() },
+            post: { responseCount: 0, counts: new Map() },
+          };
+          groups.set(groupKey, group);
+        }
+
+        const stageResult = group[cohort.stage];
+        stageResult.responseCount += 1;
+        if (new Set(answerValues).size > 1) group.multiSelect = true;
+        for (const answer of new Set(answerValues)) {
+          stageResult.counts.set(answer, (stageResult.counts.get(answer) || 0) + 1);
+        }
+      }
+    }
+  }
+
+  return Array.from(groups.values())
+    .filter((group) => {
+      const uniqueAnswers = new Set([...group.pre.counts.keys(), ...group.post.counts.keys()]);
+      return uniqueAnswers.size > 0 && uniqueAnswers.size <= 20;
+    })
+    .map((group) => ({
+      role: group.role,
+      question: group.question,
+      multiSelect: group.multiSelect,
+      pre: {
+        responseCount: group.pre.responseCount,
+        answers: Array.from(group.pre.counts, ([answer, count]) => ({ answer, count }))
+          .sort((a, b) => b.count - a.count),
+      },
+      post: {
+        responseCount: group.post.responseCount,
+        answers: Array.from(group.post.counts, ([answer, count]) => ({ answer, count }))
+          .sort((a, b) => b.count - a.count),
+      },
+    }))
+    .sort((a, b) => a.role.localeCompare(b.role) || a.question.localeCompare(b.question));
+}
+
 function maskEmail(email?: string): string {
   if (!email || !email.includes('@')) return 'Anonymous Participant';
   const [local, domain] = email.split('@');
@@ -473,6 +559,12 @@ export async function GET(req: NextRequest) {
 
     // Top AI assets
     const topAssets = parseStandardAssetCounts(sPost);
+    const questionAnalytics = aggregateQuestionResponses([
+      { role: 'student', stage: 'pre', rows: sPre },
+      { role: 'student', stage: 'post', rows: sPost },
+      { role: 'teacher', stage: 'pre', rows: tPre },
+      { role: 'teacher', stage: 'post', rows: tPost },
+    ]);
 
     const payload = {
       success: true,
@@ -523,6 +615,7 @@ export async function GET(req: NextRequest) {
         pct: quizRows.length > 0 ? Math.round((count / quizRows.length) * 100) : 0,
       })),
       recentCertificates,
+      questionAnalytics,
       chartPermissions,
     };
 

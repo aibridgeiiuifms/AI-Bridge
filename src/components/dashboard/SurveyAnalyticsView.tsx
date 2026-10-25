@@ -28,7 +28,8 @@ import {
   ExternalLink,
   ChevronDown,
   Eye,
-  EyeOff
+  EyeOff,
+  ClipboardList
 } from 'lucide-react';
 import ChartDownloadWrapper from '@/components/dashboard/ChartDownloadWrapper';
 import ReviewerPasswordModal from '@/components/dashboard/ReviewerPasswordModal';
@@ -37,17 +38,31 @@ import {
   type SurveyChartPermission,
 } from '@/lib/surveyChartPermissions';
 
-export type SurveySubTab = 'overview' | 'hours' | 'before-after' | 'assets' | 'departments' | 'faculties' | 'teachers' | 'quiz-certs';
+export type SurveySubTab = 'overview' | 'hours' | 'before-after' | 'assets' | 'departments' | 'faculties' | 'teachers' | 'quiz-certs' | 'questions';
+
+const SURVEY_SUBTAB_CHART_KEYS: Record<SurveySubTab, string[]> = {
+  overview: ['kpi_overview_cards', 'hours_saved_target_chart', 'iiui_vs_non_iiui_distribution'],
+  hours: ['hours_saved_target_chart'],
+  'before-after': ['before_after_familiarity_meter'],
+  assets: ['top_ai_assets_deployed'],
+  departments: ['department_matrix_table'],
+  faculties: ['faculty_cards_grid'],
+  teachers: ['teacher_designation_analysis'],
+  'quiz-certs': ['quiz_score_distribution', 'certificate_issuance_registry'],
+  questions: ['survey_question_distributions'],
+};
 
 interface SurveyAnalyticsViewProps {
   activeSubTab?: SurveySubTab;
   onSubTabChange?: (tab: SurveySubTab) => void;
+  onVisibleSubTabsChange?: (tabs: SurveySubTab[]) => void;
   hideHeaderBar?: boolean;
 }
 
 export default function SurveyAnalyticsView({
   activeSubTab: controlledSubTab,
   onSubTabChange,
+  onVisibleSubTabsChange,
   hideHeaderBar = false,
 }: SurveyAnalyticsViewProps) {
   const [loading, setLoading] = useState<boolean>(true);
@@ -132,6 +147,7 @@ export default function SurveyAnalyticsView({
   const permissions = data?.chartPermissions || {};
   const isReviewer = data?.isReviewer || false;
   const isAdmin = data?.callerRole === 'admin';
+  const questionAnalytics = data?.questionAnalytics || [];
 
   const isVisible = (chartKey: string) => {
     if (!data) return false;
@@ -141,6 +157,18 @@ export default function SurveyAnalyticsView({
     return Boolean(permission.team_member_visible);
   };
   const shouldRenderChart = (chartKey: string) => isAdmin || isVisible(chartKey);
+  const visibleSurveySubTabs = (Object.keys(SURVEY_SUBTAB_CHART_KEYS) as SurveySubTab[])
+    .filter((tab) => data && (isAdmin || SURVEY_SUBTAB_CHART_KEYS[tab].some(isVisible)));
+
+  useEffect(() => {
+    onVisibleSubTabsChange?.(visibleSurveySubTabs);
+  }, [onVisibleSubTabsChange, visibleSurveySubTabs.join('|')]);
+
+  useEffect(() => {
+    if (data && !isAdmin && !visibleSurveySubTabs.includes(activeTab)) {
+      setTab(visibleSurveySubTabs[0] || 'overview');
+    }
+  }, [activeTab, data, isAdmin, visibleSurveySubTabs.join('|')]);
 
   const updateChartPermission = async (
     chartKey: string,
@@ -305,62 +333,19 @@ export default function SurveyAnalyticsView({
         </div>
       </div>
 
-      {/* 6 Executive KPI Headline Cards */}
-      {shouldRenderChart('kpi_overview_cards') && (
-        <div className="space-y-3">
-          {renderVisibilityControls('kpi_overview_cards')}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-1">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Student Surveys</span>
-              <p className="text-2xl font-black text-slate-900">{overview.totalStudentPre + overview.totalStudentPost || 0}</p>
-              <p className="text-[10px] text-emerald-700 font-semibold">{overview.totalStudentPre || 0} Pre · {overview.totalStudentPost || 0} Post</p>
-            </div>
-
-            <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-1">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Teacher Surveys</span>
-              <p className="text-2xl font-black text-slate-900">{overview.totalTeacherPre + overview.totalTeacherPost || 0}</p>
-              <p className="text-[10px] text-teal-700 font-semibold">{overview.totalTeacherPre || 0} Pre · {overview.totalTeacherPost || 0} Post</p>
-            </div>
-
-            <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-1">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Certificates</span>
-              <p className="text-2xl font-black text-emerald-700">{overview.totalCertificates || 0}</p>
-              <p className="text-[10px] text-slate-500 font-medium">100% Verifiable</p>
-            </div>
-
-            <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-1">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">QIP Met (&ge;3h)</span>
-              <p className="text-2xl font-black text-emerald-700">{impact.studentsMeetingQIPTargetPct || 0}%</p>
-              <p className="text-[10px] text-emerald-700 font-semibold">Weekly Time Saved</p>
-            </div>
-
-            <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-1">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Quiz Pass Rate</span>
-              <p className="text-2xl font-black text-teal-700">{overview.quizPassRate || 0}%</p>
-              <p className="text-[10px] text-slate-500 font-medium">{overview.totalQuizAttempts || 0} attempts</p>
-            </div>
-
-            <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-1">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Average Quiz Score</span>
-              <p className="text-2xl font-black text-sky-700">{overview.avgQuizScore || 0} / 12</p>
-              <p className="text-[10px] text-slate-500 font-medium">Average across recorded attempts</p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Horizontal Pills for Sub-tabs on Mobile */}
       <div className="lg:hidden flex gap-2 overflow-x-auto border-b border-slate-200 pb-2 scrollbar-none">
         {[
-          { id: 'overview', label: 'Summary', icon: Sparkles, chartKeys: ['kpi_overview_cards', 'hours_saved_target_chart', 'iiui_vs_non_iiui_distribution'] },
-          { id: 'hours', label: 'Hours Saved', icon: Clock, chartKeys: ['hours_saved_target_chart'] },
-          { id: 'before-after', label: 'Before/After AI', icon: TrendingUp, chartKeys: ['before_after_familiarity_meter'] },
-          { id: 'assets', label: 'AI Study Assets', icon: BookOpen, chartKeys: ['top_ai_assets_deployed'] },
-          { id: 'departments', label: 'Dept Matrix', icon: Building2, chartKeys: ['department_matrix_table'] },
-          { id: 'faculties', label: 'Faculties', icon: Layers, chartKeys: ['faculty_cards_grid'] },
-          { id: 'teachers', label: 'Faculty Detail', icon: Users, chartKeys: ['teacher_designation_analysis'] },
-          { id: 'quiz-certs', label: 'Quiz & Certs', icon: Award, chartKeys: ['quiz_score_distribution', 'certificate_issuance_registry'] },
-        ].filter((tab) => data && (isAdmin || tab.chartKeys.some(isVisible))).map((tab) => {
+          { id: 'overview', label: 'Summary', icon: Sparkles },
+          { id: 'hours', label: 'Hours Saved', icon: Clock },
+          { id: 'before-after', label: 'Before/After AI', icon: TrendingUp },
+          { id: 'assets', label: 'AI Study Assets', icon: BookOpen },
+          { id: 'departments', label: 'Dept Matrix', icon: Building2 },
+          { id: 'faculties', label: 'Faculties', icon: Layers },
+          { id: 'teachers', label: 'Faculty Detail', icon: Users },
+          { id: 'quiz-certs', label: 'Quiz & Certs', icon: Award },
+          { id: 'questions', label: 'Survey Questions', icon: ClipboardList },
+        ].filter((tab) => visibleSurveySubTabs.includes(tab.id as SurveySubTab)).map((tab) => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
           return (
@@ -382,7 +367,51 @@ export default function SurveyAnalyticsView({
 
       {/* ─── TAB 1: EXECUTIVE OVERVIEW ─── */}
       {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-6">
+          {shouldRenderChart('kpi_overview_cards') && (
+            <div className="space-y-3">
+              {renderVisibilityControls('kpi_overview_cards')}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <div className="space-y-1 rounded-3xl border border-slate-200 bg-white p-4 shadow-xs">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Student Surveys</span>
+                  <p className="text-2xl font-black text-slate-900">{overview.totalStudentPre + overview.totalStudentPost || 0}</p>
+                  <p className="text-[10px] font-semibold text-emerald-700">{overview.totalStudentPre || 0} Pre · {overview.totalStudentPost || 0} Post</p>
+                </div>
+
+                <div className="space-y-1 rounded-3xl border border-slate-200 bg-white p-4 shadow-xs">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Teacher Surveys</span>
+                  <p className="text-2xl font-black text-slate-900">{overview.totalTeacherPre + overview.totalTeacherPost || 0}</p>
+                  <p className="text-[10px] font-semibold text-teal-700">{overview.totalTeacherPre || 0} Pre · {overview.totalTeacherPost || 0} Post</p>
+                </div>
+
+                <div className="space-y-1 rounded-3xl border border-slate-200 bg-white p-4 shadow-xs">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Certificates</span>
+                  <p className="text-2xl font-black text-emerald-700">{overview.totalCertificates || 0}</p>
+                  <p className="text-[10px] font-medium text-slate-500">100% Verifiable</p>
+                </div>
+
+                <div className="space-y-1 rounded-3xl border border-slate-200 bg-white p-4 shadow-xs">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">QIP Met (&ge;3h)</span>
+                  <p className="text-2xl font-black text-emerald-700">{impact.studentsMeetingQIPTargetPct || 0}%</p>
+                  <p className="text-[10px] font-semibold text-emerald-700">Weekly Time Saved</p>
+                </div>
+
+                <div className="space-y-1 rounded-3xl border border-slate-200 bg-white p-4 shadow-xs">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Quiz Pass Rate</span>
+                  <p className="text-2xl font-black text-teal-700">{overview.quizPassRate || 0}%</p>
+                  <p className="text-[10px] font-medium text-slate-500">{overview.totalQuizAttempts || 0} attempts</p>
+                </div>
+
+                <div className="space-y-1 rounded-3xl border border-slate-200 bg-white p-4 shadow-xs">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Average Quiz Score</span>
+                  <p className="text-2xl font-black text-sky-700">{overview.avgQuizScore || 0} / 12</p>
+                  <p className="text-[10px] font-medium text-slate-500">Average across recorded attempts</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {shouldRenderChart('hours_saved_target_chart') && (
             <div className="space-y-3">
             {renderVisibilityControls('hours_saved_target_chart')}
@@ -455,6 +484,7 @@ export default function SurveyAnalyticsView({
             </ChartDownloadWrapper>
             </div>
           )}
+          </div>
         </div>
       )}
 
@@ -800,6 +830,155 @@ export default function SurveyAnalyticsView({
             </ChartDownloadWrapper>
             </div>
           )}
+        </div>
+      )}
+
+      {activeTab === 'questions' && shouldRenderChart('survey_question_distributions') && (
+        <div className="space-y-6">
+          {renderVisibilityControls('survey_question_distributions')}
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-600">
+            Response distributions from student and faculty pre/post surveys. Matching question wording is shown together for comparison. Personal identifiers and open-text answers are excluded.
+          </div>
+
+          {(['student', 'teacher'] as const).map((role) => {
+            const roleQuestions = questionAnalytics.filter((item: any) => item.role === role);
+            return (
+              <section key={role} className="space-y-4">
+                <h3 className="text-base font-extrabold text-slate-900">
+                  {role === 'student' ? 'Student Survey Questions' : 'Teacher & Faculty Survey Questions'}
+                </h3>
+
+                {roleQuestions.length === 0 ? (
+                  <p className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500">
+                    No chartable structured responses are available for this survey group.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+                    {roleQuestions.map((item: any, questionIndex: number) => {
+                      const answers = Array.from(new Set([
+                        ...item.pre.answers.map((entry: any) => entry.answer),
+                        ...item.post.answers.map((entry: any) => entry.answer),
+                      ])) as string[];
+                      const answerColors = ['#059669', '#0284c7', '#d97706', '#7c3aed', '#e11d48', '#0891b2'];
+                      const useBars = item.multiSelect || answers.length > 6
+                        || /\b(obstacle|format|asset|aid|expectation|challenge|barrier|strategy|method)\b/i.test(item.question);
+                      const csvData = answers.map((answer) => ({
+                        response: answer,
+                        pre_count: item.pre.answers.find((entry: any) => entry.answer === answer)?.count || 0,
+                        post_count: item.post.answers.find((entry: any) => entry.answer === answer)?.count || 0,
+                      }));
+                      const getPieStyle = (stage: any) => {
+                        if (!stage.responseCount) return { background: '#e2e8f0' };
+                        let currentPct = 0;
+                        const stops = answers.map((answer, index) => {
+                          const count = stage.answers.find((entry: any) => entry.answer === answer)?.count || 0;
+                          const start = currentPct;
+                          currentPct += (count / stage.responseCount) * 100;
+                          return `${answerColors[index % answerColors.length]} ${start}% ${currentPct}%`;
+                        });
+                        return { background: `conic-gradient(${stops.join(', ')})` };
+                      };
+
+                      return (
+                        <ChartDownloadWrapper
+                          key={`${role}-${questionIndex}-${item.question}`}
+                          id={`survey-question-${role}-${questionIndex}`}
+                          title={item.question}
+                          subtitle={`Pre: ${item.pre.responseCount} responses · Post: ${item.post.responseCount} responses`}
+                          dataForCsv={csvData}
+                        >
+                          {useBars ? (
+                            <>
+                              <div className="mb-3 flex flex-wrap gap-3 text-[10px] font-bold text-slate-600">
+                                <span className="inline-flex items-center gap-1.5">
+                                  <span className="h-2.5 w-2.5 rounded-sm bg-emerald-600" /> Pre
+                                </span>
+                                <span className="inline-flex items-center gap-1.5">
+                                  <span className="h-2.5 w-2.5 rounded-sm bg-sky-600" /> Post
+                                </span>
+                              </div>
+                              <div className="space-y-4">
+                                {csvData.map((entry) => {
+                                  const prePct = item.pre.responseCount
+                                    ? Math.round((entry.pre_count / item.pre.responseCount) * 100)
+                                    : 0;
+                                  const postPct = item.post.responseCount
+                                    ? Math.round((entry.post_count / item.post.responseCount) * 100)
+                                    : 0;
+
+                                  return (
+                                    <div key={entry.response} className="space-y-1.5">
+                                      <div className="flex items-start justify-between gap-3 text-xs">
+                                        <span className="min-w-0 font-semibold text-slate-800">{entry.response}</span>
+                                        <span className="shrink-0 text-right text-[10px] font-bold text-slate-500">
+                                          Pre {entry.pre_count} ({prePct}%) · Post {entry.post_count} ({postPct}%)
+                                        </span>
+                                      </div>
+                                      <div className="space-y-1">
+                                        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                                          <div className="h-full rounded-full bg-emerald-600" style={{ width: `${prePct}%` }} />
+                                        </div>
+                                        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                                          <div className="h-full rounded-full bg-sky-600" style={{ width: `${postPct}%` }} />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="grid grid-cols-1 gap-5 sm:grid-cols-[auto_1fr] sm:items-center">
+                              <div className="flex justify-center gap-5">
+                                {[
+                                  { label: 'Pre', stage: item.pre },
+                                  { label: 'Post', stage: item.post },
+                                ].map(({ label, stage }) => (
+                                  <div key={label} className="space-y-2 text-center">
+                                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                                      {label} · {stage.responseCount}
+                                    </p>
+                                    <div className="relative mx-auto h-28 w-28 rounded-full" style={getPieStyle(stage)}>
+                                      <div className="absolute inset-5 flex items-center justify-center rounded-full bg-white text-[10px] font-bold text-slate-500">
+                                        {stage.responseCount ? 'Responses' : 'No data'}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="space-y-2">
+                                {csvData.map((entry, index) => {
+                                  const prePct = item.pre.responseCount
+                                    ? Math.round((entry.pre_count / item.pre.responseCount) * 100)
+                                    : 0;
+                                  const postPct = item.post.responseCount
+                                    ? Math.round((entry.post_count / item.post.responseCount) * 100)
+                                    : 0;
+                                  return (
+                                    <div key={entry.response} className="flex items-start gap-2 text-[11px]">
+                                      <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: answerColors[index % answerColors.length] }} />
+                                      <span className="min-w-0 flex-1 font-semibold text-slate-700">{entry.response}</span>
+                                      <span className="shrink-0 text-right text-[10px] font-medium text-slate-500">
+                                        {prePct}% / {postPct}%
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                                <p className="text-[10px] text-slate-400">Legend shows Pre / Post percentages.</p>
+                              </div>
+                            </div>
+                          )}
+                          <p className="mt-4 text-[10px] text-slate-400">
+                            Percentages are of respondents to each survey. Multi-select totals may exceed 100%.
+                          </p>
+                        </ChartDownloadWrapper>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            );
+          })}
         </div>
       )}
     </div>
