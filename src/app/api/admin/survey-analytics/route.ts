@@ -119,11 +119,11 @@ export async function GET(req: NextRequest) {
       certRes,
       permRes
     ] = await Promise.all([
-      admin.from('student_surveys').select('id, student_email, full_name, survey_type, dept_code, semester, hours_saved_category, ai_familiarity_rating, answers, submitted_at'),
-      admin.from('teacher_surveys').select('id, teacher_email, full_name, survey_type, dept_code, designation, teaching_experience, hours_saved_category, ai_familiarity_rating, answers, submitted_at'),
-      admin.from('department_mappings').select('code, standard_dept_name, faculty_name, faculty_code'),
-      admin.from('quiz_attempts').select('id, score, total_questions, passing_score, passed, completed_at'),
-      admin.from('certificates').select('id, certificate_id, recipient_name, department, completion_date, created_at').order('created_at', { ascending: false }),
+      admin.from('student_surveys').select('id, student_email, full_name, survey_type, dept_code, semester, hours_saved_category, ai_familiarity_rating, answers, submitted_at').limit(10000),
+      admin.from('teacher_surveys').select('id, teacher_email, full_name, survey_type, dept_code, designation, teaching_experience, hours_saved_category, ai_familiarity_rating, answers, submitted_at').limit(10000),
+      admin.from('department_mappings').select('code, standard_dept_name, faculty_name, faculty_code').limit(500),
+      admin.from('quiz_attempts').select('id, score, total_questions, passing_score, passed, completed_at').limit(10000),
+      admin.from('certificates').select('id, certificate_id, recipient_name, department, completion_date, created_at').order('created_at', { ascending: false }).limit(10000),
       admin.from('system_settings').select('value').eq('key', 'survey_dashboard_chart_permissions').maybeSingle()
     ]);
 

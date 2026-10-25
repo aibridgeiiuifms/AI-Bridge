@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
       .from('analytics_events')
       .select('event_name, page_path, session_id, user_id, user_role, device_type, browser, country, properties, created_at')
       .order('created_at', { ascending: false })
-      .limit(3000);
+      .limit(10000);
 
     // Aggregate statistics in memory
     const pageCounts: Record<string, number> = {};
