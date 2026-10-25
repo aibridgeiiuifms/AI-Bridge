@@ -26,6 +26,7 @@ import { createClient } from '@/lib/supabase/client';
 import { trackEvent } from '@/lib/tracking/trackEvent';
 import SurveySelectionModal from '@/components/SurveySelectionModal';
 import StudentTipsModal from '@/components/StudentTipsModal';
+import ResourcesHub from '@/components/ResourcesHub';
 import PortalSkeleton from '@/components/skeletons/PortalSkeleton';
 
 function buildLinkedInCertUrl(certId: string, completionDate?: string): string {
@@ -468,6 +469,9 @@ export default function StudentPortal() {
           </div>
         </div>
       </div>
+
+      {/* Learning Resources Hub */}
+      <ResourcesHub />
 
       {/* Progress Stepper Bar */}
       <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">

@@ -36,6 +36,7 @@ export interface Member {
   can_manage_team: boolean;
   mcq_access_level: MCQAccessLevel;
   can_manage_gallery?: boolean;
+  can_manage_resources?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -263,4 +264,29 @@ export interface EventLikeSummary {
   like_count: number;
   likers: EventLikerInfo[];
 }
+
+export type TrainingResourceType = 'pdf' | 'video' | 'link' | 'audio';
+
+export interface TrainingResource {
+  id: string;
+  title: string;
+  description: string | null;
+  module: string;
+  type: TrainingResourceType;
+  url: string;
+  storage_path: string | null;
+  file_size_bytes?: number | null;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StudentResourceProgress {
+  id: string;
+  student_id: string;
+  resource_id: string;
+  watched_at: string;
+}
+
 

@@ -43,13 +43,15 @@ import {
   Sliders,
   ChevronUp,
   ChevronDown,
-  EyeOff
+  EyeOff,
+  BookOpen
 } from 'lucide-react';
 import { compressImageToMaxKB, uploadTeamAvatar } from '@/lib/imageCompression';
 import GalleryManager from '@/components/dashboard/GalleryManager';
+import AdminResourcesPanel from '@/components/dashboard/AdminResourcesPanel';
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'team' | 'team_profiles' | 'departments' | 'mcqs' | 'gallery'>('team');
+  const [activeTab, setActiveTab] = useState<'team' | 'team_profiles' | 'departments' | 'mcqs' | 'gallery' | 'resources'>('team');
   // Inline-edit state for team roster rows
   const [editingWhitelistEmail, setEditingWhitelistEmail] = useState<string | null>(null);
   const [editWhitelistDraft, setEditWhitelistDraft] = useState<{ full_name: string; team_role: 'admin' | 'team-member'; team_tag: string; assigned_tasks: string[]; notes: string }>({ full_name: '', team_role: 'team-member', team_tag: 'General', assigned_tasks: [], notes: '' });
@@ -245,6 +247,7 @@ export default function AdminDashboard() {
   const [currentUserRole, setCurrentUserRole] = useState<string>('guest');
   const [canManageTeam, setCanManageTeam] = useState<boolean>(false);
   const [canManageGallery, setCanManageGallery] = useState<boolean>(false);
+  const [canManageResources, setCanManageResources] = useState<boolean>(false);
 
   // Live Supabase Database State (Zero Hardcoded Data)
   const [members, setMembers] = useState<any[]>([]);
@@ -288,6 +291,7 @@ export default function AdminDashboard() {
     linkedin_url: '',
     avatar_url: '',
     can_manage_team: false,
+    can_manage_resources: false,
     mcq_access_level: 'none' as 'none' | 'viewer' | 'moderator' | 'manager',
     is_published: true
   });
@@ -645,7 +649,7 @@ export default function AdminDashboard() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
-      if (tabParam && ['metrics', 'participants', 'mcqs', 'team', 'audit', 'gallery'].includes(tabParam)) {
+      if (tabParam && ['metrics', 'participants', 'mcqs', 'team', 'audit', 'gallery', 'resources'].includes(tabParam)) {
         setActiveTab(tabParam as any);
       }
     }
@@ -660,7 +664,7 @@ export default function AdminDashboard() {
 
           const { data: prof } = await supabase
             .from('profiles')
-            .select('role, members(can_manage_team, mcq_access_level, can_manage_gallery)')
+            .select('role, members(can_manage_team, mcq_access_level, can_manage_gallery, can_manage_resources)')
             .eq('id', user.id)
             .maybeSingle();
 
@@ -670,9 +674,11 @@ export default function AdminDashboard() {
           const rawMember = Array.isArray(prof?.members) ? prof?.members[0] : prof?.members;
           const hasDelegatedPermission = Boolean(rawMember?.can_manage_team);
           const hasGalleryPermission = Boolean(rawMember?.can_manage_gallery);
+          const hasResourcePermission = Boolean(rawMember?.can_manage_resources);
 
           setCanManageTeam(isSuperAdmin || hasDelegatedPermission);
           setCanManageGallery(isSuperAdmin || hasGalleryPermission);
+          setCanManageResources(isSuperAdmin || hasResourcePermission || hasDelegatedPermission);
 
           if (isSuperAdmin) {
             setCurrentUserMcqAccess('manager');
@@ -724,6 +730,7 @@ export default function AdminDashboard() {
       linkedin_url: '',
       avatar_url: '',
       can_manage_team: false,
+      can_manage_resources: false,
       mcq_access_level: 'none',
       is_published: true
     });
@@ -749,6 +756,7 @@ export default function AdminDashboard() {
       linkedin_url: member.linkedin_url || '',
       avatar_url: member.avatar_url || '',
       can_manage_team: Boolean(member.can_manage_team),
+      can_manage_resources: Boolean(member.can_manage_resources),
       mcq_access_level: (member.mcq_access_level || 'none') as any,
       is_published: member.is_published ?? true
     });
@@ -1283,6 +1291,24 @@ export default function AdminDashboard() {
               activeTab === 'mcqs' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
             }`}>
               {mcqsList.length}
+            </span>
+          </button>
+        )}
+        {(isSuperAdmin || canManageResources) && (
+          <button
+            onClick={() => setActiveTab('resources')}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              activeTab === 'resources'
+                ? 'bg-emerald-700 text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Learning Resources</span>
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+              activeTab === 'resources' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+            }`}>
+              Materials
             </span>
           </button>
         )}
@@ -3136,6 +3162,13 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* Tab Content: Learning Resources */}
+      {activeTab === 'resources' && (
+        <div className="space-y-6 animate-fade-in">
+          <AdminResourcesPanel isSuperAdmin={isSuperAdmin} currentUserEmail={currentUserEmail} />
+        </div>
+      )}
+
       {/* Tab Content: Participants */}
 
       {/* Tab Content: Audit & Sync Trail */}
@@ -3311,6 +3344,21 @@ export default function AdminDashboard() {
                       />
                       <label htmlFor="modal_can_manage_team_chk" className="text-xs text-slate-700 font-semibold cursor-pointer">
                         Delegated Team Manager (Can add/edit team members and tasks)
+                      </label>
+                    </div>
+
+                    {/* Can Manage Resources Checkbox */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="modal_can_manage_resources_chk"
+                        disabled={!isSuperAdmin}
+                        checked={memberForm.can_manage_resources}
+                        onChange={(e) => setMemberForm({ ...memberForm, can_manage_resources: e.target.checked })}
+                        className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
+                      />
+                      <label htmlFor="modal_can_manage_resources_chk" className="text-xs text-slate-700 font-semibold cursor-pointer">
+                        Learning Resources Manager (Can add/edit NotebookLM & study materials)
                       </label>
                     </div>
                   </div>

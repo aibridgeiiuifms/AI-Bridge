@@ -74,6 +74,8 @@ export async function POST(req: NextRequest) {
       assigned_tasks = [],
       linkedin_url = null,
       can_manage_team = false,
+      can_manage_gallery = false,
+      can_manage_resources = false,
       mcq_access_level = 'none',
       is_published = true
     } = body;
@@ -107,6 +109,8 @@ export async function POST(req: NextRequest) {
         assigned_tasks: Array.isArray(assigned_tasks) ? assigned_tasks : [],
         linkedin_url: linkedin_url?.trim() || null,
         can_manage_team: isSuperAdminEmail ? true : Boolean(can_manage_team),
+        can_manage_gallery: isSuperAdminEmail ? true : Boolean(can_manage_gallery),
+        can_manage_resources: isSuperAdminEmail ? true : Boolean(can_manage_resources),
         mcq_access_level: isSuperAdminEmail
           ? 'manager'
           : (['none', 'viewer', 'moderator', 'manager'].includes(mcq_access_level) ? mcq_access_level : 'none'),
@@ -164,6 +168,8 @@ export async function PATCH(req: NextRequest) {
     if (updates.is_published !== undefined) updatePayload.is_published = Boolean(updates.is_published);
     if (updates.email !== undefined) updatePayload.email = updates.email?.trim().toLowerCase() || null;
     if (updates.can_manage_team !== undefined) updatePayload.can_manage_team = Boolean(updates.can_manage_team);
+    if (updates.can_manage_gallery !== undefined) updatePayload.can_manage_gallery = Boolean(updates.can_manage_gallery);
+    if (updates.can_manage_resources !== undefined) updatePayload.can_manage_resources = Boolean(updates.can_manage_resources);
     if (updates.mcq_access_level !== undefined) {
       updatePayload.mcq_access_level = ['none', 'viewer', 'moderator', 'manager'].includes(updates.mcq_access_level)
         ? updates.mcq_access_level

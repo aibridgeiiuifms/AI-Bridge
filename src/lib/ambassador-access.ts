@@ -8,6 +8,8 @@ export interface AmbassadorAccess {
   userId: string;
   userEmail: string;
   canManageTeam: boolean;
+  canManageGallery: boolean;
+  canManageResources: boolean;
   mcqAccessLevel: MCQAccessLevel;
   canViewMCQs: boolean;
   canToggleMCQs: boolean;
@@ -24,7 +26,7 @@ export async function requireAmbassadorPortalAccess(): Promise<NextResponse | Am
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('role, email, members(can_manage_team, mcq_access_level)')
+    .select('role, email, members(can_manage_team, mcq_access_level, can_manage_gallery, can_manage_resources)')
     .eq('id', user.id)
     .maybeSingle();
 
@@ -45,6 +47,8 @@ export async function requireAmbassadorPortalAccess(): Promise<NextResponse | Am
     : profile.members;
 
   const canManageTeam = isSuperAdmin || Boolean(rawMember?.can_manage_team);
+  const canManageGallery = isSuperAdmin || Boolean(rawMember?.can_manage_gallery);
+  const canManageResources = isSuperAdmin || Boolean(rawMember?.can_manage_resources) || Boolean(rawMember?.can_manage_team);
 
   // Compute hierarchical MCQ access level
   let mcqAccessLevel: MCQAccessLevel = 'none';
@@ -81,6 +85,8 @@ export async function requireAmbassadorPortalAccess(): Promise<NextResponse | Am
     userId: user.id,
     userEmail,
     canManageTeam,
+    canManageGallery,
+    canManageResources,
     mcqAccessLevel,
     canViewMCQs,
     canToggleMCQs,
