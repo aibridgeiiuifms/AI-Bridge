@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { Download, Image as ImageIcon, FileSpreadsheet, Check, Loader2, Sparkles } from 'lucide-react';
+import { Download, Image as ImageIcon, FileSpreadsheet, Check, Sparkles } from 'lucide-react';
 import { toPng, toSvg } from 'html-to-image';
+import SdgLoading from '@/components/SdgLoading';
 
 interface ChartDownloadWrapperProps {
   id: string;
@@ -135,7 +136,7 @@ export default function ChartDownloadWrapper({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-700 text-xs font-bold transition-all border border-slate-200 cursor-pointer disabled:opacity-50"
             >
               {downloading === 'png' ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" />
+                <SdgLoading size={14} label="Preparing chart image" />
               ) : (
                 <ImageIcon className="w-3.5 h-3.5 text-emerald-700" />
               )}
@@ -152,7 +153,7 @@ export default function ChartDownloadWrapper({
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-700 text-xs font-bold transition-all border border-slate-200 cursor-pointer disabled:opacity-50"
               >
                 {downloading === 'csv' ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-700" />
+                  <SdgLoading size={14} label="Preparing CSV download" />
                 ) : (
                   <FileSpreadsheet className="w-3.5 h-3.5 text-teal-700" />
                 )}

@@ -48,6 +48,7 @@ import {
   adminSetPictureTags,
   fetchTeamMembersForTagging
 } from '@/lib/gallery';
+import SdgLoading from '@/components/SdgLoading';
 import { 
   GalleryFolder, 
   GalleryEventWithPictures, 
@@ -831,9 +832,9 @@ export default function GalleryManager() {
                 <button
                   onClick={handleSaveTags}
                   disabled={actionLoading}
-                  className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer shadow-sm"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer shadow-sm"
                 >
-                  {actionLoading ? 'Saving...' : `Save Tags (${selectedMemberIds.length})`}
+                  {actionLoading ? <><SdgLoading size={14} label="Saving picture tags" /> Saving...</> : `Save Tags (${selectedMemberIds.length})`}
                 </button>
               </div>
             </div>
@@ -1236,9 +1237,9 @@ export default function GalleryManager() {
                   <button
                     type="submit"
                     disabled={actionLoading}
-                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer shadow-sm disabled:opacity-50"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer shadow-sm disabled:opacity-50"
                   >
-                    {actionLoading ? 'Saving...' : 'Save Event'}
+                    {actionLoading ? <><SdgLoading size={14} label="Saving event" /> Saving...</> : 'Save Event'}
                   </button>
                   {eventForm.id && (
                     <button
@@ -1309,8 +1310,9 @@ export default function GalleryManager() {
 
       {/* Folders List */}
       {loading ? (
-        <div className="p-12 text-center text-xs text-slate-500 font-semibold animate-pulse">
-          Loading gallery albums...
+        <div className="flex flex-col items-center gap-3 p-12 text-center text-xs text-slate-500 font-semibold">
+          <SdgLoading size={32} label="Loading gallery albums" />
+          <span>Loading gallery albums...</span>
         </div>
       ) : folders.length === 0 ? (
         <div className="bg-white rounded-3xl border border-dashed border-slate-300 p-12 text-center space-y-3">
@@ -1508,9 +1510,9 @@ export default function GalleryManager() {
                 <button
                   type="submit"
                   disabled={actionLoading}
-                  className="px-5 py-2 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer shadow-sm"
+                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer shadow-sm"
                 >
-                  {actionLoading ? 'Saving...' : 'Save Album'}
+                  {actionLoading ? <><SdgLoading size={14} label="Saving album" /> Saving...</> : 'Save Album'}
                 </button>
               </div>
             </form>

@@ -1,3 +1,5 @@
+import SdgLoading from '@/components/SdgLoading';
+
 export function TeamCardSkeleton() {
   return (
     <div className="rounded-2xl bg-white border border-slate-200/80 p-5 space-y-4 animate-pulse shadow-xs">
@@ -14,6 +16,9 @@ export function TeamCardSkeleton() {
 export function TeamSectionSkeleton() {
   return (
     <div className="space-y-6">
+      <div className="flex justify-center">
+        <SdgLoading size={28} label="Loading team members" />
+      </div>
       <div className="h-7 w-48 bg-slate-200 rounded-lg animate-pulse" />
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {Array.from({ length: 8 }).map((_, i) => (

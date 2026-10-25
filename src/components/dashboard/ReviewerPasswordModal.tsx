@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Lock, ShieldCheck, KeyRound, ArrowRight, AlertCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Lock, ShieldCheck, KeyRound, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import SdgLoading from '@/components/SdgLoading';
 
 interface ReviewerPasswordModalProps {
   isOpen: boolean;
@@ -118,7 +119,7 @@ export default function ReviewerPasswordModal({ isOpen, onSuccess }: ReviewerPas
           >
             {loading ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <SdgLoading size={16} label="Verifying with database" />
                 <span>Verifying with Database...</span>
               </>
             ) : (

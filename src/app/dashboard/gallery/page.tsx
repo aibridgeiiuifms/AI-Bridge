@@ -13,6 +13,7 @@ import {
   Lock 
 } from 'lucide-react';
 import GalleryManager from '@/components/dashboard/GalleryManager';
+import SdgLoading from '@/components/SdgLoading';
 
 export default function GalleryDashboardPage() {
   const router = useRouter();
@@ -54,7 +55,7 @@ export default function GalleryDashboardPage() {
   if (authorized === null) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-3">
-        <div className="w-9 h-9 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+        <SdgLoading size={36} label="Checking credentials" />
         <p className="text-xs font-semibold text-slate-500">Checking credentials...</p>
       </div>
     );

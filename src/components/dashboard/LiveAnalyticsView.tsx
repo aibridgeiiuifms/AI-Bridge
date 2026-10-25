@@ -1,5 +1,6 @@
 'use client';
 
+import SdgLoading from '@/components/SdgLoading';
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -27,8 +28,7 @@ import {
   FileCheck2, 
   Lock, 
   Search,
-  Calendar,
-  Loader2
+  Calendar
 } from 'lucide-react';
 
 export type LiveAnalyticsSubTab = 'overview' | 'funnel' | 'gallery' | 'activity' | 'access';
@@ -163,7 +163,7 @@ export default function LiveAnalyticsView({
             disabled={loading}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50 self-start sm:self-auto"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? <SdgLoading size={14} label="Refreshing live analytics" /> : <RefreshCw className="w-3.5 h-3.5" />}
             <span>Refresh</span>
           </button>
         </div>

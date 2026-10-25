@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
+import SdgLoading from '@/components/SdgLoading';
 import {
   QrCode,
   KeyRound,
@@ -17,8 +18,7 @@ import {
   Lock,
   Layers,
   Sparkles,
-  ExternalLink,
-  Loader2
+  ExternalLink
 } from 'lucide-react';
 
 export default function ReportQRManager() {
@@ -130,7 +130,7 @@ export default function ReportQRManager() {
   if (loading) {
     return (
       <div className="p-12 text-center space-y-3">
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-700 mx-auto" />
+        <SdgLoading size={32} className="mx-auto" label="Loading Report QR and access settings" />
         <p className="text-xs text-slate-500 font-semibold">Loading Report QR & Access Settings...</p>
       </div>
     );
@@ -300,7 +300,7 @@ export default function ReportQRManager() {
               disabled={saving}
               className="px-5 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+              {saving ? <SdgLoading size={14} label="Saving access settings" /> : <Check className="w-3.5 h-3.5" />}
               <span>Save Password & Settings</span>
             </button>
           </div>
@@ -326,7 +326,7 @@ export default function ReportQRManager() {
             disabled={saving}
             className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 self-start sm:self-auto cursor-pointer disabled:opacity-50"
           >
-            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            {saving ? <SdgLoading size={14} label="Saving chart visibility settings" /> : <Check className="w-3.5 h-3.5" />}
             <span>Save Visibility Matrix</span>
           </button>
         </div>

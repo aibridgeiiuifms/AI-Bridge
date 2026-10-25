@@ -20,6 +20,7 @@ import {
 import { TrainingResource, TrainingResourceType } from '@/types/database';
 import ResourceCard from '@/components/ResourceCard';
 import ResourcePreviewModal from '@/components/ResourcePreviewModal';
+import SdgLoading from '@/components/SdgLoading';
 
 const GUEST_WATCHED_KEY = 'ai_bridge_guest_watched_resources';
 
@@ -297,14 +298,17 @@ export default function ResourcesHub() {
 
       {/* Loading Skeleton */}
       {loading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-pulse pt-4">
-          {[1, 2, 3].map((n) => (
-            <div key={n} className="bg-slate-50 border border-slate-200 rounded-3xl p-6 h-56 space-y-4">
-              <div className="h-6 w-24 bg-slate-200 rounded-full" />
-              <div className="h-5 w-3/4 bg-slate-200 rounded-lg" />
-              <div className="h-14 w-full bg-slate-200 rounded-lg" />
-            </div>
-          ))}
+        <div className="space-y-4 pt-4">
+          <SdgLoading size={28} className="mx-auto" label="Loading learning resources" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-pulse">
+            {[1, 2, 3].map((n) => (
+              <div key={n} className="bg-slate-50 border border-slate-200 rounded-3xl p-6 h-56 space-y-4">
+                <div className="h-6 w-24 bg-slate-200 rounded-full" />
+                <div className="h-5 w-3/4 bg-slate-200 rounded-lg" />
+                <div className="h-14 w-full bg-slate-200 rounded-lg" />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

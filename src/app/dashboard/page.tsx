@@ -61,6 +61,7 @@ import AdminResourcesPanel from '@/components/dashboard/AdminResourcesPanel';
 import ReportQRManager from '@/components/dashboard/ReportQRManager';
 import SurveyAnalyticsView, { SurveySubTab } from '@/components/dashboard/SurveyAnalyticsView';
 import LiveAnalyticsView, { LiveAnalyticsSubTab } from '@/components/dashboard/LiveAnalyticsView';
+import SdgLoading from '@/components/SdgLoading';
 
 export type DashboardTab = 
   | 'survey_impact' 
@@ -1690,7 +1691,7 @@ export default function AdminDashboard() {
                     <tr>
                       <td colSpan={7} className="py-12 text-center text-slate-400 font-medium">
                         <div className="flex items-center justify-center gap-2">
-                          <RefreshCw className="w-4 h-4 animate-spin text-emerald-600" />
+                          <SdgLoading size={16} label="Loading team members" />
                           <span>Loading team members from Supabase...</span>
                         </div>
                       </td>
@@ -2081,7 +2082,7 @@ export default function AdminDashboard() {
                   className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
                   title="Refresh Mappings"
                 >
-                  <RefreshCw className={`w-4 h-4 ${loadingDepts ? 'animate-spin text-emerald-600' : ''}`} />
+                  {loadingDepts ? <SdgLoading size={16} label="Refreshing department mappings" /> : <RefreshCw className="w-4 h-4" />}
                 </button>
               </div>
             </div>
@@ -2165,7 +2166,7 @@ export default function AdminDashboard() {
                     <tr>
                       <td colSpan={5} className="py-12 text-center text-slate-400">
                         <div className="flex items-center justify-center gap-2">
-                          <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                          <SdgLoading size={16} label="Loading department mappings" />
                           <span>Loading department mappings...</span>
                         </div>
                       </td>
@@ -2406,7 +2407,7 @@ export default function AdminDashboard() {
                   disabled={isSavingDept}
                   className="px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-2 disabled:opacity-60"
                 >
-                  {isSavingDept ? 'Saving...' : 'Add Mapping'}
+                  {isSavingDept ? <><SdgLoading size={14} label="Saving department mapping" /> Saving...</> : 'Add Mapping'}
                 </button>
               </div>
             </form>
@@ -2475,7 +2476,7 @@ export default function AdminDashboard() {
                 className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/20 transition-all flex items-center gap-1.5 cursor-pointer"
                 title="Refresh from database"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${loadingMcqs ? 'animate-spin' : ''}`} />
+                {loadingMcqs ? <SdgLoading size={14} label="Refreshing questions" /> : <RefreshCw className="w-3.5 h-3.5" />}
                 <span className="hidden sm:inline">Refresh</span>
               </button>
               <button
@@ -2603,7 +2604,7 @@ export default function AdminDashboard() {
 
                 {loadingQuizConfig ? (
                   <div className="flex items-center gap-2 text-xs text-slate-400 py-4">
-                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <SdgLoading size={16} label="Loading quiz configuration" />
                     Loading configuration…
                   </div>
                 ) : quizConfigDraft ? (
@@ -2740,7 +2741,7 @@ export default function AdminDashboard() {
                           className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-colors flex items-center gap-2 disabled:opacity-60 cursor-pointer"
                         >
                           {savingQuizConfig ? (
-                            <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving…</>
+                            <><SdgLoading size={14} label="Saving quiz settings" /> Saving…</>
                           ) : (
                             <><Check className="w-3.5 h-3.5" /> Save Quiz Settings</>
                           )}
@@ -2838,7 +2839,7 @@ export default function AdminDashboard() {
           {/* Questions Roster */}
           {loadingMcqs ? (
             <div className="bg-white border border-slate-200 rounded-3xl p-16 text-center space-y-3">
-              <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
+              <SdgLoading size={40} className="mx-auto" label="Loading questions pool" />
               <p className="text-xs text-slate-500 font-medium">Loading questions pool from Supabase...</p>
             </div>
           ) : (
@@ -3182,7 +3183,7 @@ export default function AdminDashboard() {
                       disabled={isSavingMcq}
                       className="px-6 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer disabled:opacity-60"
                     >
-                      {isSavingMcq ? 'Saving Question...' : editingMcq ? 'Save Changes' : 'Create Question'}
+                      {isSavingMcq ? <><SdgLoading size={14} label="Saving question" /> Saving Question...</> : editingMcq ? 'Save Changes' : 'Create Question'}
                     </button>
                   </div>
                 </form>
@@ -3214,7 +3215,7 @@ export default function AdminDashboard() {
 
                 {loadingAuditLogs ? (
                   <div className="py-12 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
-                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <SdgLoading size={16} label="Loading audit trail" />
                     Loading audit trail…
                   </div>
                 ) : mcqAuditLogs.length === 0 ? (
@@ -4065,7 +4066,7 @@ export default function AdminDashboard() {
                 >
                   {isSavingTeamMember ? (
                     <>
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <SdgLoading size={14} label="Saving team profile" />
                       <span>Saving to Supabase...</span>
                     </>
                   ) : (

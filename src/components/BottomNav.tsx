@@ -26,12 +26,15 @@ const NAV_ITEMS = [
 export default function BottomNav() {
   const pathname = usePathname();
 
-  const handleTabClick = () => {
+  const handleTabClick = (event: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     if (typeof window !== 'undefined' && 'vibrate' in navigator) {
       try {
         navigator.vibrate(8);
       } catch {}
     }
+    event.preventDefault();
+    window.dispatchEvent(new CustomEvent('mobile-page-navigate', { detail: href }));
   };
 
   return (
@@ -57,7 +60,7 @@ export default function BottomNav() {
             <li key={href} className="flex-1">
               <Link
                 href={href}
-                onClick={handleTabClick}
+                onClick={(event) => handleTabClick(event, href)}
                 aria-label={label}
                 aria-current={isActive ? 'page' : undefined}
                 className="flex flex-col items-center justify-center gap-0.5 h-full w-full transition-colors"

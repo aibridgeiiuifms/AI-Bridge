@@ -1,5 +1,6 @@
 'use client';
 
+import SdgLoading from '@/components/SdgLoading';
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -157,7 +158,7 @@ export default function AnalyticsDashboardPage() {
             disabled={loading}
             className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? <SdgLoading size={14} label="Refreshing analytics" /> : <RefreshCw className="w-3.5 h-3.5" />}
             <span>Refresh</span>
           </button>
         </div>

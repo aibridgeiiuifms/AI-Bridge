@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import SdgLoading from '@/components/SdgLoading';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import { 
@@ -94,7 +95,7 @@ export default function FolderGalleryPage() {
   if (loading) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-4">
-        <div className="w-10 h-10 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+        <SdgLoading size={40} label="Opening event album" />
         <p className="text-sm font-semibold text-slate-500 animate-pulse">
           Opening Event Album...
         </p>

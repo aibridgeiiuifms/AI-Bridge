@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { hasAmbassadorPortalRole } from '@/lib/access';
+import SdgLoading from '@/components/SdgLoading';
 import { 
   Sparkles, 
   LayoutDashboard, 
@@ -173,7 +174,9 @@ export default function Navbar() {
 
           {/* Round Profile Button & Popdown (Unified for both Mobile & Desktop) */}
           <div className="flex items-center gap-2 flex-shrink-0 relative" ref={profileDropdownRef}>
-            {!loading && user ? (
+            {loading ? (
+              <SdgLoading size={20} className="mr-2" label="Checking sign-in status" />
+            ) : user ? (
               <div className="relative">
                 <button
                   type="button"

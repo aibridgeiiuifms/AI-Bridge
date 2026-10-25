@@ -21,10 +21,10 @@ import {
   Eye,
   CheckCircle2,
   Layers,
-  ArrowUpDown,
-  Loader2
+  ArrowUpDown
 } from 'lucide-react';
 import { TrainingResource, TrainingResourceType } from '@/types/database';
+import SdgLoading from '@/components/SdgLoading';
 
 interface AdminResourcesPanelProps {
   isSuperAdmin: boolean;
@@ -447,7 +447,7 @@ export default function AdminResourcesPanel({
             className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors cursor-pointer"
             title="Refresh resources list"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
+            {loading ? <SdgLoading size={16} label="Refreshing resources" /> : <RefreshCw className="w-4 h-4" />}
           </button>
 
           <button
@@ -532,7 +532,7 @@ export default function AdminResourcesPanel({
               {loading ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-slate-400">
-                    <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-600" />
+                    <SdgLoading size={24} className="mx-auto mb-2" label="Loading learning resources" />
                     <span>Loading learning resources...</span>
                   </td>
                 </tr>
@@ -824,7 +824,7 @@ export default function AdminResourcesPanel({
                       >
                         <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto">
                           {uploadingFile ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
+                            <SdgLoading size={20} label="Uploading resource file" />
                           ) : (
                             <Upload className="w-5 h-5" />
                           )}
@@ -917,7 +917,7 @@ export default function AdminResourcesPanel({
                       >
                         <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto">
                           {uploadingThumbnail ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <SdgLoading size={16} label="Uploading thumbnail" />
                           ) : (
                             <Upload className="w-4 h-4" />
                           )}
@@ -1000,7 +1000,7 @@ export default function AdminResourcesPanel({
                   disabled={saving || uploadingFile}
                   className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
                 >
-                  {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {saving && <SdgLoading size={14} label="Saving resource" />}
                   <span>{editingResource ? 'Save Changes' : 'Create Resource'}</span>
                 </button>
               </div>

@@ -1,5 +1,6 @@
 'use client';
 
+import SdgLoading from '@/components/SdgLoading';
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
@@ -227,7 +228,9 @@ export default function SurveyAnalyticsView({
               : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-100'
           }`}
         >
-          {permission.team_member_visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+          {savingChartPermission === `${chartKey}:team_member_visible` ? (
+            <SdgLoading size={12} label="Saving member visibility" />
+          ) : permission.team_member_visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
           Members {permission.team_member_visible ? 'Visible' : 'Hidden'}
         </button>
         <button
@@ -241,7 +244,9 @@ export default function SurveyAnalyticsView({
               : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-100'
           }`}
         >
-          {permission.external_reviewer_visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+          {savingChartPermission === `${chartKey}:external_reviewer_visible` ? (
+            <SdgLoading size={12} label="Saving reviewer visibility" />
+          ) : permission.external_reviewer_visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
           Reviewers {permission.external_reviewer_visible ? 'Visible' : 'Hidden'}
         </button>
       </div>
@@ -293,7 +298,7 @@ export default function SurveyAnalyticsView({
               title="Refresh live data from Supabase"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? <SdgLoading size={14} label="Refreshing survey analytics" /> : <RefreshCw className="w-3.5 h-3.5" />}
               <span>Refresh</span>
             </button>
           </div>

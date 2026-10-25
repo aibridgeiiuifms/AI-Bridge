@@ -8,6 +8,8 @@ import PWAInit from '@/components/PWAInit';
 import BottomNav from '@/components/BottomNav';
 import PWAInstallBanner from '@/components/PWAInstallBanner';
 import MobileSwipeNav from '@/components/MobileSwipeNav';
+import MobileSiteFlow from '@/components/MobileSiteFlow';
+import HomePageContent from '@/components/site-pages/HomePage';
 import AnalyticsProvider from '@/components/AnalyticsProvider';
 
 const inter = Inter({
@@ -56,10 +58,11 @@ export default function RootLayout({
         <MobileSwipeNav />
         <ChunkLoadRecovery />
         <Navbar />
-        {/* pb-20 lg:pb-0 → reserves space for the bottom nav on mobile */}
-        <main className="flex-1 pb-20 lg:pb-0">{children}</main>
-        {/* Footer hidden on mobile; BottomNav replaces it */}
-        <div className="hidden lg:block">
+        <main className="flex-1">
+          <MobileSiteFlow home={<HomePageContent />} routeContent={children} />
+          <div className="hidden lg:block">{children}</div>
+        </main>
+        <div className="pb-20 lg:pb-0">
           <Footer />
         </div>
         <PWAInstallBanner />

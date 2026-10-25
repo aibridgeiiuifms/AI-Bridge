@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { queueSubmission } from '@/lib/offline-sync';
 import { trackEvent } from '@/lib/tracking/trackEvent';
+import SdgLoading from '@/components/SdgLoading';
 
 interface Question {
   id: string;
@@ -389,7 +390,7 @@ export default function QuizPage() {
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-20 text-center space-y-4">
-        <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
+        <SdgLoading size={48} className="mx-auto" label="Preparing assessment" />
         <h2 className="text-lg font-bold text-slate-800">Preparing Your 12-MCQ Course Assessment...</h2>
         <p className="text-xs text-slate-500">
           Conducting balanced category sampling and generating randomized options.
@@ -921,8 +922,11 @@ export default function QuizPage() {
                 disabled={submitting}
                 className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer disabled:opacity-60"
               >
-                <span>{submitting ? 'Evaluating...' : 'Submit Assessment'}</span>
-                <CheckCircle2 className="w-4 h-4" />
+                {submitting ? (
+                  <><SdgLoading size={14} label="Evaluating assessment" /> Evaluating...</>
+                ) : (
+                  <><span>Submit Assessment</span><CheckCircle2 className="w-4 h-4" /></>
+                )}
               </button>
             </div>
           </div>
@@ -964,7 +968,7 @@ export default function QuizPage() {
                 disabled={submitting}
                 className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-md transition-all cursor-pointer disabled:opacity-60"
               >
-                {submitting ? 'Submitting...' : 'Yes, Submit Now'}
+                {submitting ? <><SdgLoading size={14} label="Submitting assessment" /> Submitting...</> : 'Yes, Submit Now'}
               </button>
             </div>
           </div>
