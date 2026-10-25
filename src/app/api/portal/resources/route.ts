@@ -110,6 +110,7 @@ export async function POST(req: NextRequest) {
       type,
       url,
       storage_path = null,
+      thumbnail_url = null,
       file_size_bytes = null,
       sort_order = 0,
       is_active = true,
@@ -154,6 +155,7 @@ export async function POST(req: NextRequest) {
         type,
         url: url.trim(),
         storage_path: storage_path || null,
+        thumbnail_url: thumbnail_url ? thumbnail_url.trim() : null,
         file_size_bytes: file_size_bytes ? Number(file_size_bytes) : null,
         sort_order: Number(sort_order) || 0,
         is_active: Boolean(is_active),
@@ -213,6 +215,7 @@ export async function PUT(req: NextRequest) {
     if (updates.type !== undefined) payload.type = updates.type;
     if (updates.url !== undefined) payload.url = updates.url.trim();
     if (updates.storage_path !== undefined) payload.storage_path = updates.storage_path || null;
+    if (updates.thumbnail_url !== undefined) payload.thumbnail_url = updates.thumbnail_url ? updates.thumbnail_url.trim() : null;
     if (updates.file_size_bytes !== undefined) payload.file_size_bytes = updates.file_size_bytes ? Number(updates.file_size_bytes) : null;
     if (updates.sort_order !== undefined) payload.sort_order = Number(updates.sort_order);
     if (updates.is_active !== undefined) payload.is_active = Boolean(updates.is_active);

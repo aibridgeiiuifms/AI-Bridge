@@ -40,12 +40,16 @@ CREATE TABLE IF NOT EXISTS public.training_resources (
     type             TEXT NOT NULL CHECK (type IN ('pdf', 'video', 'link', 'audio')),
     url              TEXT NOT NULL,
     storage_path     TEXT,
+    thumbnail_url    TEXT,
     file_size_bytes  BIGINT,
     sort_order       INTEGER NOT NULL DEFAULT 0,
     is_active        BOOLEAN NOT NULL DEFAULT true,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+ALTER TABLE public.training_resources 
+ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_tr_module ON public.training_resources(module);
 CREATE INDEX IF NOT EXISTS idx_tr_sort ON public.training_resources(sort_order);

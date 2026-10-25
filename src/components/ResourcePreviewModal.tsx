@@ -53,6 +53,20 @@ function getYouTubeVideoId(url: string): string | null {
   return null;
 }
 
+/**
+ * Determines whether a resource can be downloaded.
+ */
+function isDownloadableResource(res: TrainingResource): boolean {
+  if (res.type === 'link') return false;
+  const urlLower = (res.url || '').toLowerCase();
+  if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) return false;
+  if (urlLower.includes('notebooklm.google.com')) return false;
+  if (res.storage_path) return true;
+  if (res.type === 'pdf' || res.type === 'audio') return true;
+  if (res.type === 'video' && (urlLower.endsWith('.mp4') || urlLower.endsWith('.webm'))) return true;
+  return false;
+}
+
 export default function ResourcePreviewModal({
   resource,
   isOpen,
@@ -359,16 +373,28 @@ export default function ResourcePreviewModal({
               )}
             </button>
 
-            <a
-              href={resource.url}
-              download
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-colors shadow-xs"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Download / Save</span>
-            </a>
+            {isDownloadableResource(resource) ? (
+              <a
+                href={resource.url}
+                download
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-colors shadow-xs"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download / Save</span>
+              </a>
+            ) : (
+              <a
+                href={resource.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-colors shadow-xs"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>{resource.type === 'video' ? 'Watch on YouTube' : 'Open Link'}</span>
+              </a>
+            )}
           </div>
         </div>
       </div>

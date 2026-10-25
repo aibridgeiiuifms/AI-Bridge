@@ -54,11 +54,15 @@ export async function POST(req: NextRequest) {
       file.name.toLowerCase().endsWith('.mp3') ||
       file.name.toLowerCase().endsWith('.wav') ||
       file.name.toLowerCase().endsWith('.m4a') ||
-      file.name.toLowerCase().endsWith('.mp4');
+      file.name.toLowerCase().endsWith('.mp4') ||
+      file.name.toLowerCase().endsWith('.png') ||
+      file.name.toLowerCase().endsWith('.jpg') ||
+      file.name.toLowerCase().endsWith('.jpeg') ||
+      file.name.toLowerCase().endsWith('.webp');
 
     if (!isAllowed) {
       return NextResponse.json(
-        { success: false, error: `Unsupported file type: ${fileType || file.name}. Allowed: PDF, MP3, WAV, M4A, MP4.` },
+        { success: false, error: `Unsupported file type: ${fileType || file.name}. Allowed: PDF, MP3, WAV, M4A, MP4, PNG, JPG, WEBP.` },
         { status: 400 }
       );
     }

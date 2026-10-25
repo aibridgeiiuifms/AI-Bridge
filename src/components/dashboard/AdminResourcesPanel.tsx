@@ -49,8 +49,10 @@ export default function AdminResourcesPanel({
 
   // Form State
   const [sourceMode, setSourceMode] = useState<'url' | 'upload'>('url');
+  const [thumbnailMode, setThumbnailMode] = useState<'url' | 'upload'>('url');
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadProgressText, setUploadProgressText] = useState('');
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -58,6 +60,7 @@ export default function AdminResourcesPanel({
     newModuleName: '',
     type: 'video' as TrainingResourceType,
     url: '',
+    thumbnail_url: null as string | null,
     storage_path: null as string | null,
     file_size_bytes: null as number | null,
     sort_order: 0,
@@ -119,6 +122,7 @@ export default function AdminResourcesPanel({
   const handleOpenCreate = () => {
     setEditingResource(null);
     setSourceMode('url');
+    setThumbnailMode('url');
     setForm({
       title: '',
       description: '',
@@ -126,6 +130,7 @@ export default function AdminResourcesPanel({
       newModuleName: '',
       type: 'video',
       url: '',
+      thumbnail_url: null,
       storage_path: null,
       file_size_bytes: null,
       sort_order: resources.length + 1,
@@ -138,6 +143,7 @@ export default function AdminResourcesPanel({
   const handleOpenEdit = (res: TrainingResource) => {
     setEditingResource(res);
     setSourceMode(res.storage_path ? 'upload' : 'url');
+    setThumbnailMode(res.thumbnail_url?.includes('/uploads/') ? 'upload' : 'url');
     setForm({
       title: res.title,
       description: res.description || '',
@@ -145,12 +151,69 @@ export default function AdminResourcesPanel({
       newModuleName: '',
       type: res.type,
       url: res.url,
+      thumbnail_url: res.thumbnail_url || null,
       storage_path: res.storage_path || null,
       file_size_bytes: res.file_size_bytes || null,
       sort_order: res.sort_order,
       is_active: res.is_active,
     });
     setIsModalOpen(true);
+  };
+
+  // Thumbnail Upload Handler
+  const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingThumbnail(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/portal/resources/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Upload failed');
+      }
+
+      setForm((prev) => ({
+        ...prev,
+        thumbnail_url: data.publicUrl,
+      }));
+      showFeedback('Thumbnail uploaded successfully!');
+    } catch (err: any) {
+      showFeedback(`Thumbnail upload error: ${err.message}`, 'error');
+    } finally {
+      setUploadingThumbnail(false);
+    }
+  };
+
+  // Helper to extract YouTube video ID and auto-fill thumbnail
+  const handleAutoYouTubeThumbnail = () => {
+    try {
+      const parsed = new URL(form.url);
+      let vid: string | null = null;
+      if (parsed.hostname.includes('youtube.com')) {
+        if (parsed.pathname.startsWith('/watch')) vid = parsed.searchParams.get('v');
+        else if (parsed.pathname.startsWith('/embed/')) vid = parsed.pathname.split('/embed/')[1]?.split('?')[0];
+        else if (parsed.pathname.startsWith('/shorts/')) vid = parsed.pathname.split('/shorts/')[1]?.split('?')[0];
+      } else if (parsed.hostname === 'youtu.be') {
+        vid = parsed.pathname.slice(1).split('?')[0];
+      }
+      if (vid) {
+        const ytThumb = `https://img.youtube.com/vi/${vid}/hqdefault.jpg`;
+        setForm((prev) => ({ ...prev, thumbnail_url: ytThumb }));
+        showFeedback('Auto-fetched YouTube thumbnail!');
+      } else {
+        showFeedback('No YouTube video ID found in URL', 'error');
+      }
+    } catch (e) {
+      showFeedback('Please enter a valid URL first', 'error');
+    }
   };
 
   // File Upload Handler
@@ -228,6 +291,7 @@ export default function AdminResourcesPanel({
         module: finalModule,
         type: form.type,
         url: form.url.trim(),
+        thumbnail_url: form.thumbnail_url?.trim() || null,
         storage_path: form.storage_path,
         file_size_bytes: form.file_size_bytes,
         sort_order: Number(form.sort_order) || 0,
@@ -455,6 +519,7 @@ export default function AdminResourcesPanel({
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
                 <th className="py-3 px-4 w-12 text-center">#</th>
+                <th className="py-3 px-4 w-16 text-center">Cover</th>
                 <th className="py-3 px-4">Title & Details</th>
                 <th className="py-3 px-4">Module</th>
                 <th className="py-3 px-4">Type</th>
@@ -466,14 +531,14 @@ export default function AdminResourcesPanel({
             <tbody className="divide-y divide-slate-100 text-xs">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                  <td colSpan={8} className="py-12 text-center text-slate-400">
                     <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-600" />
                     <span>Loading learning resources...</span>
                   </td>
                 </tr>
               ) : filteredList.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                  <td colSpan={8} className="py-12 text-center text-slate-400">
                     No resources found matching the criteria.
                   </td>
                 </tr>
@@ -482,6 +547,20 @@ export default function AdminResourcesPanel({
                   <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="py-3.5 px-4 font-mono text-center text-slate-400 font-bold text-[11px]">
                       {item.sort_order}
+                    </td>
+
+                    <td className="py-3.5 px-4 text-center">
+                      {item.thumbnail_url ? (
+                        <img
+                          src={item.thumbnail_url}
+                          alt={item.title}
+                          className="w-14 h-9 rounded-lg object-cover border border-slate-200 shadow-2xs mx-auto"
+                        />
+                      ) : (
+                        <div className="w-14 h-9 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 mx-auto">
+                          {getTypeIcon(item.type)}
+                        </div>
+                      )}
                     </td>
 
                     <td className="py-3.5 px-4">
@@ -769,6 +848,112 @@ export default function AdminResourcesPanel({
                         </span>
                       </div>
                     )}
+                  </div>
+                )}
+              </div>
+
+              {/* Thumbnail / Cover Image (Upload or URL) */}
+              <div className="space-y-2 pt-1 border-t border-slate-100">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700">Cover Image / Thumbnail (Optional)</label>
+                  <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-[11px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setThumbnailMode('url')}
+                      className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                        thumbnailMode === 'url' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+                      }`}
+                    >
+                      Image Link
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setThumbnailMode('upload')}
+                      className={`px-2.5 py-1 rounded-md transition-colors cursor-pointer ${
+                        thumbnailMode === 'upload' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+                      }`}
+                    >
+                      Upload Image
+                    </button>
+                  </div>
+                </div>
+
+                {thumbnailMode === 'url' ? (
+                  <div className="space-y-1.5">
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        value={form.thumbnail_url || ''}
+                        onChange={(e) => setForm({ ...form, thumbnail_url: e.target.value })}
+                        placeholder="https://example.com/cover.jpg or paste image URL"
+                        className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono text-slate-900 focus:outline-none focus:border-emerald-500 focus:bg-white"
+                      />
+                      {(form.url.includes('youtube.com') || form.url.includes('youtu.be')) && (
+                        <button
+                          type="button"
+                          onClick={handleAutoYouTubeThumbnail}
+                          className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-[11px] font-bold transition-colors cursor-pointer whitespace-nowrap"
+                          title="Auto-extract YouTube video thumbnail"
+                        >
+                          ⚡ Auto YouTube
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="border-2 border-dashed border-slate-200 hover:border-emerald-400 rounded-2xl p-4 text-center bg-slate-50/50 transition-colors">
+                      <input
+                        type="file"
+                        id="resource_thumb_upload"
+                        onChange={handleThumbnailUpload}
+                        disabled={uploadingThumbnail}
+                        accept="image/*,.png,.jpg,.jpeg,.webp"
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="resource_thumb_upload"
+                        className="cursor-pointer space-y-1.5 block"
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center mx-auto">
+                          {uploadingThumbnail ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Upload className="w-4 h-4" />
+                          )}
+                        </div>
+                        <div className="text-xs font-bold text-slate-700">
+                          {uploadingThumbnail ? 'Uploading cover...' : 'Click to upload custom cover image'}
+                        </div>
+                        <div className="text-[11px] text-slate-400">
+                          Supports PNG, JPG, WEBP (Max 10MB)
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* Live Thumbnail Preview */}
+                {form.thumbnail_url && (
+                  <div className="flex items-center gap-3 p-2 bg-slate-50 border border-slate-200 rounded-xl">
+                    <img
+                      src={form.thumbnail_url}
+                      alt="Thumbnail preview"
+                      className="w-16 h-10 object-cover rounded-lg border border-slate-200 shrink-0"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[11px] text-slate-500 font-mono truncate block">
+                        {form.thumbnail_url}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, thumbnail_url: null })}
+                      className="p-1 text-slate-400 hover:text-red-600 cursor-pointer"
+                      title="Remove thumbnail"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
                 )}
               </div>

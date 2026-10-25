@@ -275,6 +275,7 @@ export interface TrainingResource {
   type: TrainingResourceType;
   url: string;
   storage_path: string | null;
+  thumbnail_url?: string | null;
   file_size_bytes?: number | null;
   sort_order: number;
   is_active: boolean;
