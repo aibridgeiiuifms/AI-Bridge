@@ -87,6 +87,29 @@ function maskEmail(email?: string): string {
   return `${local.substring(0, 2)}***@${domain}`;
 }
 
+
+// Paginated fetch: bypasses PostgREST max_rows=1000 server cap
+async function fetchAllRows(
+  admin: ReturnType<typeof import('@/lib/supabase/admin').createAdminClient>,
+  table: string,
+  columns: string,
+  pageSize = 1000
+): Promise<any[]> {
+  const allRows: any[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await (admin.from(table) as any)
+      .select(columns)
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(`fetchAllRows(${table}): ${error.message}`);
+    if (!data || data.length === 0) break;
+    allRows.push(...data);
+    if (data.length < pageSize) break; // last page
+    from += pageSize;
+  }
+  return allRows;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const authCheck = await authenticateViewer(req);
@@ -112,27 +135,25 @@ export async function GET(req: NextRequest) {
 
     // 1. Parallel Cloud Queries
     const [
-      studentRes,
-      teacherRes,
-      deptRes,
-      quizRes,
-      certRes,
+      studentRows,
+      teacherRows,
+      deptRows,
+      quizRows,
+      certRows,
       permRes
     ] = await Promise.all([
-      admin.from('student_surveys').select('id, student_email, full_name, survey_type, dept_code, semester, hours_saved_category, ai_familiarity_rating, answers, submitted_at').limit(10000),
-      admin.from('teacher_surveys').select('id, teacher_email, full_name, survey_type, dept_code, designation, teaching_experience, hours_saved_category, ai_familiarity_rating, answers, submitted_at').limit(10000),
-      admin.from('department_mappings').select('code, standard_dept_name, faculty_name, faculty_code').limit(500),
-      admin.from('quiz_attempts').select('id, score, total_questions, passing_score, passed, completed_at').limit(10000),
-      admin.from('certificates').select('id, certificate_id, recipient_name, department, completion_date, created_at').order('created_at', { ascending: false }).limit(10000),
-      admin.from('system_settings').select('value').eq('key', 'survey_dashboard_chart_permissions').maybeSingle()
+      fetchAllRows(admin, 'student_surveys', 'id, student_email, full_name, survey_type, dept_code, semester, hours_saved_category, ai_familiarity_rating, answers, submitted_at'),
+      fetchAllRows(admin, 'teacher_surveys', 'id, teacher_email, full_name, survey_type, dept_code, designation, teaching_experience, hours_saved_category, ai_familiarity_rating, answers, submitted_at'),
+      fetchAllRows(admin, 'department_mappings', 'code, standard_dept_name, faculty_name, faculty_code'),
+      fetchAllRows(admin, 'quiz_attempts', 'id, score, total_questions, passing_score, passed, completed_at'),
+      fetchAllRows(admin, 'certificates', 'id, certificate_id, recipient_name, department, completion_date, created_at'),
+      admin.from('system_settings').select('value').eq('key', 'survey_dashboard_chart_permissions').maybeSingle(),
     ]);
 
-    const studentRows = studentRes.data || [];
-    const teacherRows = teacherRes.data || [];
-    const deptRows = deptRes.data || [];
-    const quizRows = quizRes.data || [];
-    const certRows = certRes.data || [];
+    // studentRows, teacherRows, deptRows, quizRows, certRows are already full arrays from fetchAllRows
     const chartPermissions = permRes.data?.value || {};
+    // Re-sort certificates by created_at DESC (since fetchAllRows doesn't guarantee order)
+    certRows.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     // 2. Pre / Post Split
     const sPre = studentRows.filter(r => r.survey_type === 'pre');
