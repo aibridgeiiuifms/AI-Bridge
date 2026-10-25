@@ -134,6 +134,7 @@ export default function SurveyAnalyticsView({
   const isAdmin = data?.callerRole === 'admin';
 
   const isVisible = (chartKey: string) => {
+    if (!data) return false;
     const permission = permissions[chartKey] || DEFAULT_SURVEY_CHART_PERMISSIONS[chartKey];
     if (!permission) return true;
     if (isReviewer) return Boolean(permission.external_reviewer_visible);
@@ -340,9 +341,9 @@ export default function SurveyAnalyticsView({
             </div>
 
             <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-xs space-y-1">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Full Journey</span>
-              <p className="text-2xl font-black text-sky-700">{overview.studentsWithBothSurveys || 0}</p>
-              <p className="text-[10px] text-slate-500 font-medium">Pre + Quiz + Post</p>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Average Quiz Score</span>
+              <p className="text-2xl font-black text-sky-700">{overview.avgQuizScore || 0} / 12</p>
+              <p className="text-[10px] text-slate-500 font-medium">Average across recorded attempts</p>
             </div>
           </div>
         </div>
@@ -359,7 +360,7 @@ export default function SurveyAnalyticsView({
           { id: 'faculties', label: 'Faculties', icon: Layers, chartKeys: ['faculty_cards_grid'] },
           { id: 'teachers', label: 'Faculty Detail', icon: Users, chartKeys: ['teacher_designation_analysis'] },
           { id: 'quiz-certs', label: 'Quiz & Certs', icon: Award, chartKeys: ['quiz_score_distribution', 'certificate_issuance_registry'] },
-        ].filter((tab) => isAdmin || tab.chartKeys.some(isVisible)).map((tab) => {
+        ].filter((tab) => data && (isAdmin || tab.chartKeys.some(isVisible))).map((tab) => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
           return (

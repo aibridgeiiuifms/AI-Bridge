@@ -1449,11 +1449,11 @@ export default function AdminDashboard() {
       )}
 
       {/* ============================================================== */}
-      {/* UNIFIED WORKSPACE LAYOUT: MAIN VIEW (LEFT) + LAPTOP NAVIGATOR (RIGHT) */}
+      {/* UNIFIED WORKSPACE LAYOUT: FIXED LEFT NAVIGATOR + MAIN VIEW */}
       {/* ============================================================== */}
       <div className="flex flex-col lg:flex-row items-start gap-6 w-full min-w-0">
         {/* Main Content View */}
-        <main className="flex-1 min-w-0 w-full space-y-6">
+        <main className="order-last flex-1 min-w-0 w-full space-y-6">
           {/* TAB CONTENT: SURVEY IMPACT & ASSESSMENT INTELLIGENCE */}
           {activeTab === 'survey_impact' && (
             <div className="space-y-6 animate-fade-in">
@@ -3286,9 +3286,9 @@ export default function AdminDashboard() {
         </main>
 
         {/* ============================================================== */}
-        {/* RIGHT-HAND SIDEBAR NAVIGATION PANEL (LAPTOP / DESKTOP TREE) */}
+        {/* FIXED LEFT SIDEBAR NAVIGATION PANEL (LAPTOP / DESKTOP TREE) */}
         {/* ============================================================== */}
-        <aside className="hidden lg:block w-72 xl:w-80 shrink-0 sticky top-20 self-start max-h-[calc(100vh-6rem)] overflow-y-auto space-y-3 scrollbar-thin">
+        <aside className="order-first sticky top-20 z-30 hidden max-h-[calc(100vh-6rem)] w-72 shrink-0 self-start space-y-3 overflow-y-auto scrollbar-thin lg:block xl:w-80">
           <div className="rounded-3xl border border-slate-200/90 bg-white/95 backdrop-blur-md p-4 shadow-sm space-y-3">
             {/* Sidebar Title & Quick Actions */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">

@@ -439,7 +439,7 @@ export async function GET(req: NextRequest) {
 
     // 10. Quiz Attempts Statistics & Score Buckets
     let passedCount = 0;
-    let scoreSum = 0;
+    let normalizedScoreSum = 0;
     const scoreBuckets = {
       '0-14 (Did not pass)': 0,
       '15-20 (Borderline)': 0,
@@ -450,7 +450,8 @@ export async function GET(req: NextRequest) {
     for (const q of quizRows) {
       if (q.passed) passedCount++;
       const s = Number(q.score || 0);
-      scoreSum += s;
+      const totalQuestions = Number(q.total_questions) || 12;
+      normalizedScoreSum += (s / totalQuestions) * 12;
       if (s <= 14) scoreBuckets['0-14 (Did not pass)']++;
       else if (s <= 20) scoreBuckets['15-20 (Borderline)']++;
       else if (s <= 25) scoreBuckets['21-25 (Passed 70-83%)']++;
@@ -458,7 +459,9 @@ export async function GET(req: NextRequest) {
     }
 
     const quizPassRate = quizRows.length > 0 ? Math.round((passedCount / quizRows.length) * 100) : 84;
-    const avgQuizScore = quizRows.length > 0 ? Number((scoreSum / quizRows.length).toFixed(1)) : 22.4;
+    const avgQuizScore = quizRows.length > 0
+      ? Number((normalizedScoreSum / quizRows.length).toFixed(1))
+      : 0;
 
     // 11. Recent Certificates (Mask PII for reviewers)
     const recentCertificates = certRows.slice(0, 10).map(c => ({
