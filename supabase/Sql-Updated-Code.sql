@@ -79,7 +79,6 @@ CREATE TABLE public.certificates (
   issued_by text DEFAULT 'Dr. Abdul Zahid Khan (Chairperson, TPM Department, FMS IIUI)'::text,
   issued_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
-  legacy_certificate_id text,
   CONSTRAINT certificates_pkey PRIMARY KEY (id),
   CONSTRAINT certificates_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );
@@ -121,6 +120,8 @@ CREATE TABLE public.student_surveys (
   sheet_row_number integer,
   submitted_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  login_email text,
+  match_key text NOT NULL,
   CONSTRAINT student_surveys_pkey PRIMARY KEY (id),
   CONSTRAINT student_surveys_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
   CONSTRAINT student_surveys_dept_code_fkey FOREIGN KEY (dept_code) REFERENCES public.department_mappings(code)
@@ -142,6 +143,8 @@ CREATE TABLE public.teacher_surveys (
   sheet_row_number integer,
   submitted_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  login_email text,
+  match_key text NOT NULL,
   CONSTRAINT teacher_surveys_pkey PRIMARY KEY (id),
   CONSTRAINT teacher_surveys_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id),
   CONSTRAINT teacher_surveys_dept_code_fkey FOREIGN KEY (dept_code) REFERENCES public.department_mappings(code)
@@ -176,6 +179,7 @@ CREATE TABLE public.members (
   created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
   updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
   can_manage_gallery boolean NOT NULL DEFAULT false,
+  can_manage_resources boolean NOT NULL DEFAULT false,
   CONSTRAINT members_pkey PRIMARY KEY (id),
   CONSTRAINT members_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES public.profiles(id)
 );
@@ -234,4 +238,64 @@ CREATE TABLE public.gallery_picture_tags (
   CONSTRAINT gallery_picture_tags_pkey PRIMARY KEY (id),
   CONSTRAINT gallery_picture_tags_picture_id_fkey FOREIGN KEY (picture_id) REFERENCES public.gallery_pictures(id),
   CONSTRAINT gallery_picture_tags_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.members(id)
+);
+CREATE TABLE public.analytics_events (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  session_id text NOT NULL,
+  user_role text NOT NULL DEFAULT 'guest'::text CHECK (user_role = ANY (ARRAY['admin'::text, 'team-member'::text, 'student'::text, 'teacher'::text, 'guest'::text])),
+  event_name text NOT NULL,
+  page_path text NOT NULL,
+  properties jsonb NOT NULL DEFAULT '{}'::jsonb,
+  referrer text,
+  device_type text CHECK (device_type = ANY (ARRAY['mobile'::text, 'tablet'::text, 'desktop'::text])),
+  browser text,
+  country text,
+  user_agent text,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT analytics_events_pkey PRIMARY KEY (id),
+  CONSTRAINT analytics_events_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.analytics_access_control (
+  member_id uuid NOT NULL,
+  can_view_analytics boolean NOT NULL DEFAULT false,
+  granted_by uuid,
+  granted_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT analytics_access_control_pkey PRIMARY KEY (member_id),
+  CONSTRAINT analytics_access_control_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.profiles(id),
+  CONSTRAINT analytics_access_control_granted_by_fkey FOREIGN KEY (granted_by) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.event_likes (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  event_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT event_likes_pkey PRIMARY KEY (id),
+  CONSTRAINT event_likes_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.gallery_events(id),
+  CONSTRAINT event_likes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
+);
+CREATE TABLE public.training_resources (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  description text,
+  module text NOT NULL,
+  type text NOT NULL CHECK (type = ANY (ARRAY['pdf'::text, 'video'::text, 'link'::text, 'audio'::text])),
+  url text NOT NULL,
+  storage_path text,
+  file_size_bytes bigint,
+  sort_order integer NOT NULL DEFAULT 0,
+  is_active boolean NOT NULL DEFAULT true,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  thumbnail_url text,
+  CONSTRAINT training_resources_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.student_resource_progress (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  student_id uuid NOT NULL,
+  resource_id uuid NOT NULL,
+  watched_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT student_resource_progress_pkey PRIMARY KEY (id),
+  CONSTRAINT student_resource_progress_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.profiles(id),
+  CONSTRAINT student_resource_progress_resource_id_fkey FOREIGN KEY (resource_id) REFERENCES public.training_resources(id)
 );
