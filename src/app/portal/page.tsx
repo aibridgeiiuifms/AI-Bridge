@@ -88,6 +88,7 @@ export default function StudentPortal() {
   const [surveySuggestion, setSurveySuggestion] = useState<any>(null);
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimToast, setClaimToast] = useState<string | null>(null);
+  const [surveyHintOpen, setSurveyHintOpen] = useState(false);
 
   const handleClaimSurvey = async (surveyId: string, participantType: string) => {
     setIsClaiming(true);
@@ -586,13 +587,15 @@ export default function StudentPortal() {
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
           {/* Step 1 Card */}
-          <div className={`p-5 rounded-2xl border transition-all ${
+          <div className={`p-5 rounded-2xl border-2 transition-all ${
             preSurveyCompleted 
-              ? 'bg-emerald-50/60 border-emerald-300' 
+              ? 'bg-emerald-50/70 border-emerald-600 shadow-sm' 
               : 'bg-white border-slate-200 shadow-sm'
           }`}>
             <div className="flex justify-between items-start mb-3">
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                preSurveyCompleted ? 'bg-emerald-200/70 text-emerald-900 font-extrabold' : 'bg-slate-100 text-slate-700'
+              }`}>
                 Step 1
               </span>
               {preSurveyCompleted ? (
@@ -612,45 +615,69 @@ export default function StudentPortal() {
                 </span>
               ) : (
                 <div className="space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveSurveyType('pre');
-                      setSurveyModalOpen(true);
-                    }}
-                    className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
-                  >
-                    Complete Pre-Training Survey →
-                  </button>
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveSurveyType('pre');
+                        setSurveyModalOpen(true);
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
+                    >
+                      Complete Pre-Training Survey →
+                    </button>
+
+                    {/* UX-2: ? tooltip toggle for students who already submitted the form */}
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setSurveyHintOpen(prev => !prev)}
+                        onMouseEnter={() => setSurveyHintOpen(true)}
+                        className="w-5 h-5 rounded-full bg-blue-100 hover:bg-blue-200 border border-blue-300 text-blue-700 text-[11px] font-extrabold flex items-center justify-center transition-colors cursor-pointer shrink-0 shadow-2xs"
+                        aria-label="Survey help hint"
+                        title="Already filled the survey? Click for help"
+                      >
+                        ?
+                      </button>
+                      {surveyHintOpen && (
+                        <div 
+                          className="absolute right-0 bottom-7 z-20 w-64 p-3 bg-white border border-blue-200 rounded-2xl shadow-xl text-[11px] text-blue-900 leading-relaxed animate-fade-in"
+                          onMouseLeave={() => setSurveyHintOpen(false)}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => setSurveyHintOpen(false)}
+                            className="absolute top-2 right-2 text-blue-400 hover:text-blue-700 cursor-pointer text-xs font-bold"
+                            aria-label="Close hint"
+                          >✕</button>
+                          <strong>Already filled the survey?</strong> Make sure you logged in with the <strong>same email you entered in the form</strong>. Google Forms sync takes 10–30 seconds.
+                        </div>
+                      )}
+                    </div>
+                  </div>
                   {surveySuggestion && (
                     <div className="p-2 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 flex items-start gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
                       <span>AI detected your survey with a slight typo above! Click <strong>&quot;Link My Survey&quot;</strong> to claim.</span>
                     </div>
                   )}
-                  {/* UX-2: Email reminder tip for students who already submitted the form */}
-                  <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-[11px] text-blue-900 flex items-start gap-1.5">
-                    <HelpCircle className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
-                    <span>
-                      <strong>Already filled the survey?</strong> Make sure you logged in to this portal with the <strong>same email you entered in the form</strong>. The name displayed on your certificate will be the name registered with that email. For any name issues, contact admin:{' '}
-                      <a href="mailto:ai.bridge.iiui.fms@gmail.com" className="underline font-semibold text-blue-700 hover:text-blue-900">ai.bridge.iiui.fms@gmail.com</a>
-                    </span>
-                  </div>
                 </div>
               )}
             </div>
           </div>
 
           {/* Step 2 Card */}
-          <div className={`p-5 rounded-2xl border transition-all ${
+          <div className={`p-5 rounded-2xl border-2 transition-all ${
             quizPassed 
-              ? 'bg-emerald-50/60 border-emerald-300' 
+              ? 'bg-amber-50/70 border-amber-600 shadow-sm' 
               : preSurveyCompleted
-              ? 'bg-amber-50/40 border-amber-300'
+              ? 'bg-amber-50/40 border-amber-400'
               : 'bg-slate-50 border-slate-200 opacity-60'
           }`}>
             <div className="flex justify-between items-start mb-3">
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                quizPassed ? 'bg-amber-200/70 text-amber-900 font-extrabold' : 'bg-slate-100 text-slate-700'
+              }`}>
                 Step 2
               </span>
               {quizPassed ? (
@@ -705,15 +732,17 @@ export default function StudentPortal() {
           </div>
 
           {/* Step 3 Card */}
-          <div className={`p-5 rounded-2xl border transition-all ${
+          <div className={`p-5 rounded-2xl border-2 transition-all ${
             postSurveyCompleted 
-              ? 'bg-emerald-50/60 border-emerald-300' 
+              ? 'bg-teal-50/70 border-teal-600 shadow-sm' 
               : quizPassed
-              ? 'bg-teal-50/40 border-teal-300'
+              ? 'bg-teal-50/40 border-teal-400'
               : 'bg-slate-50 border-slate-200 opacity-60'
           }`}>
             <div className="flex justify-between items-start mb-3">
-              <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                postSurveyCompleted ? 'bg-teal-200/70 text-teal-900 font-extrabold' : 'bg-slate-100 text-slate-700'
+              }`}>
                 Step 3
               </span>
               {postSurveyCompleted ? (

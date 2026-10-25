@@ -10,7 +10,8 @@ import {
   Award, 
   CheckCircle2, 
   AlertTriangle,
-  ArrowRight
+  ArrowRight,
+  Phone
 } from 'lucide-react';
 
 interface StudentTipsModalProps {
@@ -97,7 +98,7 @@ export default function StudentTipsModal({ isOpen, onClose }: StudentTipsModalPr
           </div>
 
           {/* Tip 4: Name on Official Certificate */}
-          <div className="p-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 space-y-2">
+          <div className="p-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 space-y-2.5">
             <div className="flex items-center gap-2 text-emerald-900 font-bold text-sm">
               <Award className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>4. Name & Details on Your Certificate</span>
@@ -105,14 +106,36 @@ export default function StudentTipsModal({ isOpen, onClose }: StudentTipsModalPr
             <p className="text-xs text-emerald-950/80 leading-relaxed">
               Your official certificate stamps your name exactly as registered in your Google Profile and survey submission.
             </p>
-            <div className="text-[11px] text-emerald-900 bg-white/80 p-2.5 rounded-xl border border-emerald-200/60 font-medium">
-              📝 <strong>Need a name correction?</strong> If your certificate has a typo or you want your full formal name updated, email admin at:{' '}
-              <a 
-                href="mailto:ai.bridge.iiui.fms@gmail.com" 
-                className="underline font-bold text-emerald-700 hover:text-emerald-900"
-              >
-                ai.bridge.iiui.fms@gmail.com
-              </a>
+            <div className="text-[11px] text-emerald-950 bg-white/90 p-3.5 rounded-xl border border-emerald-200/80 font-medium space-y-2.5">
+              <p className="leading-relaxed">
+                📝 <strong>Need a name correction?</strong> If your certificate has a typo or you want your full formal name updated, contact admin:
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2 text-xs">
+                <a 
+                  href="mailto:ai.bridge.iiui.fms@gmail.com" 
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold transition-colors"
+                >
+                  <Mail className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>ai.bridge.iiui.fms@gmail.com</span>
+                </a>
+                <a
+                  href="https://wa.me/923205722442"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold transition-colors"
+                >
+                  <Phone className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>WhatsApp: 0320-5722442</span>
+                </a>
+              </div>
+              <div className="p-2.5 bg-emerald-50 rounded-lg border border-emerald-200/60 text-emerald-900 space-y-1">
+                <span className="font-bold block text-[11px]">When contacting, please send:</span>
+                <ul className="list-disc list-inside space-y-0.5 text-[11px] pl-1 font-mono text-emerald-800">
+                  <li>Your Certificate ID</li>
+                  <li>Old name (currently on certificate)</li>
+                  <li>Name to be updated (correct full formal name)</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
