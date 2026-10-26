@@ -14,7 +14,8 @@ import {
   Calendar, 
   LogOut, 
   User as UserIcon,
-  Users
+  Users,
+  Share2
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -231,6 +232,14 @@ export default function Navbar() {
                     {/* Navigation Links inside Popdown */}
                     <div className="py-2 space-y-1">
                       <Link
+                        href="/share"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors"
+                      >
+                        <Share2 className="w-4 h-4 text-emerald-600" />
+                        <span>Share AI Bridge</span>
+                      </Link>
+                      <Link
                         href="/portal"
                         onClick={() => setProfileDropdownOpen(false)}
                         className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors"
@@ -268,14 +277,38 @@ export default function Navbar() {
                 )}
               </div>
             ) : (
-              <Link
-                href="/login"
-                className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200/80 shadow-2xs hover:shadow-sm transition-all cursor-pointer"
-                aria-label="Sign In"
-                title="Sign In / Register"
-              >
-                <UserIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-              </Link>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setProfileDropdownOpen(!profileDropdownOpen)}
+                  className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 hover:bg-emerald-50 text-slate-600 hover:text-emerald-700 border border-slate-200/80 shadow-2xs hover:shadow-sm transition-all cursor-pointer"
+                  aria-label="Open profile menu"
+                  aria-expanded={profileDropdownOpen}
+                  title="Share or sign in"
+                >
+                  <UserIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+                {profileDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-64 max-w-[calc(100vw-1.5rem)] bg-white rounded-2xl shadow-xl border border-slate-200/90 py-2 px-2 z-50 animate-fade-in">
+                    <Link
+                      href="/share"
+                      onClick={() => setProfileDropdownOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors"
+                    >
+                      <Share2 className="w-4 h-4 text-emerald-600" />
+                      <span>Share AI Bridge</span>
+                    </Link>
+                    <Link
+                      href="/login"
+                      onClick={() => setProfileDropdownOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                    >
+                      <UserIcon className="w-4 h-4 text-slate-500" />
+                      <span>Sign in</span>
+                    </Link>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
