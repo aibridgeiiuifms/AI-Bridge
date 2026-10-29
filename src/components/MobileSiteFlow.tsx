@@ -14,11 +14,8 @@ const EventsPage = dynamic(() => import('@/components/site-pages/EventsPage'), {
 const PortalPage = dynamic(() => import('@/components/site-pages/PortalPage'), {
   loading: () => <PageLoading label="Loading the portal..." />,
 });
-const ProfilePage = dynamic(() => import('@/components/site-pages/ProfilePage'), {
-  loading: () => <PageLoading label="Loading your profile..." />,
-});
 
-const PAGE_PATHS = ['/', '/team', '/events', '/portal', '/login'] as const;
+const PAGE_PATHS = ['/', '/team', '/events', '/portal'] as const;
 
 interface MobileSiteFlowProps {
   home: ReactNode;
@@ -51,7 +48,6 @@ export default function MobileSiteFlow({ home, routeContent }: MobileSiteFlowPro
     { path: '/team', label: 'Team' },
     { path: '/events', label: 'Gallery' },
     { path: '/portal', label: 'Portal' },
-    { path: '/login', label: 'Profile' },
   ], []);
 
   const registerSection = useCallback((path: string, element: HTMLElement | null) => {
@@ -151,7 +147,6 @@ export default function MobileSiteFlow({ home, routeContent }: MobileSiteFlowPro
       case '/team': return <TeamPage />;
       case '/events': return <EventsPage />;
       case '/portal': return <PortalPage />;
-      case '/login': return <ProfilePage />;
       default: return null;
     }
   };

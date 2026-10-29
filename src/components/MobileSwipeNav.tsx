@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
-const TABS = ['/', '/team', '/events', '/portal', '/login'];
+const TABS = ['/', '/team', '/events', '/portal'];
 
 export default function MobileSwipeNav() {
   const pathname = usePathname();

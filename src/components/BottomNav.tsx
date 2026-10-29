@@ -18,6 +18,8 @@ const NAV_ITEMS = [
   { label: 'Profile',        href: '/login',  icon: UserCircle,    exact: false },
 ] as const;
 
+const CONTINUOUS_PATHS: readonly string[] = ['/', '/team', '/events', '/portal'];
+
 /**
  * Mobile-only bottom tab bar — visible only on screens < lg (1024 px).
  * Mirrors the YouTube-style bottom nav pattern.
@@ -33,8 +35,14 @@ export default function BottomNav() {
         navigator.vibrate(8);
       } catch {}
     }
-    event.preventDefault();
-    window.dispatchEvent(new CustomEvent('mobile-page-navigate', { detail: href }));
+
+    const isCurrentlyContinuous = CONTINUOUS_PATHS.includes(pathname);
+    const isTargetContinuous = CONTINUOUS_PATHS.includes(href);
+
+    if (isCurrentlyContinuous && isTargetContinuous) {
+      event.preventDefault();
+      window.dispatchEvent(new CustomEvent('mobile-page-navigate', { detail: href }));
+    }
   };
 
   return (

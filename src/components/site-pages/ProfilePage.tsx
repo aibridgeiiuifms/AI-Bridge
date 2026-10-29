@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import bridgeLogo from '../../../Assets/logo.jpg';
@@ -9,12 +10,16 @@ import hhpLogo from '../../../Assets/hum hain pak logo.jpg';
 import iiuiLogo from '../../../Assets/IIUI Logo.jpg';
 import sdgLogo from '../../../Assets/SDG Logo.png';
 import SdgLoading from '@/components/SdgLoading';
-import { ShieldCheck, AlertCircle, ArrowRight, CheckCircle2, Sparkles } from 'lucide-react';
+import { ShieldCheck, AlertCircle, ArrowRight, ArrowLeft, CheckCircle2, Sparkles } from 'lucide-react';
 
 export default function ProfilePageContent() {
   const router = useRouter();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const handleGoogleLogin = async () => {
     setErrorMsg(null);
@@ -44,6 +49,17 @@ export default function ProfilePageContent() {
       <div className="absolute -bottom-32 -right-32 w-80 h-80 bg-teal-600/10 rounded-full blur-3xl pointer-events-none" />
 
       <section className="relative z-10 w-full max-w-sm rounded-3xl border border-white/15 bg-slate-900/90 backdrop-blur-xl p-5 sm:p-6 shadow-2xl transition-all duration-300 hover:border-emerald-500/30">
+        {/* Navigation / Back to Home Link */}
+        <div className="mb-3 flex items-center justify-between">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back to Home</span>
+          </Link>
+        </div>
+
         {/* SDG Banner */}
         <div className="mb-4 flex justify-center overflow-hidden rounded-2xl border border-white/10 bg-slate-950/80 p-2 shadow-inner">
           <Image
