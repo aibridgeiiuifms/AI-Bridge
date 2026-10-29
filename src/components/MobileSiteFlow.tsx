@@ -78,6 +78,23 @@ export default function MobileSiteFlow({ home, routeContent }: MobileSiteFlowPro
   useEffect(() => {
     if (!showContinuousFlow || !currentPagePath) return;
 
+    if (typeof window !== 'undefined') {
+      try {
+        const savedScrollY = sessionStorage.getItem('ai_bridge_continuous_scroll_y');
+        if (savedScrollY !== null) {
+          sessionStorage.removeItem('ai_bridge_continuous_scroll_y');
+          const targetY = parseFloat(savedScrollY);
+          if (!isNaN(targetY) && targetY > 0) {
+            requestAnimationFrame(() => {
+              window.scrollTo({ top: targetY, behavior: 'instant' as ScrollBehavior });
+            });
+            loadPath(currentPagePath);
+            return;
+          }
+        }
+      } catch {}
+    }
+
     if (!hasHandledInitialPathRef.current) {
       hasHandledInitialPathRef.current = true;
       if (currentPagePath !== '/') {

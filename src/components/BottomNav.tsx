@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -9,6 +10,7 @@ import {
   GraduationCap,
   UserCircle,
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
 const NAV_ITEMS = [
   { label: 'Home',           href: '/',       icon: Home,          exact: true  },
@@ -23,10 +25,29 @@ const CONTINUOUS_PATHS: readonly string[] = ['/', '/team', '/events', '/portal']
 /**
  * Mobile-only bottom tab bar — visible only on screens < lg (1024 px).
  * Mirrors the YouTube-style bottom nav pattern.
- * Hidden on desktop (lg:hidden).
+ * Hidden on desktop (lg:hidden) and hidden on /login for a dedicated auth screen.
  */
 export default function BottomNav() {
   const pathname = usePathname();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsLoggedIn(Boolean(session?.user));
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(Boolean(session?.user));
+    });
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Dedicated full-screen experience for login
+  if (pathname === '/login') {
+    return null;
+  }
 
   const handleTabClick = (event: React.MouseEvent<HTMLAnchorElement>, href: string) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
@@ -34,6 +55,14 @@ export default function BottomNav() {
       try {
         navigator.vibrate(8);
       } catch {}
+    }
+
+    // When transitioning into /login, preserve continuous scroll offset and reset viewport
+    if (href === '/login' && typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('ai_bridge_continuous_scroll_y', String(window.scrollY));
+      } catch {}
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
     }
 
     const isCurrentlyContinuous = CONTINUOUS_PATHS.includes(pathname);
@@ -64,12 +93,15 @@ export default function BottomNav() {
             ? pathname === href
             : pathname === href || pathname.startsWith(href + '/');
 
+          // Dynamically label the tab "Profile" if logged in, otherwise "Sign In"
+          const displayLabel = href === '/login' ? (isLoggedIn ? 'Profile' : 'Sign In') : label;
+
           return (
             <li key={href} className="flex-1">
               <Link
                 href={href}
                 onClick={(event) => handleTabClick(event, href)}
-                aria-label={label}
+                aria-label={displayLabel}
                 aria-current={isActive ? 'page' : undefined}
                 className="flex flex-col items-center justify-center gap-0.5 h-full w-full transition-colors"
               >
@@ -101,7 +133,7 @@ export default function BottomNav() {
                     isActive ? 'text-emerald-700' : 'text-slate-400',
                   ].join(' ')}
                 >
-                  {label}
+                  {displayLabel}
                 </span>
               </Link>
             </li>

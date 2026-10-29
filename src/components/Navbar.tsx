@@ -300,7 +300,15 @@ export default function Navbar() {
                     </Link>
                     <Link
                       href="/login"
-                      onClick={() => setProfileDropdownOpen(false)}
+                      onClick={() => {
+                        setProfileDropdownOpen(false);
+                        if (typeof window !== 'undefined') {
+                          try {
+                            sessionStorage.setItem('ai_bridge_continuous_scroll_y', String(window.scrollY));
+                          } catch {}
+                          window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+                        }
+                      }}
                       className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                     >
                       <UserIcon className="w-4 h-4 text-slate-500" />

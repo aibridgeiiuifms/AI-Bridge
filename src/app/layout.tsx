@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import ConditionalFooter from '@/components/ConditionalFooter';
 import ChunkLoadRecovery from '@/components/ChunkLoadRecovery';
 import PWAInit from '@/components/PWAInit';
 import BottomNav from '@/components/BottomNav';
@@ -62,9 +63,9 @@ export default function RootLayout({
           <MobileSiteFlow home={<HomePageContent />} routeContent={children} />
           <div className="hidden lg:block">{children}</div>
         </main>
-        <div className="pb-20 lg:pb-0">
+        <ConditionalFooter>
           <Footer />
-        </div>
+        </ConditionalFooter>
         <PWAInstallBanner />
         <BottomNav />
       </body>
