@@ -142,7 +142,12 @@ export default function StudentPortalContent() {
       const res = await fetch(`/api/portal/certificate?format=${format}`);
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        alert(errData.error || 'Failed to generate certificate.');
+        if (res.status === 423 || errData.status === 'issuance_closed') {
+          alert('⏸️ ' + (errData.error || 'Certificate issuance is currently paused by administration.'));
+          setIssuanceClosed(true);
+        } else {
+          alert(errData.error || 'Failed to generate certificate.');
+        }
         return;
       }
       const blob = await res.blob();
@@ -677,6 +682,11 @@ export default function StudentPortalContent() {
                 <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" /> Completed
                 </span>
+              ) : issuanceClosed && !certificate?.certificate_id ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700">
+                  <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  <span>Evaluation Paused</span>
+                </span>
               ) : (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2">
@@ -779,6 +789,11 @@ export default function StudentPortalContent() {
                       <Lock className="w-3.5 h-3.5" /> Retake Unlocks in {formatTimer(cooldownSeconds)}
                     </button>
                   </div>
+                ) : issuanceClosed && !certificate?.certificate_id ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700">
+                    <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span>Evaluation Paused</span>
+                  </span>
                 ) : (
                   <Link
                     href="/portal/quiz"
@@ -826,6 +841,11 @@ export default function StudentPortalContent() {
                 <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1">
                   <CheckCircle2 className="w-3.5 h-3.5" /> Completed
                 </span>
+              ) : issuanceClosed && !certificate?.certificate_id ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-800">
+                  <Lock className="w-3.5 h-3.5 text-teal-700 shrink-0" />
+                  <span>Evaluation Paused</span>
+                </span>
               ) : quizPassed ? (
                 <div className="space-y-2">
                   <button
@@ -857,6 +877,8 @@ export default function StudentPortalContent() {
       <div className={`rounded-3xl p-8 border transition-all ${
         certificate?.certificate_id
           ? 'bg-gradient-to-br from-emerald-900 to-teal-950 text-white border-emerald-700 shadow-xl'
+          : issuanceClosed
+          ? 'bg-white border-amber-300 text-slate-900 shadow-sm'
           : certificateReady
           ? 'bg-gradient-to-br from-amber-950 via-slate-900 to-amber-900 text-white border-amber-500/60 shadow-xl ring-1 ring-amber-400/30'
           : 'bg-white border-slate-200 text-slate-900 shadow-sm'
@@ -866,6 +888,8 @@ export default function StudentPortalContent() {
             <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
               certificate?.certificate_id
                 ? 'bg-emerald-400 text-slate-950'
+                : issuanceClosed
+                ? 'bg-amber-100 text-amber-900 border border-amber-300'
                 : certificateReady
                 ? 'bg-amber-400 text-slate-950 animate-pulse'
                 : 'bg-slate-100 text-slate-700'
@@ -874,21 +898,25 @@ export default function StudentPortalContent() {
               <span>
                 {certificate?.certificate_id
                   ? 'Official Credential Issued'
+                  : issuanceClosed
+                  ? 'Issuance Paused'
                   : certificateReady
                   ? 'Steps Completed • Ready to Generate'
                   : 'Official Verification Certificate'}
               </span>
             </div>
-            <h2 className={`text-2xl font-extrabold ${certificateReady ? 'text-white' : 'text-slate-900'}`}>
+            <h2 className={`text-2xl font-extrabold ${certificate?.certificate_id || (certificateReady && !issuanceClosed) ? 'text-white' : 'text-slate-900'}`}>
               {certificate?.certificate_id
                 ? 'Your Official Certificate is Issued & Verified!'
+                : issuanceClosed
+                ? 'Certificate Issuance is Paused'
                 : certificateReady
                 ? '🎉 Congratulations! Generate Your Official Certificate'
                 : 'Certificate Locked'}
             </h2>
             <div className="flex flex-wrap items-center gap-2.5 text-xs text-amber-300 font-medium">
               <span>Credential Recipient:</span>
-              <span className="font-bold text-white underline">
+              <span className={`font-bold underline ${certificate?.certificate_id || (certificateReady && !issuanceClosed) ? 'text-white' : 'text-slate-900'}`}>
                 {certificate?.recipient_name || profile?.full_name || 'Participant'}
               </span>
               {certificate?.certificate_id && (
@@ -924,7 +952,7 @@ export default function StudentPortalContent() {
             <p className={`text-xs sm:text-sm leading-relaxed ${
               certificate?.certificate_id
                 ? 'text-emerald-100'
-                : certificateReady
+                : (certificateReady && !issuanceClosed)
                 ? 'text-amber-100'
                 : 'text-slate-500'
             }`}>
@@ -936,6 +964,12 @@ export default function StudentPortalContent() {
                   </span>
                   . Download your stamped PDF or view its live public registry entry.
                 </>
+              ) : issuanceClosed ? (
+                certificateReady ? (
+                  'You have successfully satisfied all 3 evaluation requirements! However, official certificate generation is temporarily paused by administration. Your verified progress is safely saved, and you will be able to generate and download your certificate as soon as the window re-opens.'
+                ) : (
+                  (issuanceClosedMessage || 'Certificate issuance and evaluation is currently paused for this phase.') + ' Once the window re-opens, you will be able to complete the remaining steps to earn your certificate.'
+                )
               ) : certificateReady ? (
                 'You have completed all 3 evaluation requirements! Click below to initialize your unique cryptographic serial number and download your stamped PDF certificate.'
               ) : (
@@ -945,29 +979,23 @@ export default function StudentPortalContent() {
           </div>
 
           <div className="w-full lg:w-auto flex justify-center">
-            {certificateReady ? (
+            {certificate?.certificate_id ? (
               <div className="flex flex-col items-center justify-center gap-2.5 w-full max-w-xs sm:max-w-sm">
                 {/* 1. Verify Status (Centered) */}
-                {certificate?.certificate_id ? (
-                  <Link
-                    href={`/verify/${certificate.certificate_id}`}
-                    className="w-full px-5 py-2.5 rounded-xl font-bold text-xs bg-white text-emerald-950 hover:bg-emerald-50 shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer border border-emerald-200"
-                  >
-                    <ShieldCheck className="w-4 h-4 text-emerald-700" />
-                    <span>Verify Status</span>
-                  </Link>
-                ) : null}
+                <Link
+                  href={`/verify/${certificate.certificate_id}`}
+                  className="w-full px-5 py-2.5 rounded-xl font-bold text-xs bg-white text-emerald-950 hover:bg-emerald-50 shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer border border-emerald-200"
+                >
+                  <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                  <span>Verify Status</span>
+                </Link>
 
-                {/* 2. [Pdf Download] [Png Download] (Side by Side, Centered) */}
+                {/* 2. [Pdf Download] [Png Download] */}
                 <div className="flex items-center justify-center gap-2.5 w-full">
                   <button
                     onClick={() => handleDownloadCertificate('pdf')}
                     disabled={downloadingFormat !== null}
-                    className={`flex-1 px-4 py-3 rounded-xl font-bold text-xs shadow-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 ${
-                      certificate?.certificate_id
-                        ? 'bg-emerald-400 text-slate-950 hover:bg-emerald-300'
-                        : 'bg-amber-400 text-slate-950 hover:bg-amber-300'
-                    }`}
+                    className="flex-1 px-4 py-3 rounded-xl font-bold text-xs shadow-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 bg-emerald-400 text-slate-950 hover:bg-emerald-300"
                   >
                     {downloadingFormat === 'pdf' ? (
                       <>
@@ -1001,20 +1029,70 @@ export default function StudentPortalContent() {
                   </button>
                 </div>
 
-                {/* 3. Add to LinkedIn (Centered) */}
-                {certificate?.certificate_id ? (
-                  <a
-                    href={buildLinkedInCertUrl(certificate.certificate_id, certificate.completion_date)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full px-5 py-2.5 rounded-xl font-bold text-xs bg-[#0a66c2] text-white hover:bg-[#004182] shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                {/* 3. Add to LinkedIn */}
+                <a
+                  href={buildLinkedInCertUrl(certificate.certificate_id, certificate.completion_date)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full px-5 py-2.5 rounded-xl font-bold text-xs bg-[#0a66c2] text-white hover:bg-[#004182] shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <svg className="w-3.5 h-3.5 fill-white" viewBox="0 0 24 24">
+                    <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.25V10.9H6.46M7.86 6.54a1.64 1.64 0 1 0 0 3.28 1.64 1.64 0 0 0 0-3.28Z" />
+                  </svg>
+                  <span>Add to LinkedIn</span>
+                </a>
+              </div>
+            ) : issuanceClosed ? (
+              <div className="px-5 py-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 font-semibold text-xs flex flex-col items-center gap-2 text-center max-w-xs shadow-xs">
+                <div className="flex items-center gap-2 font-bold text-amber-950">
+                  <Lock className="w-4 h-4 text-amber-700 shrink-0" />
+                  <span>Issuance Paused</span>
+                </div>
+                <p className="text-[11px] text-amber-800 leading-relaxed font-normal">
+                  {certificateReady
+                    ? 'All 3 steps completed! Generation unlocks when administration re-opens the window.'
+                    : 'New certificate generation is temporarily paused by administration.'}
+                </p>
+              </div>
+            ) : certificateReady ? (
+              <div className="flex flex-col items-center justify-center gap-2.5 w-full max-w-xs sm:max-w-sm">
+                <div className="flex items-center justify-center gap-2.5 w-full">
+                  <button
+                    onClick={() => handleDownloadCertificate('pdf')}
+                    disabled={downloadingFormat !== null}
+                    className="flex-1 px-4 py-3 rounded-xl font-bold text-xs shadow-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 bg-amber-400 text-slate-950 hover:bg-amber-300"
                   >
-                    <svg className="w-3.5 h-3.5 fill-white" viewBox="0 0 24 24">
-                      <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.25V10.9H6.46M7.86 6.54a1.64 1.64 0 1 0 0 3.28 1.64 1.64 0 0 0 0-3.28Z" />
-                    </svg>
-                    <span>Add to LinkedIn</span>
-                  </a>
-                ) : null}
+                    {downloadingFormat === 'pdf' ? (
+                      <>
+                        <SdgLoading size={16} label="Preparing PDF certificate" />
+                        <span>PDF...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4" />
+                        <span>PDF Download</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => handleDownloadCertificate('png')}
+                    disabled={downloadingFormat !== null}
+                    className="flex-1 px-4 py-3 rounded-xl font-bold text-xs shadow-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 bg-teal-300 text-slate-950 hover:bg-teal-200"
+                  >
+                    {downloadingFormat === 'png' ? (
+                      <>
+                        <SdgLoading size={16} label="Preparing certificate image" />
+                        <span>PNG...</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-4 h-4" />
+                        <span>PNG Download</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="px-5 py-3 rounded-xl bg-slate-100 text-slate-500 font-semibold text-xs flex items-center gap-2 border border-slate-200">

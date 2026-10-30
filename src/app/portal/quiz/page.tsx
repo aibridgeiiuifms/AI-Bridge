@@ -351,7 +351,12 @@ export default function QuizPage() {
           setSubmitting(false);
           return;
         }
-        alert(data.error || 'Failed to submit quiz. Please try again.');
+        if (data.error === 'ISSUANCE_CLOSED' || res.status === 423) {
+          setError(data.message || 'Certificate issuance and evaluation is currently paused by administration.');
+          setSubmitting(false);
+          return;
+        }
+        alert(data.message || data.error || 'Failed to submit quiz. Please try again.');
         setSubmitting(false);
         return;
       }
@@ -487,28 +492,52 @@ export default function QuizPage() {
     );
   }
 
-  // 4. Generic Error View
+  // 4. Generic Error / Paused View
   if (error) {
+    const isPaused = error.toLowerCase().includes('paused') || error.toLowerCase().includes('closed');
     return (
-      <div className="max-w-2xl mx-auto px-4 py-16 text-center space-y-4">
-        <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto">
-          <AlertCircle className="w-6 h-6" />
-        </div>
-        <h2 className="text-lg font-bold text-slate-900">Unable to Start Assessment</h2>
-        <p className="text-xs text-slate-600 max-w-md mx-auto">{error}</p>
-        <div className="flex justify-center gap-3 pt-2">
-          <button
-            onClick={() => fetchQuestions(true)}
-            className="px-4 py-2 bg-emerald-700 text-white text-xs font-bold rounded-xl hover:bg-emerald-800 transition-colors cursor-pointer"
-          >
-            Retry Loading
-          </button>
-          <Link
-            href="/portal"
-            className="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-bold rounded-xl hover:bg-slate-200 transition-colors"
-          >
-            Return to Portal
-          </Link>
+      <div className="max-w-2xl mx-auto px-4 py-16 animate-fade-in">
+        <div className={`bg-white border-2 rounded-3xl p-8 shadow-xl text-center space-y-5 ${
+          isPaused ? 'border-amber-300' : 'border-rose-200'
+        }`}>
+          <div className={`w-16 h-16 rounded-3xl flex items-center justify-center mx-auto shadow-sm ${
+            isPaused ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-600'
+          }`}>
+            {isPaused ? <Lock className="w-8 h-8" /> : <AlertCircle className="w-8 h-8" />}
+          </div>
+          <div>
+            <span className={`text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full border ${
+              isPaused 
+                ? 'text-amber-800 bg-amber-100 border-amber-300' 
+                : 'text-rose-800 bg-rose-100 border-rose-300'
+            }`}>
+              {isPaused ? 'Evaluation Window Paused' : 'Assessment Notice'}
+            </span>
+            <h1 className="text-2xl font-extrabold text-slate-900 mt-3">
+              {isPaused ? 'Assessment Window Paused' : 'Unable to Start Assessment'}
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-600 mt-2 max-w-md mx-auto leading-relaxed">
+              {error}
+            </p>
+          </div>
+          <div className="pt-2 flex flex-col sm:flex-row justify-center gap-3">
+            {!isPaused && (
+              <button
+                onClick={() => fetchQuestions(true)}
+                className="px-6 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>Retry Loading</span>
+              </button>
+            )}
+            <Link
+              href="/portal"
+              className="px-6 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-colors flex items-center justify-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Student Portal</span>
+            </Link>
+          </div>
         </div>
       </div>
     );

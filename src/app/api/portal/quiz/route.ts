@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -124,6 +124,19 @@ export async function GET(req: NextRequest) {
 
     const adminSupabase = createAdminClient();
     const userEmail = (user.email || '').trim().toLowerCase();
+
+    // Check if certificate issuance is closed for this user
+    const issuanceStatus = await isIssuanceClosedForUser(adminSupabase, user.id);
+    if (issuanceStatus.isClosed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'ISSUANCE_CLOSED',
+          message: issuanceStatus.message || 'Certificate issuance and evaluation is currently paused by administration.'
+        },
+        { status: 423 }
+      );
+    }
 
     // 0. Fetch dynamic quiz configuration from system_settings (with fallback)
     let TOTAL_QUESTIONS = DEFAULT_TOTAL_QUESTIONS;
@@ -329,6 +342,19 @@ export async function POST(req: NextRequest) {
     const { answers = {}, drawn_question_ids = [], started_at } = body;
 
     const adminSupabase = createAdminClient();
+
+    // Check if certificate issuance is closed for this user
+    const postIssuanceStatus = await isIssuanceClosedForUser(adminSupabase, user.id);
+    if (postIssuanceStatus.isClosed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'ISSUANCE_CLOSED',
+          message: postIssuanceStatus.message || 'Certificate issuance and evaluation is currently paused by administration.'
+        },
+        { status: 423 }
+      );
+    }
 
     // 0. Fetch quiz config from system_settings (for cooldown + total questions)
     let TOTAL_QUESTIONS = DEFAULT_TOTAL_QUESTIONS;

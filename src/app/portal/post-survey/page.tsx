@@ -10,19 +10,32 @@ import {
   Sparkles, 
   CheckCircle2, 
   Info,
-  ArrowRight
+  ArrowRight,
+  Lock
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { trackEvent } from '@/lib/tracking/trackEvent';
 
 export default function PostSurveyPage() {
   const [user, setUser] = useState<any>(null);
+  const [issuanceClosed, setIssuanceClosed] = useState(false);
+  const [issuanceClosedMsg, setIssuanceClosedMsg] = useState('');
 
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user);
     });
+
+    fetch('/api/admin/certificate-toggle')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.issuance_enabled === false) {
+          setIssuanceClosed(true);
+          if (data.closed_message) setIssuanceClosedMsg(data.closed_message);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const openForm = (url: string, role: string) => {
@@ -57,81 +70,111 @@ export default function PostSurveyPage() {
         </p>
       </div>
 
-      <div className="space-y-4">
-        <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-          Select Your Academic Role:
+      {issuanceClosed ? (
+        <div className="bg-amber-50/95 border-2 border-amber-300 rounded-3xl p-8 sm:p-10 shadow-sm text-center space-y-5 animate-fade-in">
+          <div className="w-16 h-16 bg-amber-100 text-amber-700 rounded-3xl flex items-center justify-center mx-auto shadow-sm">
+            <Lock className="w-8 h-8" />
+          </div>
+          <div>
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-900 bg-amber-200/80 px-3 py-1 rounded-full border border-amber-300">
+              Evaluation Window Paused
+            </span>
+            <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 mt-3">
+              Post-Assessment Survey Currently Paused
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-700 mt-2 max-w-lg mx-auto leading-relaxed">
+              {issuanceClosedMsg || 'The evaluation and certificate issuance window for this phase has closed. Survey submissions are currently paused.'}
+            </p>
+          </div>
+          <div className="pt-2 flex justify-center">
+            <Link
+              href="/portal"
+              className="px-6 py-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs transition-colors flex items-center gap-2 shadow-sm"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Return to Student Portal</span>
+            </Link>
+          </div>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* Student Post Assessment */}
-          <div
-            onClick={() => openForm('https://forms.gle/grZEaAsnbYjCsJg68', 'student')}
-            className="group relative flex flex-col justify-between p-6 rounded-3xl border-2 border-emerald-200 bg-white hover:bg-emerald-50/50 hover:border-emerald-600 transition-all cursor-pointer shadow-sm hover:shadow-xl"
-          >
-            <div>
-              <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center mb-4 group-hover:scale-105 transition-transform shadow-md">
-                <GraduationCap className="w-6 h-6" />
-              </div>
-              <div className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-2">
-                Undergraduate & Graduate
-              </div>
-              <h2 className="text-lg font-extrabold text-slate-900 group-hover:text-emerald-800 transition-colors">
-                Student Post-Assessment Survey
-              </h2>
-              <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                Quantifies hours saved per week, confidence boost in understanding core subject materials, and feedback on AI Bridge workshop modules.
-              </p>
+      ) : (
+        <>
+          <div className="space-y-4">
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Select Your Academic Role:
             </div>
 
-            <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
-                Launch Student Google Form <ExternalLink className="w-4 h-4" />
-              </span>
-              <ArrowRight className="w-4 h-4 text-emerald-600 group-hover:translate-x-1 transition-transform" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Student Post Assessment */}
+              <div
+                onClick={() => openForm('https://forms.gle/grZEaAsnbYjCsJg68', 'student')}
+                className="group relative flex flex-col justify-between p-6 rounded-3xl border-2 border-emerald-200 bg-white hover:bg-emerald-50/50 hover:border-emerald-600 transition-all cursor-pointer shadow-sm hover:shadow-xl"
+              >
+                <div>
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center mb-4 group-hover:scale-105 transition-transform shadow-md">
+                    <GraduationCap className="w-6 h-6" />
+                  </div>
+                  <div className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-2">
+                    Undergraduate & Graduate
+                  </div>
+                  <h2 className="text-lg font-extrabold text-slate-900 group-hover:text-emerald-800 transition-colors">
+                    Student Post-Assessment Survey
+                  </h2>
+                  <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                    Quantifies hours saved per week, confidence boost in understanding core subject materials, and feedback on AI Bridge workshop modules.
+                  </p>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                    Launch Student Google Form <ExternalLink className="w-4 h-4" />
+                  </span>
+                  <ArrowRight className="w-4 h-4 text-emerald-600 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+
+              {/* Teacher Post Assessment */}
+              <div
+                onClick={() => openForm('https://forms.gle/BS42ao9pRR1JYfTM9', 'teacher')}
+                className="group relative flex flex-col justify-between p-6 rounded-3xl border-2 border-teal-200 bg-white hover:bg-teal-50/50 hover:border-teal-600 transition-all cursor-pointer shadow-sm hover:shadow-xl"
+              >
+                <div>
+                  <div className="w-12 h-12 rounded-2xl bg-teal-700 text-white flex items-center justify-center mb-4 group-hover:scale-105 transition-transform shadow-md">
+                    <BookOpen className="w-6 h-6" />
+                  </div>
+                  <div className="inline-block px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-800 text-xs font-bold uppercase tracking-wider mb-2">
+                    Faculty & Instructors
+                  </div>
+                  <h2 className="text-lg font-extrabold text-slate-900 group-hover:text-teal-900 transition-colors">
+                    Teacher Post-Assessment Survey
+                  </h2>
+                  <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                    Measures actual weekly teaching prep hours saved, pedagogical enhancement, and institutional curriculum augmentation.
+                  </p>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-xs font-bold text-teal-700 flex items-center gap-1.5">
+                    Launch Teacher Google Form <ExternalLink className="w-4 h-4" />
+                  </span>
+                  <ArrowRight className="w-4 h-4 text-teal-600 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Teacher Post Assessment */}
-          <div
-            onClick={() => openForm('https://forms.gle/BS42ao9pRR1JYfTM9', 'teacher')}
-            className="group relative flex flex-col justify-between p-6 rounded-3xl border-2 border-teal-200 bg-white hover:bg-teal-50/50 hover:border-teal-600 transition-all cursor-pointer shadow-sm hover:shadow-xl"
-          >
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-600 flex items-start gap-3">
+            <Info className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
             <div>
-              <div className="w-12 h-12 rounded-2xl bg-teal-700 text-white flex items-center justify-center mb-4 group-hover:scale-105 transition-transform shadow-md">
-                <BookOpen className="w-6 h-6" />
-              </div>
-              <div className="inline-block px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-800 text-xs font-bold uppercase tracking-wider mb-2">
-                Faculty & Instructors
-              </div>
-              <h2 className="text-lg font-extrabold text-slate-900 group-hover:text-teal-900 transition-colors">
-                Teacher Post-Assessment Survey
-              </h2>
-              <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                Measures actual weekly teaching prep hours saved, pedagogical enhancement, and institutional curriculum augmentation.
+              <p className="font-bold text-slate-800">Email Matching Instructions</p>
+              <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                Please submit the survey with your registered account email
+                {user?.email && <span className="font-semibold text-slate-700"> ({user.email})</span>}.
+                Once received, your final completion requirement will unlock your official verified certificate.
               </p>
             </div>
-
-            <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-xs font-bold text-teal-700 flex items-center gap-1.5">
-                Launch Teacher Google Form <ExternalLink className="w-4 h-4" />
-              </span>
-              <ArrowRight className="w-4 h-4 text-teal-600 group-hover:translate-x-1 transition-transform" />
-            </div>
           </div>
-        </div>
-      </div>
-
-      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-600 flex items-start gap-3">
-        <Info className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-        <div>
-          <p className="font-bold text-slate-800">Email Matching Instructions</p>
-          <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-            Please submit the survey with your registered account email
-            {user?.email && <span className="font-semibold text-slate-700"> ({user.email})</span>}.
-            Once received, your final completion requirement will unlock your official verified certificate.
-          </p>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }
