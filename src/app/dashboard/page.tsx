@@ -58,6 +58,7 @@ import {
 import { compressImageToMaxKB, uploadTeamAvatar } from '@/lib/imageCompression';
 import GalleryManager from '@/components/dashboard/GalleryManager';
 import AdminResourcesPanel from '@/components/dashboard/AdminResourcesPanel';
+import CertificateNameAuditPanel from '@/components/dashboard/CertificateNameAuditPanel';
 import ReportQRManager from '@/components/dashboard/ReportQRManager';
 import SurveyAnalyticsView, { SurveySubTab } from '@/components/dashboard/SurveyAnalyticsView';
 import LiveAnalyticsView, { LiveAnalyticsSubTab } from '@/components/dashboard/LiveAnalyticsView';
@@ -71,6 +72,7 @@ export type DashboardTab =
   | 'mcqs' 
   | 'resources' 
   | 'gallery' 
+  | 'cert_audit'
   | 'reviewer_access';
 
 export default function AdminDashboard() {
@@ -88,6 +90,7 @@ export default function AdminDashboard() {
     departments: false,
     resources: false,
     gallery: false,
+    cert_audit: false,
     reviewer_access: false,
   });
 
@@ -1411,6 +1414,20 @@ export default function AdminDashboard() {
           >
             <Calendar className="w-3.5 h-3.5" />
             <span>Gallery</span>
+          </button>
+        )}
+
+        {isHydrated && isSuperAdmin && (
+          <button
+            onClick={() => setActiveTab('cert_audit')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              activeTab === 'cert_audit'
+                ? 'bg-emerald-700 text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-100 bg-white border border-slate-200'
+            }`}
+          >
+            <History className="w-3.5 h-3.5" />
+            <span>Name Audit</span>
           </button>
         )}
 
@@ -3289,6 +3306,13 @@ export default function AdminDashboard() {
           <AdminResourcesPanel isSuperAdmin={isSuperAdmin} currentUserEmail={currentUserEmail} />
         </div>
       )}
+
+      {/* Tab Content: Certificate Name Audit */}
+      {activeTab === 'cert_audit' && isSuperAdmin && (
+        <div className="space-y-6 animate-fade-in">
+          <CertificateNameAuditPanel />
+        </div>
+      )}
         </main>
 
         {/* ============================================================== */}
@@ -3423,6 +3447,18 @@ export default function AdminDashboard() {
                   visible: isSuperAdmin || canManageGallery,
                   subTabs: [
                     { id: 'albums', label: 'Photo Albums', icon: ImageIcon },
+                  ]
+                },
+                {
+                  id: 'cert_audit' as DashboardTab,
+                  title: 'Name Audit Trail',
+                  subtitle: '1-time corrections log',
+                  badge: 'Security',
+                  badgeClass: 'bg-amber-100 text-amber-900 border-amber-200',
+                  icon: History,
+                  visible: isSuperAdmin,
+                  subTabs: [
+                    { id: 'logs', label: 'Name Changes Log', icon: History },
                   ]
                 },
                 {

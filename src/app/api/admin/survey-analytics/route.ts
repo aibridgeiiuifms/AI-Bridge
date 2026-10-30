@@ -242,7 +242,7 @@ export async function GET(req: NextRequest) {
       fetchAllRows(admin, 'teacher_surveys', 'id, teacher_email, full_name, survey_type, dept_code, designation, teaching_experience, hours_saved_category, ai_familiarity_rating, answers, submitted_at'),
       fetchAllRows(admin, 'department_mappings', 'code, standard_dept_name, faculty_name, faculty_code'),
       fetchAllRows(admin, 'quiz_attempts', 'id, score, total_questions, passing_score, passed, completed_at'),
-      fetchAllRows(admin, 'certificates', 'id, certificate_id, recipient_name, department, completion_date, created_at'),
+      fetchAllRows(admin, 'certificates', 'id, certificate_id, recipient_name, department, completion_date, created_at, name_change_used, old_name, name_changed_at, name_change_reason'),
       admin.from('system_settings').select('value').eq('key', 'survey_dashboard_chart_permissions').maybeSingle(),
     ]);
 
@@ -555,6 +555,9 @@ export async function GET(req: NextRequest) {
       recipient_name: authCheck.isReviewer ? maskEmail(c.recipient_name) : c.recipient_name,
       department: c.department || 'Management Sciences (FMS)',
       completion_date: c.completion_date,
+      name_change_used: Boolean(c.name_change_used),
+      old_name: c.old_name || null,
+      name_changed_at: c.name_changed_at || null,
     }));
 
     // Top AI assets

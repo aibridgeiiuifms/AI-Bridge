@@ -820,7 +820,17 @@ export default function SurveyAnalyticsView({
                 {recentCertificates.map((c: any, idx: number) => (
                   <div key={idx} className="py-2.5 flex items-center justify-between text-xs">
                     <div>
-                      <p className="font-extrabold text-slate-900 truncate max-w-[200px]">{c.recipient_name}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-extrabold text-slate-900 truncate max-w-[200px]">{c.recipient_name}</p>
+                        {c.name_change_used && (
+                          <span 
+                            className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-amber-100 text-amber-900 border border-amber-300"
+                            title={`Name updated from "${c.old_name || 'initial name'}"`}
+                          >
+                            Edited (1x)
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] text-slate-500">{c.department}</p>
                     </div>
                     <div className="text-right">

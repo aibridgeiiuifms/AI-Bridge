@@ -79,6 +79,10 @@ CREATE TABLE public.certificates (
   issued_by text DEFAULT 'Dr. Abdul Zahid Khan (Chairperson, TPM Department, FMS IIUI)'::text,
   issued_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
   created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  name_change_used boolean NOT NULL DEFAULT false,
+  name_changed_at timestamp with time zone,
+  old_name text,
+  name_change_reason text,
   CONSTRAINT certificates_pkey PRIMARY KEY (id),
   CONSTRAINT certificates_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.profiles(id)
 );

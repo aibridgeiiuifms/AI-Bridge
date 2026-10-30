@@ -19,12 +19,14 @@ import {
   RefreshCw,
   Sparkles,
   Info,
-  Clock
+  Clock,
+  Edit3
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { trackEvent } from '@/lib/tracking/trackEvent';
 import SurveySelectionModal from '@/components/SurveySelectionModal';
 import StudentTipsModal from '@/components/StudentTipsModal';
+import EditCertNameModal from '@/components/EditCertNameModal';
 import ResourcesHub from '@/components/ResourcesHub';
 import PortalSkeleton from '@/components/skeletons/PortalSkeleton';
 import SdgLoading from '@/components/SdgLoading';
@@ -83,6 +85,8 @@ export default function StudentPortalContent() {
   const [downloadingFormat, setDownloadingFormat] = useState<'pdf' | 'png' | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshToast, setRefreshToast] = useState<string | null>(null);
+  const [editNameModalOpen, setEditNameModalOpen] = useState(false);
+  const [nameUpdatedToast, setNameUpdatedToast] = useState<string | null>(null);
 
   // AI Typo Detection State
   const [surveySuggestion, setSurveySuggestion] = useState<any>(null);
@@ -822,9 +826,41 @@ export default function StudentPortalContent() {
                 ? '🎉 Congratulations! Generate Your Official Certificate'
                 : 'Certificate Locked'}
             </h2>
-            <div className="text-xs text-amber-300 font-medium">
-              Credential Recipient: <span className="font-bold text-white underline">{certificate?.student_name || profile?.full_name || 'Participant'}</span>
+            <div className="flex flex-wrap items-center gap-2.5 text-xs text-amber-300 font-medium">
+              <span>Credential Recipient:</span>
+              <span className="font-bold text-white underline">
+                {certificate?.recipient_name || certificate?.student_name || profile?.full_name || 'Participant'}
+              </span>
+              {certificate?.certificate_id && (
+                certificate?.name_change_used ? (
+                  <span 
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-900/80 text-emerald-300 border border-emerald-500/40"
+                    title={`1-time name correction finalized${certificate.name_changed_at ? ' on ' + new Date(certificate.name_changed_at).toLocaleDateString() : ''}`}
+                  >
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                    <span>Name Finalized (1/1 Used)</span>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setEditNameModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-400 text-slate-950 hover:bg-amber-300 transition-all cursor-pointer shadow-xs active:scale-95"
+                    title="Correct spelling or add formal name (1-time allowed)"
+                  >
+                    <Edit3 className="w-3 h-3" />
+                    <span>Correct Name (1-Time Only)</span>
+                  </button>
+                )
+              )}
             </div>
+
+            {nameUpdatedToast && (
+              <div className="p-3 bg-emerald-500/20 border border-emerald-400/50 rounded-xl text-xs font-semibold text-emerald-200 flex items-center gap-2 animate-fade-in">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{nameUpdatedToast}</span>
+              </div>
+            )}
+
             <p className={`text-xs sm:text-sm leading-relaxed ${
               certificate?.certificate_id
                 ? 'text-emerald-100'
@@ -940,6 +976,25 @@ export default function StudentPortalContent() {
         surveyType={activeSurveyType}
         userEmail={user?.email}
       />
+
+{/* 1-Time Certificate Recipient Name Correction Modal */}
+      {certificate?.certificate_id && (
+        <EditCertNameModal
+          isOpen={editNameModalOpen}
+          onClose={() => setEditNameModalOpen(false)}
+          currentName={certificate?.recipient_name || certificate?.student_name || profile?.full_name || ''}
+          certificateId={certificate.certificate_id}
+          onSuccess={(updatedCert) => {
+            setCertificate(updatedCert);
+            if (profile) {
+              setProfile((prev: any) => ({ ...prev, full_name: updatedCert.recipient_name }));
+            }
+            setNameUpdatedToast('🎉 Official name successfully updated to: ' + updatedCert.recipient_name + '. Your certificate has been permanently updated.');
+            setTimeout(() => setNameUpdatedToast(null), 8000);
+            checkCertificationProgress(false);
+          }}
+        />
+      )}
 
       {/* Student Tips & Help Guide Modal */}
       <StudentTipsModal

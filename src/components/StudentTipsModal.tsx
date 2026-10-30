@@ -108,7 +108,10 @@ export default function StudentTipsModal({ isOpen, onClose }: StudentTipsModalPr
             </p>
             <div className="text-[11px] text-emerald-950 bg-white/90 p-3.5 rounded-xl border border-emerald-200/80 font-medium space-y-2.5">
               <p className="leading-relaxed">
-                📝 <strong>Need a name correction?</strong> If your certificate has a typo or you want your full formal name updated, contact admin:
+                ⚡ <strong>Instant 1-Time Self-Correction:</strong> You can directly correct typos or update to your full formal degree name by clicking the <strong>&quot;Correct Name (1-Time Only)&quot;</strong> button on your Certificate Card below.
+              </p>
+              <p className="leading-relaxed text-slate-600">
+                📝 <strong>Need further corrections or already used your 1-time edit?</strong> Email or WhatsApp admin:
               </p>
               <div className="flex flex-col sm:flex-row gap-2 text-xs">
                 <a 
