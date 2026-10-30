@@ -53,7 +53,8 @@ import {
   Building2,
   ChevronRight,
   Compass,
-  TrendingUp
+  TrendingUp,
+  Smartphone
 } from 'lucide-react';
 import { compressImageToMaxKB, uploadTeamAvatar } from '@/lib/imageCompression';
 import GalleryManager from '@/components/dashboard/GalleryManager';
@@ -64,6 +65,7 @@ import ReportQRManager from '@/components/dashboard/ReportQRManager';
 import SurveyAnalyticsView, { SurveySubTab } from '@/components/dashboard/SurveyAnalyticsView';
 import LiveAnalyticsView, { LiveAnalyticsSubTab } from '@/components/dashboard/LiveAnalyticsView';
 import SdgLoading from '@/components/SdgLoading';
+import MobileDisplaySettingsPanel from '@/components/dashboard/MobileDisplaySettingsPanel';
 
 export type DashboardTab = 
   | 'survey_impact' 
@@ -74,7 +76,8 @@ export type DashboardTab =
   | 'resources' 
   | 'gallery' 
   | 'cert_audit'
-  | 'reviewer_access';
+  | 'reviewer_access'
+  | 'site_display';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<DashboardTab>('survey_impact');
@@ -93,6 +96,7 @@ export default function AdminDashboard() {
     gallery: false,
     cert_audit: false,
     reviewer_access: false,
+    site_display: false,
   });
 
   const toggleAllAccordions = (expand: boolean) => {
@@ -105,6 +109,7 @@ export default function AdminDashboard() {
       resources: expand,
       gallery: expand,
       reviewer_access: expand,
+      site_display: expand,
     });
   };
   const handleVisibleSurveySubTabsChange = useCallback((tabs: SurveySubTab[]) => {
@@ -747,7 +752,7 @@ export default function AdminDashboard() {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get('tab');
-      if (tabParam && ['metrics', 'participants', 'mcqs', 'team', 'audit', 'gallery', 'resources', 'survey_impact', 'live_analytics', 'departments', 'reviewer_access'].includes(tabParam)) {
+      if (tabParam && ['metrics', 'participants', 'mcqs', 'team', 'audit', 'gallery', 'resources', 'survey_impact', 'live_analytics', 'departments', 'reviewer_access', 'site_display'].includes(tabParam)) {
         if (tabParam === 'audit') {
           setActiveTab('mcqs');
           setShowAuditModal(true);
@@ -1478,6 +1483,20 @@ export default function AdminDashboard() {
           >
             <QrCode className="w-3.5 h-3.5" />
             <span>Report QR</span>
+          </button>
+        )}
+
+        {isHydrated && isSuperAdmin && (
+          <button
+            onClick={() => setActiveTab('site_display')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+              activeTab === 'site_display'
+                ? 'bg-emerald-700 text-white shadow-sm'
+                : 'text-slate-600 hover:bg-slate-100 bg-white border border-slate-200'
+            }`}
+          >
+            <Smartphone className="w-3.5 h-3.5" />
+            <span>Mobile Display</span>
           </button>
         )}
       </div>
@@ -3368,6 +3387,10 @@ export default function AdminDashboard() {
           <CertificateNameAuditPanel />
         </div>
       )}
+
+      {activeTab === 'site_display' && isSuperAdmin && (
+        <MobileDisplaySettingsPanel />
+      )}
         </main>
 
         {/* ============================================================== */}
@@ -3527,6 +3550,18 @@ export default function AdminDashboard() {
                   subTabs: [
                     { id: 'qr_settings', label: 'Report QR & Password', icon: Lock },
                     { id: 'matrix', label: 'Chart Visibility Matrix', icon: Eye },
+                  ]
+                },
+                {
+                  id: 'site_display' as DashboardTab,
+                  title: 'Mobile Website Display',
+                  subtitle: 'Continuous or separate pages',
+                  badge: 'Mobile',
+                  badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                  icon: Smartphone,
+                  visible: isSuperAdmin,
+                  subTabs: [
+                    { id: 'mode', label: 'Navigation Mode', icon: Smartphone },
                   ]
                 },
               ].filter(item => item.visible).map((item) => {

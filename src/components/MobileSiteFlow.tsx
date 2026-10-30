@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import SdgLoading from '@/components/SdgLoading';
+import { useMobileNavigationMode } from '@/components/MobileNavigationModeProvider';
 
 const TeamPage = dynamic(() => import('@/components/site-pages/TeamPage'), {
   loading: () => <PageLoading label="Loading the team..." />,
@@ -34,6 +35,7 @@ function PageLoading({ label }: { label: string }) {
 export default function MobileSiteFlow({ home, routeContent }: MobileSiteFlowProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { mode, ready, loadError } = useMobileNavigationMode();
   const sectionsRef = useRef<Map<string, HTMLElement>>(new Map());
   const loadedPathsRef = useRef(new Set<string>(['/']));
   const scrollDrivenRouteChangeRef = useRef(false);
@@ -41,7 +43,7 @@ export default function MobileSiteFlow({ home, routeContent }: MobileSiteFlowPro
   const [loadedPaths, setLoadedPaths] = useState<Set<string>>(() => new Set(['/']));
 
   const currentPagePath = PAGE_PATHS.find((path) => pathname === path);
-  const showContinuousFlow = Boolean(currentPagePath);
+  const showContinuousFlow = ready && mode === 'continuous' && Boolean(currentPagePath);
 
   const pages = useMemo(() => [
     { path: '/', label: 'Home' },
@@ -74,6 +76,15 @@ export default function MobileSiteFlow({ home, routeContent }: MobileSiteFlowPro
     for (const section of sectionsRef.current.values()) observer.observe(section);
     return () => observer.disconnect();
   }, [loadPath, showContinuousFlow, pages]);
+
+  useEffect(() => {
+    if (!ready || mode === 'continuous') return;
+    try {
+      sessionStorage.removeItem('ai_bridge_continuous_scroll_y');
+    } catch (error) {
+      console.error('Could not clear the saved continuous-scroll position:', error);
+    }
+  }, [mode, ready]);
 
   useEffect(() => {
     if (!showContinuousFlow || !currentPagePath) return;
@@ -153,8 +164,25 @@ export default function MobileSiteFlow({ home, routeContent }: MobileSiteFlowPro
     return () => window.removeEventListener('mobile-page-navigate', onNavigate);
   }, [loadPath, router]);
 
+  if (!ready && currentPagePath) {
+    return (
+      <div className="flex min-h-[calc(100svh-4rem)] items-center justify-center lg:hidden">
+        <SdgLoading size={36} label="Loading mobile display setting" />
+      </div>
+    );
+  }
+
   if (!showContinuousFlow) {
-    return <div className="lg:hidden">{routeContent}</div>;
+    return (
+      <div className="lg:hidden">
+        {loadError && currentPagePath && (
+          <p role="status" className="mx-3 mt-3 rounded-xl bg-amber-50 p-3 text-xs font-medium text-amber-900">
+            {loadError}
+          </p>
+        )}
+        {routeContent}
+      </div>
+    );
   }
 
   const contentFor = (path: string) => {
@@ -170,6 +198,11 @@ export default function MobileSiteFlow({ home, routeContent }: MobileSiteFlowPro
 
   return (
     <div className="mobile-site-flow lg:hidden">
+      {loadError && (
+        <p role="status" className="mx-3 mt-3 rounded-xl bg-amber-50 p-3 text-xs font-medium text-amber-900">
+          {loadError}
+        </p>
+      )}
       {pages.map(({ path, label }) => (
         <section
           key={path}

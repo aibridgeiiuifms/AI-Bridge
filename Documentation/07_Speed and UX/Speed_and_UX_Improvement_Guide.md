@@ -394,6 +394,19 @@ useEffect(() => {
 
 > **Impact:** App feels native on mobile. Reduces friction between sections.
 
+### C — Admin-Controlled Mobile Page Mode
+
+The mobile website can use either continuous scrolling or separate pages. Desktop remains unchanged in both modes.
+
+- The setting is stored as `site_navigation_mode` in `system_settings`.
+- `continuous` is the default and preserves the existing stacked Home, Team, Gallery, and Portal flow.
+- `separate` renders each route as its own mobile page; the bottom navigation remains available.
+- Only administrators can change the setting from **Dashboard → Mobile Display**.
+- The public API validates the saved value. If the setting cannot be loaded, the site reports the problem and temporarily uses continuous mode.
+- Apply `supabase/026_mobile_navigation_mode.sql` before deploying. It seeds the default without overwriting an existing choice.
+
+After an administrator saves a new mode, newly opened pages use it; already-open pages refresh the setting when they become visible again.
+
 ---
 
 ## 11. Optimistic UI on Portal

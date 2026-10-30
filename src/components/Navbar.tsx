@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { hasAmbassadorPortalRole } from '@/lib/access';
 import SdgLoading from '@/components/SdgLoading';
+import { useMobileNavigationMode } from '@/components/MobileNavigationModeProvider';
 import { 
   Sparkles, 
   LayoutDashboard, 
@@ -21,6 +22,7 @@ import {
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { mode, ready: mobileModeReady } = useMobileNavigationMode();
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -302,7 +304,7 @@ export default function Navbar() {
                       href="/login"
                       onClick={() => {
                         setProfileDropdownOpen(false);
-                        if (typeof window !== 'undefined') {
+                        if (typeof window !== 'undefined' && mobileModeReady && mode === 'continuous') {
                           try {
                             sessionStorage.setItem('ai_bridge_continuous_scroll_y', String(window.scrollY));
                           } catch {}

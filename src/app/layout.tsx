@@ -10,6 +10,7 @@ import BottomNav from '@/components/BottomNav';
 import PWAInstallBanner from '@/components/PWAInstallBanner';
 import MobileSwipeNav from '@/components/MobileSwipeNav';
 import MobileSiteFlow from '@/components/MobileSiteFlow';
+import { MobileNavigationModeProvider } from '@/components/MobileNavigationModeProvider';
 import HomePageContent from '@/components/site-pages/HomePage';
 import AnalyticsProvider from '@/components/AnalyticsProvider';
 
@@ -58,16 +59,18 @@ export default function RootLayout({
         <PWAInit />
         <MobileSwipeNav />
         <ChunkLoadRecovery />
-        <Navbar />
-        <main className="flex-1">
-          <MobileSiteFlow home={<HomePageContent />} routeContent={children} />
-          <div className="hidden lg:block">{children}</div>
-        </main>
+        <MobileNavigationModeProvider>
+          <Navbar />
+          <main className="flex-1">
+            <MobileSiteFlow home={<HomePageContent />} routeContent={children} />
+            <div className="hidden lg:block">{children}</div>
+          </main>
+          <BottomNav />
+        </MobileNavigationModeProvider>
         <ConditionalFooter>
           <Footer />
         </ConditionalFooter>
         <PWAInstallBanner />
-        <BottomNav />
       </body>
     </html>
   );

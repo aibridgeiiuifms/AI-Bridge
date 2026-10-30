@@ -11,6 +11,7 @@ import {
   UserCircle,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { useMobileNavigationMode } from '@/components/MobileNavigationModeProvider';
 
 const NAV_ITEMS = [
   { label: 'Home',           href: '/',       icon: Home,          exact: true  },
@@ -29,6 +30,7 @@ const CONTINUOUS_PATHS: readonly string[] = ['/', '/team', '/events', '/portal']
  */
 export default function BottomNav() {
   const pathname = usePathname();
+  const { mode, ready } = useMobileNavigationMode();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
@@ -58,7 +60,7 @@ export default function BottomNav() {
     }
 
     // When transitioning into /login, preserve continuous scroll offset and reset viewport
-    if (href === '/login' && typeof window !== 'undefined') {
+    if (href === '/login' && mode === 'continuous' && typeof window !== 'undefined') {
       try {
         sessionStorage.setItem('ai_bridge_continuous_scroll_y', String(window.scrollY));
       } catch {}
@@ -68,7 +70,7 @@ export default function BottomNav() {
     const isCurrentlyContinuous = CONTINUOUS_PATHS.includes(pathname);
     const isTargetContinuous = CONTINUOUS_PATHS.includes(href);
 
-    if (isCurrentlyContinuous && isTargetContinuous) {
+    if (ready && mode === 'continuous' && isCurrentlyContinuous && isTargetContinuous) {
       event.preventDefault();
       window.dispatchEvent(new CustomEvent('mobile-page-navigate', { detail: href }));
     }
