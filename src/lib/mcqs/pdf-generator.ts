@@ -365,7 +365,6 @@ export async function generateMcqPoolPdf(
     // Options
     for (const opt of wrappedOptions) {
       if (opt.isCorrect) {
-        const badgeWidth = fontBold.widthOfTextAtSize('[CORRECT ANSWER]', 7);
         const boxH = opt.lines.length * 13 + 6;
         page.drawRectangle({
           x: MARGIN_X + 6,
@@ -378,30 +377,13 @@ export async function generateMcqPoolPdf(
         });
         for (let li = 0; li < opt.lines.length; li++) {
           const lineText = opt.lines[li];
-          const lineWidth = fontBold.widthOfTextAtSize(lineText, 8.5);
-          const maxLineX = MARGIN_X + 12;
-          const badgeX = Math.min(maxLineX + lineWidth + 6, PAGE_WIDTH - MARGIN_X - badgeWidth - 10);
           page.drawText(lineText, {
-            x: maxLineX,
+            x: MARGIN_X + 12,
             y: y - 2,
             size: 8.5,
             font: fontBold,
             color: cEmeraldDark,
           });
-          if (li === 0) {
-            // Draw badge clipped to right margin
-            page.drawRectangle({
-              x: badgeX - 3, y: y - 5, width: badgeWidth + 6, height: 10,
-              color: cEmeraldMed, borderWidth: 0,
-            });
-            page.drawText('[CORRECT ANSWER]', {
-              x: badgeX,
-              y: y - 3,
-              size: 7,
-              font: fontBold,
-              color: rgb(1, 1, 1),
-            });
-          }
           y -= 13;
         }
         y -= 3;
