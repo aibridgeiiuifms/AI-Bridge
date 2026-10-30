@@ -1,8 +1,9 @@
-import Image from 'next/image';
+﻿import Image from 'next/image';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { getCurrentUser, getCurrentUserProfile } from '@/lib/supabase/queries';
 import { hasAmbassadorPortalRole } from '@/lib/access';
+import { createAdminClient } from '@/lib/supabase/admin';
 import HighlightsCarouselSkeleton from '@/components/skeletons/HighlightsCarouselSkeleton';
 import SdgWheelSkeleton from '@/components/skeletons/SdgWheelSkeleton';
 
@@ -34,13 +35,30 @@ import {
   GraduationCap, 
   BookOpen, 
   Award,
-  CalendarDays
+  CalendarDays,
+  Lock
 } from 'lucide-react';
 
 export default async function HomePageContent() {
   const user = await getCurrentUser();
   const profile = user ? await getCurrentUserProfile(user.id) : null;
   const canAccessAmbassadorPortal = hasAmbassadorPortalRole(profile?.role);
+
+  // Fetch certificate issuance toggle (server-side)
+  let issuanceClosed = false;
+  let issuanceClosedMsg = '';
+  try {
+    const adminDb = createAdminClient();
+    const { data: toggleRow } = await adminDb
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'certificate_issuance')
+      .maybeSingle();
+    if (toggleRow?.value?.issuance_enabled === false) {
+      issuanceClosed = true;
+      issuanceClosedMsg = toggleRow.value.closed_message || 'The certification window for this phase has closed. Thank you for your participation.';
+    }
+  } catch { /* non-blocking */ }
 
   return (
     <div className="space-y-8 pb-8 sm:space-y-16 sm:pb-16 lg:space-y-20 lg:pb-20">
@@ -153,10 +171,17 @@ export default async function HomePageContent() {
               </p>
             </div>
             <div className="pt-2 sm:pt-3 border-t border-slate-100 flex items-center justify-between gap-1 text-[9px] sm:text-xs font-semibold text-emerald-700">
-              <Link href="/portal/pre-survey" className="hover:underline flex items-center gap-0.5 truncate">
-                <span className="truncate">Open Form</span>
-                <span>→</span>
-              </Link>
+              {issuanceClosed ? (
+                <span className="flex items-center gap-1 text-[9px] sm:text-xs font-semibold text-amber-700">
+                  <Lock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-600 shrink-0" />
+                  <span className="truncate">Window Paused</span>
+                </span>
+              ) : (
+                <Link href="/portal/pre-survey" className="hover:underline flex items-center gap-0.5 truncate">
+                  <span className="truncate">Open Form</span>
+                  <span>→</span>
+                </Link>
+              )}
               <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 text-emerald-600" />
             </div>
           </div>
@@ -199,15 +224,27 @@ export default async function HomePageContent() {
               </p>
             </div>
             <div className="pt-2 sm:pt-3 border-t border-slate-100 flex items-center justify-between gap-1 text-[9px] sm:text-xs font-semibold text-teal-700">
-              <Link href="/portal/post-survey" className="hover:underline flex items-center gap-0.5 truncate">
-                <span className="truncate">Open Form</span>
-                <span>→</span>
-              </Link>
+              {issuanceClosed ? (
+                <span className="flex items-center gap-1 text-[9px] sm:text-xs font-semibold text-teal-700">
+                  <Lock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-teal-600 shrink-0" />
+                  <span className="truncate">Window Paused</span>
+                </span>
+              ) : (
+                <Link href="/portal/post-survey" className="hover:underline flex items-center gap-0.5 truncate">
+                  <span className="truncate">Open Form</span>
+                  <span>→</span>
+                </Link>
+              )}
               <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0 text-teal-600" />
             </div>
           </div>
         </div>
 
+        {issuanceClosed && (
+          <div className="mt-3 sm:mt-5 p-3 sm:p-4 bg-amber-50 border border-amber-300 rounded-xl sm:rounded-2xl text-center text-[10px] sm:text-xs text-amber-900 font-medium">
+            <span className="font-bold">⏸️ Certification Paused:</span> {issuanceClosedMsg}
+          </div>
+        )}
         <div className="mt-4 sm:mt-8 text-center">
           <Link
             href="/portal"
