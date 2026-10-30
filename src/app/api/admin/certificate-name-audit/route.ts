@@ -5,7 +5,11 @@ import { formatCertificateName } from '@/lib/certificate/generator';
 
 export const dynamic = 'force-dynamic';
 
-async function verifyAdminAccess() {
+type AdminAuthSuccess = { authorized: true; user: any; email: string; adminClient: ReturnType<typeof createAdminClient> };
+type AdminAuthFailure = { authorized: false; error: string; status: number; adminClient?: never };
+type AdminAuthResult = AdminAuthSuccess | AdminAuthFailure;
+
+async function verifyAdminAccess(): Promise<AdminAuthResult> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 

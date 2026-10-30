@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
@@ -159,7 +159,9 @@ export default function QuizPage() {
           return;
         }
 
-        if (data.error === 'PRE_SURVEY_REQUIRED') {
+        if (data.error === 'ISSUANCE_CLOSED') {
+          setError(data.message || 'Certificate issuance and evaluation is currently paused by administration.');
+        } else if (data.error === 'PRE_SURVEY_REQUIRED') {
           setPreSurveyMissing(true);
         } else {
           setError(data.error || 'Failed to load assessment questions.');

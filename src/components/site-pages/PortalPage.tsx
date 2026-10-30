@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -94,6 +94,10 @@ export default function StudentPortalContent() {
   const [claimToast, setClaimToast] = useState<string | null>(null);
   const [surveyHintOpen, setSurveyHintOpen] = useState(false);
 
+  // Certificate Issuance Window Toggle
+  const [issuanceClosed, setIssuanceClosed] = useState(false);
+  const [issuanceClosedMessage, setIssuanceClosedMessage] = useState<string>('');
+
   const handleClaimSurvey = async (surveyId: string, participantType: string) => {
     setIsClaiming(true);
     // Optimistic UI: Immediately mark completed and dismiss banner
@@ -176,6 +180,18 @@ export default function StudentPortalContent() {
     if (showToast) setIsRefreshing(true);
     const supabase = createClient();
     try {
+      // Fetch issuance toggle state (non-blocking)
+      try {
+        const toggleRes = await fetch('/api/admin/certificate-toggle');
+        const toggleData = await toggleRes.json();
+        if (toggleData.success && toggleData.issuance_enabled === false) {
+          setIssuanceClosed(true);
+          setIssuanceClosedMessage(toggleData.closed_message || 'The certification window is currently closed. Please check back later.');
+        } else {
+          setIssuanceClosed(false);
+        }
+      } catch (_) { /* non-blocking */ }
+
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
 
@@ -477,6 +493,50 @@ export default function StudentPortalContent() {
 
       {/* Learning Resources Hub */}
       <ResourcesHub />
+
+      {/* Polite Certification Paused Notice (When Admin master switch is OFF and user has no cert yet) */}
+      {issuanceClosed && !certificate?.certificate_id && (
+        <div className="bg-amber-50/95 border-2 border-amber-300 rounded-3xl p-6 sm:p-8 shadow-sm space-y-4 animate-fade-in">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-amber-200/80">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-2xl bg-amber-200/80 text-amber-900 shrink-0">
+                <Lock className="w-6 h-6 text-amber-800" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base sm:text-lg font-extrabold text-amber-950">
+                    Certification Window Paused
+                  </h2>
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-900 border border-amber-300">
+                    Official Notice
+                  </span>
+                </div>
+                <p className="text-xs text-amber-800/90 mt-0.5">
+                  Notice from The AI Bridge Administration
+                </p>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-amber-900 bg-amber-100 border border-amber-300 px-3 py-1 rounded-xl self-start sm:self-auto">
+              New Issuance Paused
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-xs sm:text-sm text-amber-950 leading-relaxed font-medium">
+              {issuanceClosedMessage || 'The evaluation and certificate issuance window for this phase has closed. Thank you for your participation.'}
+            </p>
+            <div className="p-3.5 bg-white/80 border border-amber-200/80 rounded-2xl text-xs text-amber-900 space-y-1">
+              <p className="font-semibold text-amber-950 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-700" />
+                <span>Already have an issued certificate?</span>
+              </p>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                If your certificate was already issued in an earlier session, it remains completely active. You can verify it via QR code, share it to LinkedIn, or download it anytime below.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Progress Stepper Bar */}
       <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">

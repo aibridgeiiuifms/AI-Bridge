@@ -90,6 +90,18 @@ export async function GET(req: NextRequest) {
         }
 
         if (!issueResult?.success) {
+          // If certificate issuance is currently closed/paused by administration
+          if (issueResult?.status === 'issuance_closed') {
+            return NextResponse.json(
+              {
+                success: false,
+                status: 'issuance_closed',
+                error: issueResult?.error || 'Certificate issuance is currently paused by administration.',
+              },
+              { status: 423 }
+            );
+          }
+
           return NextResponse.json(
             {
               error: issueResult?.error || 'All 3 evaluation gates must be completed to unlock your certificate.',

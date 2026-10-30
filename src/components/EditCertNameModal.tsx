@@ -13,7 +13,7 @@ import {
   Lock
 } from 'lucide-react';
 import SdgLoading from '@/components/SdgLoading';
-import { formatCertificateName } from '@/lib/certificate/generator';
+import { formatCertificateName } from '@/lib/certificate/name-formatter';
 
 interface EditCertNameModalProps {
   isOpen: boolean;

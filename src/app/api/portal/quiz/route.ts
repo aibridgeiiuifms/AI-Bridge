@@ -1,8 +1,36 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
+
+async function isIssuanceClosedForUser(adminSupabase: any, userId: string): Promise<{ isClosed: boolean; message?: string }> {
+  try {
+    const { data: toggleRow } = await adminSupabase
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'certificate_issuance')
+      .maybeSingle();
+
+    if (toggleRow?.value?.issuance_enabled === false) {
+      const { data: existingCert } = await adminSupabase
+        .from('certificates')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (!existingCert) {
+        return {
+          isClosed: true,
+          message: toggleRow.value.closed_message || 'Certificate issuance and evaluation is currently paused by administration.'
+        };
+      }
+    }
+  } catch {
+    // Non-blocking fallback
+  }
+  return { isClosed: false };
+}
 
 const CONFIG_KEY = 'quiz_category_config';
 

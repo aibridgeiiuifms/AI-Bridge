@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
@@ -59,6 +59,7 @@ import { compressImageToMaxKB, uploadTeamAvatar } from '@/lib/imageCompression';
 import GalleryManager from '@/components/dashboard/GalleryManager';
 import AdminResourcesPanel from '@/components/dashboard/AdminResourcesPanel';
 import CertificateNameAuditPanel from '@/components/dashboard/CertificateNameAuditPanel';
+import CertificateIssuanceToggleCard from '@/components/dashboard/CertificateIssuanceToggleCard';
 import ReportQRManager from '@/components/dashboard/ReportQRManager';
 import SurveyAnalyticsView, { SurveySubTab } from '@/components/dashboard/SurveyAnalyticsView';
 import LiveAnalyticsView, { LiveAnalyticsSubTab } from '@/components/dashboard/LiveAnalyticsView';
@@ -1427,7 +1428,7 @@ export default function AdminDashboard() {
             }`}
           >
             <History className="w-3.5 h-3.5" />
-            <span>Name Audit</span>
+            <span>Certificates & Switch</span>
           </button>
         )}
 
@@ -3310,6 +3311,7 @@ export default function AdminDashboard() {
       {/* Tab Content: Certificate Name Audit */}
       {activeTab === 'cert_audit' && isSuperAdmin && (
         <div className="space-y-6 animate-fade-in">
+          <CertificateIssuanceToggleCard />
           <CertificateNameAuditPanel />
         </div>
       )}
@@ -3451,8 +3453,8 @@ export default function AdminDashboard() {
                 },
                 {
                   id: 'cert_audit' as DashboardTab,
-                  title: 'Name Audit Trail',
-                  subtitle: '1-time corrections log',
+                  title: 'Certificates & Switch',
+                  subtitle: 'Issuance switch & name audit',
                   badge: 'Security',
                   badgeClass: 'bg-amber-100 text-amber-900 border-amber-200',
                   icon: History,
