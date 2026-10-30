@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { 
@@ -52,7 +52,6 @@ import {
   GraduationCap,
   Building2,
   ChevronRight,
-  Compass,
   TrendingUp,
   Smartphone
 } from 'lucide-react';
@@ -85,33 +84,28 @@ export default function AdminDashboard() {
   const [visibleSurveySubTabs, setVisibleSurveySubTabs] = useState<SurveySubTab[] | null>(null);
   const [liveSubTab, setLiveSubTab] = useState<LiveAnalyticsSubTab>('overview');
   const [teamSubTab, setTeamSubTab] = useState<'roster' | 'tasks'>('roster');
+  const [teamViewMode, setTeamViewMode] = useState<'cards' | 'list'>('cards');
   const [mcqSubTab, setMcqSubTab] = useState<'pool' | 'config' | 'audit'>('pool');
-  const [expandedTabs, setExpandedTabs] = useState<Record<string, boolean>>({
-    survey_impact: true,
-    live_analytics: true,
-    team: true,
-    mcqs: true,
-    departments: false,
-    resources: false,
-    gallery: false,
-    cert_audit: false,
-    reviewer_access: false,
-    site_display: false,
-  });
+  const [openSubmenu, setOpenSubmenu] = useState<DashboardTab | null>(null);
+  const navigationRef = useRef<HTMLElement | null>(null);
 
-  const toggleAllAccordions = (expand: boolean) => {
-    setExpandedTabs({
-      survey_impact: expand,
-      live_analytics: expand,
-      team: expand,
-      mcqs: expand,
-      departments: expand,
-      resources: expand,
-      gallery: expand,
-      reviewer_access: expand,
-      site_display: expand,
-    });
-  };
+  useEffect(() => {
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (event.target instanceof Node && !navigationRef.current?.contains(event.target)) {
+        setOpenSubmenu(null);
+      }
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpenSubmenu(null);
+    };
+
+    document.addEventListener('pointerdown', closeOnOutsideClick);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, []);
   const handleVisibleSurveySubTabsChange = useCallback((tabs: SurveySubTab[]) => {
     setVisibleSurveySubTabs(tabs);
   }, []);
@@ -1304,7 +1298,7 @@ export default function AdminDashboard() {
 
   return (
 
-    <div className="dashboard-page mx-auto w-full min-w-0 max-w-[1600px] space-y-5 px-3 py-5 sm:space-y-6 sm:px-6 sm:py-8 lg:px-8">
+    <div className="dashboard-page mx-auto w-full min-w-0 max-w-[1600px] space-y-5 px-3 py-5 sm:space-y-6 sm:px-6 sm:py-8 lg:px-8 lg:pl-24">
       {/* Top Banner */}
       <div className="flex min-w-0 flex-col items-start justify-between gap-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 md:flex-row md:items-center">
         <div className="min-w-0">
@@ -1526,11 +1520,11 @@ export default function AdminDashboard() {
       )}
 
       {/* ============================================================== */}
-      {/* UNIFIED WORKSPACE LAYOUT: FIXED LEFT NAVIGATOR + MAIN VIEW */}
+      {/* UNIFIED WORKSPACE LAYOUT: RIGHT-EDGE NAVIGATOR + MAIN VIEW */}
       {/* ============================================================== */}
-      <div className="flex flex-col lg:flex-row items-start gap-6 w-full min-w-0">
+      <div className="w-full min-w-0">
         {/* Main Content View */}
-        <main className="order-last flex-1 min-w-0 w-full space-y-6">
+        <main className="w-full min-w-0 space-y-6">
           {/* TAB CONTENT: SURVEY IMPACT & ASSESSMENT INTELLIGENCE */}
           {activeTab === 'survey_impact' && (
             <div className="space-y-6 animate-fade-in">
@@ -1558,20 +1552,23 @@ export default function AdminDashboard() {
       {activeTab === 'team' && (
         <div className="min-w-0 space-y-6">
           {/* Header Card */}
-          <div id="team-roster-section" className="min-w-0 space-y-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:space-y-6 sm:p-6 lg:p-8">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-6">
+          <div id="team-roster-section" className="min-w-0 space-y-5 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
+            <div className="flex flex-col justify-between gap-5 rounded-2xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-800 p-5 text-white sm:flex-row sm:items-center sm:p-6">
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                    Live Supabase Roster & Access Controls
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-50">
+                    Team workspace
+                  </span>
+                  <span className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-100">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+                    {isSuperAdmin ? 'Administrator access' : 'Delegated manager access'}
                   </span>
                 </div>
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-1.5">
-                  Team Management & Public Roster
+                <h2 className="text-xl font-black tracking-tight sm:text-2xl">
+                  People and responsibilities
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
-                  Manage team ambassadors, roles, public display profiles on <strong className="text-slate-800 font-semibold">/team</strong>, and platform permissions in one single workspace.
+                <p className="mt-1 max-w-2xl text-xs leading-relaxed text-emerald-100 sm:text-sm">
+                  Manage profiles, public visibility, delegated access, and campaign tasks from one workspace.
                 </p>
               </div>
 
@@ -1579,20 +1576,20 @@ export default function AdminDashboard() {
                 {(isSuperAdmin || canManageTeam) && (
                   <button
                     onClick={handleOpenAddMember}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm transition-colors cursor-pointer"
+                    className="flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs font-extrabold text-emerald-950 shadow-sm transition-colors hover:bg-emerald-50"
                   >
-                    <UserPlus className="w-4 h-4" />
-                    <span>+ Add Team Member</span>
+                    <UserPlus className="h-4 w-4" />
+                    <span>Add member</span>
                   </button>
                 )}
 
                 <Link
                   href="/team"
                   target="_blank"
-                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white transition-colors"
+                  className="flex items-center gap-2 rounded-xl border border-white/25 bg-white/10 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-white/20"
                 >
-                  <span>View Public /team Page</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Public team page</span>
+                  <ExternalLink className="h-3.5 w-3.5" />
                 </Link>
               </div>
             </div>
@@ -1675,8 +1672,42 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Filter and Search Bar */}
-            <div className="pt-4 border-t border-slate-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="inline-flex w-fit rounded-xl bg-slate-100 p-1" role="tablist" aria-label="Team workspace">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={teamSubTab === 'roster'}
+                  onClick={() => setTeamSubTab('roster')}
+                  className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-colors ${
+                    teamSubTab === 'roster' ? 'bg-white text-emerald-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Users className="h-3.5 w-3.5" />
+                  Roster <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px]">{teamMembers.length}</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={teamSubTab === 'tasks'}
+                  onClick={() => setTeamSubTab('tasks')}
+                  className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-colors ${
+                    teamSubTab === 'tasks' ? 'bg-white text-emerald-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Briefcase className="h-3.5 w-3.5" />
+                  Task pool <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px]">{tasks.length}</span>
+                </button>
+              </div>
+              <p className="text-[11px] font-medium text-slate-500">
+                {teamSubTab === 'roster' ? 'Profiles and access controls' : 'Shared tasks assigned to team members'}
+              </p>
+            </div>
+
+            {teamSubTab === 'roster' && (
+              <>
+            {/* Search, filters, and view controls */}
+            <div className="flex flex-col items-stretch justify-between gap-3 md:flex-row md:items-center">
               {/* Search Bar */}
               <div className="relative flex-1 max-w-md">
                 <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -1741,11 +1772,240 @@ export default function AdminDashboard() {
                     ))}
                   </select>
                 </div>
+
+                <div className="flex items-center rounded-xl border border-slate-200 bg-white p-1" aria-label="Roster layout">
+                  <button
+                    type="button"
+                    onClick={() => setTeamViewMode('cards')}
+                    aria-pressed={teamViewMode === 'cards'}
+                    className={`rounded-lg px-2.5 py-1.5 text-[10px] font-bold ${teamViewMode === 'cards' ? 'bg-emerald-50 text-emerald-800' : 'text-slate-500 hover:bg-slate-50'}`}
+                  >
+                    Cards
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTeamViewMode('list')}
+                    aria-pressed={teamViewMode === 'list'}
+                    className={`rounded-lg px-2.5 py-1.5 text-[10px] font-bold ${teamViewMode === 'list' ? 'bg-emerald-50 text-emerald-800' : 'text-slate-500 hover:bg-slate-50'}`}
+                  >
+                    List
+                  </button>
+                </div>
               </div>
             </div>
 
+            {teamViewMode === 'cards' && (
+              <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                {loadingTeam ? (
+                  <div className="col-span-full flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 py-12 text-xs font-medium text-slate-500">
+                    <SdgLoading size={18} label="Loading team members" />
+                    Loading team roster…
+                  </div>
+                ) : filteredTeamMembers.length === 0 ? (
+                  <div className="col-span-full rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-5 py-12 text-center">
+                    <Users className="mx-auto h-8 w-8 text-slate-300" />
+                    <p className="mt-3 text-sm font-bold text-slate-800">No team members match these filters</p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {profileSearchQuery || profileTagFilter !== 'all' || profileStatusFilter !== 'all'
+                        ? 'Clear or adjust your search and filters to see more profiles.'
+                        : 'Add a team member to start building the public roster.'}
+                    </p>
+                    {(profileSearchQuery || profileTagFilter !== 'all' || profileStatusFilter !== 'all') && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProfileSearchQuery('');
+                          setProfileTagFilter('all');
+                          setProfileStatusFilter('all');
+                        }}
+                        className="mt-3 rounded-lg px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-50"
+                      >
+                        Clear filters
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  filteredTeamMembers.map((member, idx) => {
+                    const isPosition1 = member.position_order === 1;
+                    const isLead = member.position_order > 1 && member.position_order <= 4;
+                    const isProtected = member.email === 'ai.bridge.iiui.fms@gmail.com';
+                    const canManage = Boolean(member.can_manage_team);
+                    const mcqLevel = member.mcq_access_level || 'none';
+                    const orderedMembers = [...teamMembers].sort((a, b) => (a.position_order || 0) - (b.position_order || 0));
+                    const orderIndex = orderedMembers.findIndex((entry) => entry.id === member.id);
+
+                    return (
+                      <article key={member.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition-shadow hover:shadow-md">
+                        <div className={`h-1 ${isPosition1 ? 'bg-amber-400' : isLead ? 'bg-blue-500' : 'bg-emerald-600'}`} />
+                        <div className="space-y-4 p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="relative shrink-0">
+                              <div className="h-12 w-12 overflow-hidden rounded-2xl border border-slate-200 bg-slate-900">
+                                {member.avatar_url ? (
+                                  <img src={member.avatar_url} alt="" className="h-full w-full object-cover" />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center bg-slate-800 text-xs font-bold text-white">
+                                    {(member.full_name || 'TM').split(' ').map((part: string) => part[0]).join('').slice(0, 2)}
+                                  </div>
+                                )}
+                              </div>
+                              <span className="absolute -bottom-1 -right-1 rounded-full border-2 border-white bg-slate-900 px-1.5 py-0.5 text-[9px] font-extrabold text-white">
+                                #{member.position_order || '—'}
+                              </span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <h3 className="truncate text-sm font-extrabold text-slate-900">{member.full_name}</h3>
+                                {isPosition1 ? (
+                                  <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[9px] font-bold text-amber-800">Lead</span>
+                                ) : isLead ? (
+                                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[9px] font-bold text-blue-800">Leadership</span>
+                                ) : (
+                                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-600">Ambassador</span>
+                                )}
+                              </div>
+                              <p className="mt-0.5 line-clamp-2 text-xs font-medium text-slate-600">{member.designation || 'No designation set'}</p>
+                              <p className="mt-1 truncate text-[10px] text-slate-400">{member.email || 'No email attached'}</p>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleShiftPosition(member, 'up')}
+                                disabled={orderIndex <= 0}
+                                aria-label={`Move ${member.full_name} up`}
+                                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-emerald-700 disabled:opacity-30"
+                              >
+                                <ChevronUp className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleShiftPosition(member, 'down')}
+                                disabled={orderIndex < 0 || orderIndex >= orderedMembers.length - 1}
+                                aria-label={`Move ${member.full_name} down`}
+                                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-emerald-700 disabled:opacity-30"
+                              >
+                                <ChevronDown className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+                            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${getTagBadgeStyle(member.team_tag)}`}>
+                              {member.team_tag || 'General'}
+                            </span>
+                            <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${
+                              member.team_role === 'admin'
+                                ? 'border-purple-200 bg-purple-50 text-purple-800'
+                                : 'border-slate-200 bg-slate-50 text-slate-600'
+                            }`}>
+                              {member.team_role === 'admin' ? 'Admin' : 'Team member'}
+                            </span>
+                            {member.linkedin_url && (
+                              <a href={member.linkedin_url} target="_blank" rel="noreferrer" aria-label={`Open ${member.full_name}'s LinkedIn`} className="rounded-lg p-1.5 text-blue-600 hover:bg-blue-50">
+                                <Linkedin className="h-3.5 w-3.5" />
+                              </a>
+                            )}
+                          </div>
+
+                          <div className="min-h-8">
+                            {Array.isArray(member.assigned_tasks) && member.assigned_tasks.length > 0 ? (
+                              <div className="flex flex-wrap gap-1.5">
+                                {member.assigned_tasks.slice(0, 3).map((task: string) => (
+                                  <span key={task} className="max-w-full truncate rounded-lg bg-emerald-50 px-2 py-1 text-[9px] font-semibold text-emerald-800">{task}</span>
+                                ))}
+                                {member.assigned_tasks.length > 3 && (
+                                  <span className="rounded-lg bg-slate-100 px-2 py-1 text-[9px] font-bold text-slate-600">+{member.assigned_tasks.length - 3} more</span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-[10px] text-slate-400">No campaign tasks assigned</span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-col gap-2 rounded-xl bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                            <button
+                              type="button"
+                              onClick={() => handleTogglePublished(member.id, member.is_published)}
+                              aria-pressed={Boolean(member.is_published)}
+                              className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold ${
+                                member.is_published
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                  : 'border-slate-200 bg-white text-slate-600'
+                              }`}
+                            >
+                              {member.is_published ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                              {member.is_published ? 'Published' : 'Draft'}
+                            </button>
+                            <div className="flex flex-wrap items-center gap-2">
+                              {isSuperAdmin && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleTeamManage(member)}
+                                  disabled={isProtected}
+                                  title={isProtected ? 'Primary administrator access is protected' : 'Toggle delegated team management'}
+                                  className={`rounded-lg border px-2 py-1 text-[9px] font-bold disabled:opacity-70 ${
+                                    canManage || isProtected
+                                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                      : 'border-slate-200 bg-white text-slate-500'
+                                  }`}
+                                >
+                                  {canManage || isProtected ? 'Team manager' : 'No team access'}
+                                </button>
+                              )}
+                              <label className="flex items-center gap-1.5 text-[9px] font-semibold text-slate-500">
+                                MCQ
+                                <select
+                                  disabled={!isSuperAdmin && !canManageTeam}
+                                  value={mcqLevel}
+                                  onChange={(event) => handleTableMcqLevelChange(member, event.target.value)}
+                                  className="max-w-28 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 disabled:bg-slate-100"
+                                >
+                                  <option value="none">No access</option>
+                                  <option value="viewer">Viewer</option>
+                                  <option value="moderator">Moderator</option>
+                                  <option value="manager">Manager</option>
+                                </select>
+                              </label>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <label className="flex items-center gap-2 text-[10px] font-semibold text-slate-500">
+                              Rank
+                              <input
+                                type="number"
+                                min={1}
+                                max={99}
+                                defaultValue={member.position_order}
+                                key={`card-pos-${member.id}-${member.position_order}`}
+                                onBlur={(event) => {
+                                  const value = parseInt(event.target.value, 10);
+                                  if (!isNaN(value) && value !== member.position_order) handleQuickUpdatePosition(member.id, value);
+                                }}
+                                className="w-14 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                              />
+                            </label>
+                            <div className="flex items-center gap-1">
+                              <button type="button" onClick={() => handleOpenEditMember(member)} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[10px] font-bold text-emerald-800 hover:bg-emerald-50">
+                                <Pencil className="h-3.5 w-3.5" /> Edit profile
+                              </button>
+                              {!isProtected && (
+                                <button type="button" onClick={() => handleDeleteTeamMember(member.id, member.full_name)} aria-label={`Remove ${member.full_name}`} className="rounded-lg p-2 text-rose-600 hover:bg-rose-50">
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
             {/* Unified Team Members Table */}
-            <div className="max-w-full overflow-x-auto overscroll-x-contain">
+            <div className={teamViewMode === 'list' ? 'max-w-full overflow-x-auto overscroll-x-contain' : 'hidden'}>
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-400 font-bold uppercase tracking-wider text-[11px] pb-2">
@@ -2014,26 +2274,30 @@ export default function AdminDashboard() {
                 </tbody>
               </table>
             </div>
+              </>
+            )}
           </div>
 
-          {/* Master Campaign Task Pool Card (Collapsible & Clean) */}
-          <div id="team-tasks-section" className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8 space-y-4">
+          {/* Campaign task pool workspace */}
+          {teamSubTab === 'tasks' && (
+          <div id="team-tasks-section" className="space-y-5 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
               <div>
-                <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-emerald-600" />
-                  <span>Campaign Master Task Pool ({tasks.length} Active Tasks)</span>
+                <h3 className="flex items-center gap-2 text-base font-extrabold text-slate-900">
+                  <Briefcase className="h-4 w-4 text-emerald-600" />
+                  <span>Campaign task pool</span>
+                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800">{tasks.length}</span>
                 </h3>
-                <p className="text-xs text-slate-500">
-                  Global tasks pool. Assign tasks to ambassadors directly in their member edit popup.
+                <p className="mt-1 text-xs text-slate-500">
+                  Create shared responsibilities, then assign them from a member’s profile.
                 </p>
               </div>
             </div>
 
             {/* Quick Add Task Form */}
             {(isSuperAdmin || canManageTeam) && (
-              <form onSubmit={handleCreateTask} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                <div className="sm:col-span-5 space-y-1">
+              <form onSubmit={handleCreateTask} className="grid grid-cols-1 gap-3 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4 sm:grid-cols-2 xl:grid-cols-12">
+                <div className="space-y-1 sm:col-span-2 xl:col-span-4">
                   <label className="text-xs font-bold text-slate-700">Task Title *</label>
                   <input
                     type="text"
@@ -2041,58 +2305,89 @@ export default function AdminDashboard() {
                     placeholder="e.g. Campus SDG Walk Logistics"
                     value={newTaskTitle}
                     onChange={(e) => setNewTaskTitle(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
-                <div className="sm:col-span-5 space-y-1">
+                <div className="space-y-1 sm:col-span-2 xl:col-span-4">
                   <label className="text-xs font-bold text-slate-700">Task Description</label>
                   <input
                     type="text"
                     placeholder="Short description of task deliverables..."
                     value={newTaskDesc}
                     onChange={(e) => setNewTaskDesc(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
-                <div className="sm:col-span-2">
+                <div className="space-y-1 sm:col-span-1 xl:col-span-2">
+                  <label className="text-xs font-bold text-slate-700">Category</label>
+                  <input
+                    type="text"
+                    placeholder="General"
+                    value={newTaskTag}
+                    onChange={(e) => setNewTaskTag(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div className="flex items-end sm:col-span-1 xl:col-span-2">
                   <button
                     type="submit"
                     disabled={isCreatingTask || !newTaskTitle.trim()}
-                    className="w-full px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                    className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-emerald-800 disabled:opacity-50"
                   >
-                    <PlusCircle className="w-3.5 h-3.5" />
-                    <span>{isCreatingTask ? 'Adding...' : 'Add Task'}</span>
+                    <PlusCircle className="h-3.5 w-3.5" />
+                    <span>{isCreatingTask ? 'Adding…' : 'Add task'}</span>
                   </button>
                 </div>
               </form>
             )}
 
-            {/* Tasks Chips List */}
-            <div className="flex flex-wrap gap-2 pt-2">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               {tasks.length === 0 ? (
-                <p className="text-xs text-slate-400">No tasks created yet. Add one above.</p>
+                <div className="col-span-full rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-5 py-10 text-center">
+                  <Briefcase className="mx-auto h-7 w-7 text-slate-300" />
+                  <p className="mt-2 text-sm font-bold text-slate-800">No shared tasks yet</p>
+                  <p className="mt-1 text-xs text-slate-500">Add a task above to make it available for assignment.</p>
+                </div>
               ) : (
-                tasks.map((t) => (
+                tasks.map((t) => {
+                  const assignedCount = teamMembers.filter((member) => Array.isArray(member.assigned_tasks) && member.assigned_tasks.includes(t.title)).length;
+                  return (
                   <div
                     key={t.id}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-xs font-medium text-slate-800 flex items-center gap-2 group transition-colors"
+                    className="flex min-w-0 items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 transition-shadow hover:shadow-sm"
                   >
-                    <span>{t.title}</span>
-                    {(isSuperAdmin || canManageTeam) && (
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteTask(t.id, t.title)}
-                        className="text-slate-400 hover:text-rose-600 transition-colors cursor-pointer p-0.5 rounded"
-                        title="Delete task from pool"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+                      <CheckCircle2 className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="text-xs font-extrabold text-slate-900">{t.title}</h4>
+                        {(isSuperAdmin || canManageTeam) && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTask(t.id, t.title)}
+                            aria-label={`Delete task ${t.title}`}
+                            className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      {t.description && <p className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-slate-500">{t.description}</p>}
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <span className={`rounded-full border px-2 py-0.5 text-[9px] font-bold ${getTagBadgeStyle(t.tag || 'General')}`}>{t.tag || 'General'}</span>
+                        <span className="text-[9px] font-semibold text-slate-500">
+                          {assignedCount} {assignedCount === 1 ? 'person' : 'people'} assigned
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
+          )}
         </div>
       )}
 
@@ -3393,40 +3688,13 @@ export default function AdminDashboard() {
       )}
         </main>
 
-        {/* ============================================================== */}
-        {/* FIXED LEFT SIDEBAR NAVIGATION PANEL (LAPTOP / DESKTOP TREE) */}
-        {/* ============================================================== */}
-        <aside className="order-first sticky top-20 z-30 hidden max-h-[calc(100vh-6rem)] w-72 shrink-0 self-start space-y-3 overflow-y-auto scrollbar-thin lg:block xl:w-80">
-          <div className="rounded-3xl border border-slate-200/90 bg-white/95 backdrop-blur-md p-4 shadow-sm space-y-3">
-            {/* Sidebar Title & Quick Actions */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <span className="p-1.5 rounded-xl bg-emerald-100 text-emerald-800">
-                  <Compass className="w-4 h-4" />
-                </span>
-                <div>
-                  <h2 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                    Workspace Navigator
-                  </h2>
-                  <p className="text-[10px] text-slate-400 font-medium">Laptop Quick Jump</p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const allOpen = Object.values(expandedTabs).every(Boolean);
-                  toggleAllAccordions(!allOpen);
-                }}
-                className="text-[10px] font-bold text-slate-500 hover:text-emerald-800 px-2 py-1 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-                title="Toggle All Accordions"
-              >
-                {Object.values(expandedTabs).every(Boolean) ? 'Collapse All' : 'Expand All'}
-              </button>
-            </div>
-
-            {/* Tree Items */}
-            <nav className="space-y-1.5" aria-label="Dashboard Workspace Tree">
+        {/* Fixed desktop navigation rail below the sticky site header */}
+        <aside className="fixed bottom-0 left-0 top-[68px] z-40 hidden w-[5.25rem] border-r border-slate-200 bg-white/95 shadow-lg backdrop-blur-md lg:block">
+          <nav
+            ref={navigationRef}
+            className="flex h-full flex-col items-stretch gap-1 px-1.5 py-2"
+            aria-label="Dashboard sections"
+          >
               {[
                 {
                   id: 'survey_impact' as DashboardTab,
@@ -3566,85 +3834,77 @@ export default function AdminDashboard() {
                 },
               ].filter(item => item.visible).map((item) => {
                 const isMainActive = activeTab === item.id;
-                const isExpanded = expandedTabs[item.id] ?? false;
+                const isSubmenuOpen = openSubmenu === item.id;
                 const ItemIcon = item.icon;
                 const visibleSubTabs = item.id === 'survey_impact'
                   ? item.subTabs.filter((sub) => visibleSurveySubTabs?.includes(sub.id as SurveySubTab))
                   : item.subTabs;
 
                 return (
-                  <div key={item.id} className="space-y-1">
-                    {/* Main Item Row */}
-                    <div
-                      onClick={() => {
-                        if (activeTab === item.id) {
-                          setExpandedTabs(prev => ({ ...prev, [item.id]: !prev[item.id] }));
-                        } else {
+                  <div key={item.id} className="relative min-h-0 flex-1">
+                    <div className="group relative flex h-full items-center">
+                      <button
+                        type="button"
+                        onClick={() => {
                           setActiveTab(item.id);
-                          setExpandedTabs(prev => ({ ...prev, [item.id]: true }));
+                          setOpenSubmenu(null);
                           if (item.id === 'departments') {
                             fetchDepartmentMappings();
                           } else if (item.id === 'mcqs') {
                             fetchMCQs();
                           }
-                        }
-                      }}
-                      className={`w-full flex items-center justify-between p-2 rounded-2xl transition-all cursor-pointer select-none group ${
-                        isMainActive
-                          ? 'bg-emerald-50/90 border border-emerald-300/80 text-emerald-950 font-bold shadow-2xs'
-                          : 'hover:bg-slate-50 border border-transparent text-slate-700 font-semibold'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className={`p-1.5 rounded-xl shrink-0 transition-colors ${
+                        }}
+                        aria-current={isMainActive ? 'page' : undefined}
+                        title={item.title}
+                        className={`flex h-full w-full flex-col items-center justify-center gap-1 rounded-xl px-1.5 pr-3 text-center transition-colors ${
                           isMainActive
-                            ? 'bg-emerald-700 text-white'
-                            : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200'
+                            ? 'bg-emerald-50 text-emerald-800'
+                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                        }`}
+                      >
+                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl [@media(max-height:480px)]:h-6 [@media(max-height:480px)]:w-6 ${
+                          isMainActive ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200'
                         }`}>
-                          <ItemIcon className="w-3.5 h-3.5" />
+                          <ItemIcon className="h-4 w-4" />
                         </span>
-                        <div className="min-w-0 text-left">
-                          <p className="text-xs font-extrabold truncate leading-tight">
-                            {item.title}
-                          </p>
-                          <p className={`text-[10px] truncate ${
-                            isMainActive ? 'text-emerald-800' : 'text-slate-400'
-                          }`}>
-                            {item.subtitle}
-                          </p>
-                        </div>
-                      </div>
+                        <span className="line-clamp-2 w-full text-[9px] font-bold leading-tight [@media(max-height:700px)]:hidden">
+                          {item.title}
+                        </span>
+                      </button>
 
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {item.badge && (
-                          <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-extrabold border ${
-                            item.badgeClass || 'bg-slate-100 text-slate-700 border-slate-200'
-                          }`}>
-                            {item.badge}
-                          </span>
-                        )}
-                        {visibleSubTabs && visibleSubTabs.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setExpandedTabs(prev => ({ ...prev, [item.id]: !prev[item.id] }));
-                            }}
-                            className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200/60 cursor-pointer"
-                          >
-                            {isExpanded ? (
-                              <ChevronDown className="w-3.5 h-3.5" />
-                            ) : (
-                              <ChevronRight className="w-3.5 h-3.5" />
-                            )}
-                          </button>
-                        )}
-                      </div>
+                      {visibleSubTabs && visibleSubTabs.length > 0 && (
+                        <button
+                          type="button"
+                          aria-label={`${isSubmenuOpen ? 'Close' : 'Open'} ${item.title} subtabs`}
+                          aria-expanded={isSubmenuOpen}
+                          onClick={() => setOpenSubmenu(isSubmenuOpen ? null : item.id)}
+                          className={`absolute right-0 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border shadow-sm transition-colors ${
+                            isSubmenuOpen || isMainActive
+                              ? 'border-emerald-200 bg-white text-emerald-800'
+                              : 'border-slate-200 bg-white text-slate-500 hover:text-emerald-700'
+                          }`}
+                        >
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
 
-                    {/* Nested Sub-Tabs Accordion */}
-                    {isExpanded && visibleSubTabs && visibleSubTabs.length > 0 && (
-                      <div className="ml-4 pl-2.5 border-l-2 border-emerald-200/70 space-y-0.5 pt-0.5 pb-1 animate-fade-in">
+                    {isSubmenuOpen && visibleSubTabs && visibleSubTabs.length > 0 && (
+                      <div className="absolute left-full top-1/2 z-50 ml-2 max-h-[calc(100dvh-2rem)] w-64 -translate-y-1/2 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl animate-fade-in">
+                        <div className="mb-2 flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-extrabold text-slate-900">{item.title}</p>
+                            <p className="truncate text-[10px] text-slate-500">{item.subtitle}</p>
+                          </div>
+                          {item.badge && (
+                            <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-extrabold ${
+                              item.badgeClass || 'bg-slate-100 text-slate-700 border-slate-200'
+                            }`}>
+                              {item.badge}
+                            </span>
+                          )}
+                        </div>
+                        <div className="space-y-1">
                         {visibleSubTabs.map((sub) => {
                           let isSubActive = false;
                           if (item.id === 'survey_impact') {
@@ -3671,7 +3931,7 @@ export default function AdminDashboard() {
                               type="button"
                               onClick={() => {
                                 setActiveTab(item.id);
-                                setExpandedTabs(prev => ({ ...prev, [item.id]: true }));
+                                setOpenSubmenu(null);
                                 if (item.id === 'survey_impact') {
                                   setSurveySubTab(sub.id as SurveySubTab);
                                 } else if (item.id === 'live_analytics') {
@@ -3730,24 +3990,13 @@ export default function AdminDashboard() {
                             </button>
                           );
                         })}
+                        </div>
                       </div>
                     )}
                   </div>
                 );
               })}
-            </nav>
-
-            {/* Live Database Status Indicator */}
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="font-semibold text-slate-700">Live Supabase</span>
-              </div>
-              <span className="font-mono text-[10px] text-slate-400 uppercase">
-                {currentUserRole}
-              </span>
-            </div>
-          </div>
+          </nav>
         </aside>
       </div>
 
