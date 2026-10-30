@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
@@ -162,6 +162,7 @@ export default function AdminDashboard() {
   const [mcqAuditLogs, setMcqAuditLogs] = useState<any[]>([]);
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const fetchMcqAuditLogs = async () => {
     setLoadingAuditLogs(true);
@@ -401,6 +402,40 @@ export default function AdminDashboard() {
       console.error('Failed to fetch MCQs:', e);
     } finally {
       setLoadingMcqs(false);
+    }
+  };
+
+  const handleExportMcqPdf = async () => {
+    setIsExportingPdf(true);
+    try {
+      const res = await fetch('/api/admin/mcqs/export-pdf?status=active');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to generate PDF document');
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const dateStr = new Date().toISOString().split('T')[0];
+      a.download = `AI_Bridge_Assessment_MCQ_Question_Bank_${dateStr}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      setMcqFeedbackMsg({
+        text: 'Assessment Question Bank PDF downloaded successfully for management reporting!',
+        type: 'success',
+      });
+      setTimeout(() => setMcqFeedbackMsg(null), 4000);
+    } catch (err: any) {
+      setMcqFeedbackMsg({
+        text: `PDF Export failed: ${err.message}`,
+        type: 'error',
+      });
+      setTimeout(() => setMcqFeedbackMsg(null), 4000);
+    } finally {
+      setIsExportingPdf(false);
     }
   };
 
@@ -2496,6 +2531,24 @@ export default function AdminDashboard() {
               >
                 {loadingMcqs ? <SdgLoading size={14} label="Refreshing questions" /> : <RefreshCw className="w-3.5 h-3.5" />}
                 <span className="hidden sm:inline">Refresh</span>
+              </button>
+              <button
+                onClick={handleExportMcqPdf}
+                disabled={isExportingPdf || loadingMcqs}
+                className="px-3.5 py-2.5 rounded-xl bg-emerald-600/80 hover:bg-emerald-600 text-white text-xs font-bold border border-emerald-400/40 shadow-sm transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                title="Download official PDF report for upper management"
+              >
+                {isExportingPdf ? (
+                  <>
+                    <SdgLoading size={14} label="Generating PDF" />
+                    <span className="hidden sm:inline">Exporting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Download PDF</span>
+                  </>
+                )}
               </button>
               <button
                 onClick={() => {
