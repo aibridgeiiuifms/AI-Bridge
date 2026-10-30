@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -41,10 +41,10 @@ const DEFAULT_COOLDOWN_SECONDS = 300;
 
 /** Fallback clusters when no DB config found */
 const DEFAULT_CATEGORY_CLUSTERS = [
-  { name: 'NotebookLM Foundations & Architecture', categories: ['NotebookLM Foundations', 'AI Foundations'], count: 3 },
-  { name: 'Multi-Modal Audio & Structured Outputs', categories: ['Audio Overviews', 'Structured Outputs', 'Educational Applications'], count: 3 },
-  { name: 'Prompt Crafting & AI Ethics', categories: ['Prompt Crafting', 'AI Ethics & Integrity'], count: 3 },
-  { name: 'SDG Literacy & Institutional Framework', categories: ['SDG Literacy', 'The AI Bridge Platform', 'Project Governance', 'Project Metrics'], count: 3 }
+  { name: 'AI & NotebookLM Foundations', categories: ['AI & NotebookLM Foundations'], count: 3 },
+  { name: 'Educational Workflows & Multimodal AI', categories: ['Educational Workflows & Multimodal AI'], count: 3 },
+  { name: 'Prompt Engineering & AI Ethics', categories: ['Prompt Engineering & AI Ethics'], count: 3 },
+  { name: 'Institutional Governance & SDG Impact', categories: ['Institutional Governance & SDG Impact'], count: 3 }
 ];
 
 /**

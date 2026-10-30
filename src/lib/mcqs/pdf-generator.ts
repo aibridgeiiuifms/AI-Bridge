@@ -1,5 +1,5 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
-import { MCQQuestion } from '@/types/database';
+import { MCQQuestion } from '../../types/database';
 
 export interface GenerateMcqPdfOptions {
   title?: string;
@@ -7,6 +7,8 @@ export interface GenerateMcqPdfOptions {
   totalExamQuestions?: number;
   passingScore?: number;
   generatedBy?: string;
+  categoryDrawConfig?: { category: string; count: number }[];
+  cooldownMinutes?: number;
 }
 
 /**
@@ -85,6 +87,7 @@ export async function generateMcqPoolPdf(
   const totalExamQuestions = options.totalExamQuestions || 12;
   const passingScore = options.passingScore || 9;
   const passPercentage = Math.round((passingScore / totalExamQuestions) * 100);
+  const categoryDrawConfig = options.categoryDrawConfig || [];
 
   let page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   let y = PAGE_HEIGHT;
@@ -229,40 +232,53 @@ export async function generateMcqPoolPdf(
   page.drawText(`Passing Threshold: ${passingScore} / ${totalExamQuestions} (${passPercentage}% Required)`, { x: col2X, y: metaY2, size: 8, font: fontBold, color: cEmeraldMed });
   page.drawText('Integrity Protocol: Dynamic Option Shuffling + Server-Side Grading', { x: col2X, y: metaY3, size: 8, font: fontRegular, color: cTextMed });
 
-  y -= (metaBoxHeight + 18);
+  y -= (metaBoxHeight + 10);
+
+  // Random Draw Note
+  const noteText = `Note: Each student exam session draws ${totalExamQuestions} questions randomly from the full bank below. ` +
+    `All answer options are independently shuffled per session, ensuring every attempt presents a unique paper. ` +
+    `If a student does not meet the passing threshold, a ${options.cooldownMinutes || 5}-minute cooldown is enforced before a retry is permitted -- ` +
+    `each retry draws a fresh random set of questions.`;
+  const noteLines = wrapText(noteText, fontItalic, 7.5, CONTENT_WIDTH - 16);
+  const noteBoxH = noteLines.length * 11 + 10;
+  page.drawRectangle({
+    x: MARGIN_X, y: y - noteBoxH, width: CONTENT_WIDTH, height: noteBoxH,
+    color: rgb(1.0, 0.984, 0.922), borderColor: rgb(0.878, 0.733, 0.267), borderWidth: 0.5,
+  });
+  page.drawRectangle({ x: MARGIN_X, y: y - noteBoxH, width: 3.5, height: noteBoxH, color: rgb(0.878, 0.733, 0.267) });
+  let noteY = y - 9;
+  for (const line of noteLines) {
+    page.drawText(line, { x: MARGIN_X + 8, y: noteY, size: 7.5, font: fontItalic, color: rgb(0.4, 0.3, 0.05) });
+    noteY -= 11;
+  }
+  y -= (noteBoxH + 14);
 
   // Category Breakdown Summary Grid
   if (catEntries.length > 0) {
-    page.drawText('CURRICULAR DOMAIN BREAKDOWN', { x: MARGIN_X, y, size: 8.5, font: fontBold, color: cTextDark });
+    page.drawText('RANDOM DRAW QUOTA PER CURRICULAR DOMAIN', { x: MARGIN_X, y, size: 8.5, font: fontBold, color: cTextDark });
     y -= 12;
 
-    const catGridHeight = Math.ceil(catEntries.length / 3) * 14 + 10;
+    const catGridHeight = Math.ceil(catEntries.length / 2) * 18 + 12;
     page.drawRectangle({
-      x: MARGIN_X,
-      y: y - catGridHeight,
-      width: CONTENT_WIDTH,
-      height: catGridHeight,
-      color: rgb(1, 1, 1),
-      borderColor: cBorder,
-      borderWidth: 0.5,
+      x: MARGIN_X, y: y - catGridHeight, width: CONTENT_WIDTH, height: catGridHeight,
+      color: rgb(1, 1, 1), borderColor: cBorder, borderWidth: 0.5,
     });
 
-    const cellW = CONTENT_WIDTH / 3;
-    catEntries.forEach(([catName, count], idx) => {
-      const row = Math.floor(idx / 3);
-      const col = idx % 3;
-      const cX = MARGIN_X + 8 + (col * cellW);
-      const cY = y - 12 - (row * 14);
-      page.drawText(`* ${catName}: ${count}`, {
-        x: cX,
-        y: cY,
-        size: 7.5,
-        font: fontRegular,
-        color: cTextMed,
+    const cellW = CONTENT_WIDTH / 2;
+    catEntries.forEach(([catName, poolCount], idx) => {
+      const drawCfg = categoryDrawConfig.find(c => c.category === catName);
+      const drawCount = drawCfg ? drawCfg.count : '-';
+      const row = Math.floor(idx / 2);
+      const col = idx % 2;
+      const cX = MARGIN_X + 10 + (col * cellW);
+      const cY = y - 14 - (row * 18);
+      page.drawText(normalizePdfText(catName), { x: cX, y: cY, size: 7.5, font: fontBold, color: cTextDark });
+      page.drawText(`Pool: ${poolCount} questions  |  Randomly drawn per exam: ${drawCount}`, {
+        x: cX, y: cY - 9, size: 7, font: fontRegular, color: cTextMed,
       });
     });
 
-    y -= (catGridHeight + 20);
+    y -= (catGridHeight + 18);
   }
 
   // ==========================================
@@ -349,6 +365,7 @@ export async function generateMcqPoolPdf(
     // Options
     for (const opt of wrappedOptions) {
       if (opt.isCorrect) {
+        const badgeWidth = fontBold.widthOfTextAtSize('[CORRECT ANSWER]', 7);
         const boxH = opt.lines.length * 13 + 6;
         page.drawRectangle({
           x: MARGIN_X + 6,
@@ -360,13 +377,31 @@ export async function generateMcqPoolPdf(
           borderWidth: 0.5,
         });
         for (let li = 0; li < opt.lines.length; li++) {
-          page.drawText(`${opt.lines[li]}${li === 0 ? '  [CORRECT ANSWER]' : ''}`, {
-            x: MARGIN_X + 12,
+          const lineText = opt.lines[li];
+          const lineWidth = fontBold.widthOfTextAtSize(lineText, 8.5);
+          const maxLineX = MARGIN_X + 12;
+          const badgeX = Math.min(maxLineX + lineWidth + 6, PAGE_WIDTH - MARGIN_X - badgeWidth - 10);
+          page.drawText(lineText, {
+            x: maxLineX,
             y: y - 2,
             size: 8.5,
             font: fontBold,
             color: cEmeraldDark,
           });
+          if (li === 0) {
+            // Draw badge clipped to right margin
+            page.drawRectangle({
+              x: badgeX - 3, y: y - 5, width: badgeWidth + 6, height: 10,
+              color: cEmeraldMed, borderWidth: 0,
+            });
+            page.drawText('[CORRECT ANSWER]', {
+              x: badgeX,
+              y: y - 3,
+              size: 7,
+              font: fontBold,
+              color: rgb(1, 1, 1),
+            });
+          }
           y -= 13;
         }
         y -= 3;

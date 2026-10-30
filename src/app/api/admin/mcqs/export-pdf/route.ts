@@ -65,12 +65,14 @@ export async function GET(req: NextRequest) {
       .eq('key', 'quiz_category_config')
       .maybeSingle();
 
-    const config = configRow?.value || { total_questions: 12, passing_score: 9, cooldown_seconds: 300 };
+    const config = configRow?.value || { total_questions: 12, passing_score: 9, cooldown_seconds: 300, categories: [] };
 
     const pdfBytes = await generateMcqPoolPdf(questions, {
       totalExamQuestions: Number(config.total_questions) || 12,
       passingScore: Number(config.passing_score) || 9,
       generatedBy: access.userEmail,
+      categoryDrawConfig: Array.isArray(config.categories) ? config.categories : [],
+      cooldownMinutes: Math.round((Number(config.cooldown_seconds) || 300) / 60),
     });
 
     const dateStr = new Date().toISOString().split('T')[0];

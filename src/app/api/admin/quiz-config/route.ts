@@ -15,18 +15,10 @@ const DEFAULT_CONFIG = {
   passing_score: 9,
   cooldown_seconds: 300,
   categories: [
-    { category: 'NotebookLM Foundations', count: 1 },
-    { category: 'AI Foundations', count: 1 },
-    { category: 'Audio Overviews', count: 1 },
-    { category: 'Structured Outputs', count: 1 },
-    { category: 'Educational Applications', count: 1 },
-    { category: 'Prompt Crafting', count: 1 },
-    { category: 'AI Ethics & Integrity', count: 1 },
-    { category: 'SDG Literacy', count: 1 },
-    { category: 'The AI Bridge Platform', count: 1 },
-    { category: 'Project Governance', count: 1 },
-    { category: 'Project Metrics', count: 1 },
-    { category: 'AI Foundations', count: 1 },
+    { category: 'AI & NotebookLM Foundations', count: 3 },
+    { category: 'Educational Workflows & Multimodal AI', count: 3 },
+    { category: 'Prompt Engineering & AI Ethics', count: 3 },
+    { category: 'Institutional Governance & SDG Impact', count: 3 },
   ]
 };
 

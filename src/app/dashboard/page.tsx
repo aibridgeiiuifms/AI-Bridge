@@ -134,7 +134,7 @@ export default function AdminDashboard() {
     options: ['', '', '', ''],
     correct_option_index: 0,
     explanation: '',
-    category: 'NotebookLM Foundations',
+    category: 'AI & NotebookLM Foundations',
     difficulty: 'intermediate',
     is_active: true,
   });

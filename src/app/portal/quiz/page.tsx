@@ -767,7 +767,7 @@ export default function QuizPage() {
               12-MCQ Course Assessment
             </h1>
             <p className="text-xs sm:text-sm text-emerald-100 max-w-xl mt-1 leading-relaxed">
-              Balanced evaluation across NotebookLM Foundations, Audio Overviews, Prompt Crafting, and SDG Literacy. Answer at least 9 correctly to unlock certification.
+              Balanced evaluation across AI & NotebookLM Foundations, Educational Workflows, Prompt Engineering & AI Ethics, and Institutional Governance. Answer at least 9 correctly to unlock certification.
             </p>
           </div>
 
