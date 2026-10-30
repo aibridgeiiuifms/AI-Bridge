@@ -1,5 +1,4 @@
 import Image from 'next/image';
-import sdgWheel from '../../Assets/SDG Wheel.png';
 
 interface SdgLoadingProps {
   size?: number;
@@ -14,14 +13,16 @@ export default function SdgLoading({
 }: SdgLoadingProps) {
   return (
     <span role="status" aria-live="polite" aria-label={label} className={`flex w-fit items-center ${className}`}>
-      <Image
-        src={sdgWheel}
-        alt=""
-        aria-hidden="true"
-        width={size}
-        height={size}
-        className="shrink-0 animate-[spin_4s_linear_infinite]"
-      />
+      <span className="sdg-wheel relative inline-block shrink-0" style={{ width: size, height: size }} aria-hidden="true">
+        <Image
+          src="/sdg-wheel-loader.svg"
+          alt=""
+          aria-hidden="true"
+          width={size}
+          height={size}
+          className="h-full w-full object-contain"
+        />
+      </span>
     </span>
   );
 }

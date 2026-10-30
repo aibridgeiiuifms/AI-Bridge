@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 750 750" shape-rendering="geometricPrecision">
+  <style>
+    path {
+      opacity: 0.1;
+      animation: sdg-wheel-pulse 2.04s linear infinite;
+      animation-delay: var(--pulse-delay);
+    }
+
+   <!-- @keyframes sdg-wheel-pulse {
+  0%   { opacity: 1; }
+  6.25%  { opacity: 0.9; }
+  12.5%  { opacity: 0.8; }
+  18.75% { opacity: 0.7; }
+  25%    { opacity: 0.6; }
+  31.25% { opacity: 0.5; }
+  37.5%  { opacity: 0.4; }
+  43.75% { opacity: 0.3; }
+  50%    { opacity: 0.2; }
+  56.25% { opacity: 0.1; }
+  62.5%  { opacity: 0.1; }
+  68.75% { opacity: 0.2; }
+  75%    { opacity: 0.4; }
+  81.25% { opacity: 0.6; }
+  87.5%  { opacity: 0.8; }
+  93.75% { opacity: 0.9; }
+  100%   { opacity: 1; } -->
+  
+
+
+
+  @keyframes sdg-wheel-pulse {
+  0%   { opacity: 0.95; }
+  5.88%  { opacity: 0.85; }
+  11.76% { opacity: 0.65; }
+  17.65% { opacity: 0.45; }
+  23.53% { opacity: 0.25; }
+  29.41% { opacity: 0.15; }
+  35.29% { opacity: 0.1; }
+  41.18% { opacity: 0.1; }
+  47.06% { opacity: 0.1; }
+  52.94% { opacity: 0.1; }
+  58.82% { opacity: 0.95; }
+  64.71% { opacity: 0.95; }
+  70.59% { opacity: 0.95; }
+  76.47% { opacity: 0.95; }
+  82.35% { opacity: 0.95; }
+  88.24% { opacity: 0.95; }
+  94.12% { opacity: 1; }
+  100%   { opacity: 0.95; }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+    @media (prefers-reduced-motion: reduce) {
+      path {
+        animation: none;
+        opacity: 0.72;
+      }
+    }
+  </style>
+  <path id="sdg-01" fill="#EB1C2D" style="--pulse-delay: 0s" d="M387.250,15.208 A360,360 0 0 1 496.058,35.965 L442.255,186.647 A200,200 0 0 0 381.805,175.116 Z"/>
+  <path id="sdg-02" fill="#D3A029" style="--pulse-delay: -1.92s" d="M514.795,43.251 A360,360 0 0 1 609.040,101.458 L505.022,223.032 A200,200 0 0 0 452.664,190.695 Z"/>
+  <path id="sdg-03" fill="#279B48" style="--pulse-delay: -1.8s" d="M624.851,115.820 A360,360 0 0 1 691.823,204.052 L551.013,280.029 A200,200 0 0 0 513.806,231.011 Z"/>
+  <path id="sdg-04" fill="#C31F33" style="--pulse-delay: -1.68s" d="M700.871,222.004 A360,360 0 0 1 731.961,328.322 L573.312,349.068 A200,200 0 0 0 556.040,290.002 Z"/>
+  <path id="sdg-05" fill="#EF402B" style="--pulse-delay: -1.56s" d="M734.056,348.948 A360,360 0 0 1 724.980,459.346 L569.433,421.859 A200,200 0 0 0 574.476,360.526 Z"/>
+  <path id="sdg-06" fill="#00AED9" style="--pulse-delay: -1.44s" d="M719.726,478.751 A360,360 0 0 1 671.863,578.647 L539.924,488.137 A200,200 0 0 0 566.514,432.639 Z"/>
+  <path id="sdg-07" fill="#FDB713" style="--pulse-delay: -1.32s" d="M659.648,595.398 A360,360 0 0 1 579.165,671.507 L488.425,539.726 A200,200 0 0 0 533.138,497.443 Z"/>
+  <path id="sdg-08" fill="#8F1838" style="--pulse-delay: -1.2s" d="M560.144,683.742 A360,360 0 0 1 457.512,725.417 L420.840,569.676 A200,200 0 0 0 477.858,546.523 Z"/>
+  <path id="sdg-09" fill="#F36D25" style="--pulse-delay: -1.08s" d="M434.727,730.011 A360,360 0 0 1 323.965,731.364 L346.647,572.980 A200,200 0 0 0 408.182,572.228 Z"/>
+  <path id="sdg-10" fill="#E11484" style="--pulse-delay: -0.96s" d="M299.845,727.068 A360,360 0 0 1 196.362,687.552 L275.757,548.640 A200,200 0 0 0 333.247,570.593 Z"/>
+  <path id="sdg-11" fill="#F99D26" style="--pulse-delay: -0.84s" d="M176.041,675.025 A360,360 0 0 1 94.242,600.332 L219.023,500.185 A200,200 0 0 0 264.467,541.681 Z"/>
+  <path id="sdg-12" fill="#CF8D2A" style="--pulse-delay: -0.72s" d="M79.925,581.230 A360,360 0 0 1 31.193,481.755 L183.996,434.308 A200,200 0 0 0 211.070,489.572 Z"/>
+  <path id="sdg-13" fill="#48773E" style="--pulse-delay: -0.6s" d="M24.874,458.735 A360,360 0 0 1 15.990,348.321 L175.550,360.178 A200,200 0 0 0 180.485,421.519 Z"/>
+  <path id="sdg-14" fill="#007DBC" style="--pulse-delay: -0.48s" d="M18.460,325.209 A360,360 0 0 1 50.476,219.166 L194.709,288.425 A200,200 0 0 0 176.922,347.338 Z"/>
+  <path id="sdg-15" fill="#5DBB46" style="--pulse-delay: -0.36s" d="M60.595,199.645 A360,360 0 0 1 128.792,112.356 L238.218,229.087 A200,200 0 0 0 200.331,277.580 Z"/>
+  <path id="sdg-16" fill="#02558B" style="--pulse-delay: -0.24s" d="M144.319,98.619 A360,360 0 0 1 239.268,41.568 L299.593,189.760 A200,200 0 0 0 246.844,221.455 Z"/>
+  <path id="sdg-17" fill="#183668" style="--pulse-delay: -0.12s" d="M258.093,34.511 A360,360 0 0 1 367.147,15.086 L370.637,175.048 A200,200 0 0 0 310.051,185.840 Z"/>
+</svg>
