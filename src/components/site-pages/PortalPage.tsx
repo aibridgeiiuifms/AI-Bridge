@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { 
   GraduationCap, 
@@ -97,6 +97,15 @@ export default function StudentPortalContent() {
   // Certificate Issuance Window Toggle
   const [issuanceClosed, setIssuanceClosed] = useState(false);
   const [issuanceClosedMessage, setIssuanceClosedMessage] = useState<string>('');
+
+  // Blink effect for top paused notice when step cards are clicked
+  const noticeRef = useRef<HTMLDivElement>(null);
+  const [isBlinking, setIsBlinking] = useState(false);
+  const triggerBlink = () => {
+    noticeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setIsBlinking(true);
+    setTimeout(() => setIsBlinking(false), 2500);
+  };
 
   const handleClaimSurvey = async (surveyId: string, participantType: string) => {
     setIsClaiming(true);
@@ -501,7 +510,14 @@ export default function StudentPortalContent() {
 
       {/* Polite Certification Paused Notice (When Admin master switch is OFF and user has no cert yet) */}
       {issuanceClosed && !certificate?.certificate_id && (
-        <div className="bg-amber-50/95 border-2 border-amber-300 rounded-3xl p-6 sm:p-8 shadow-sm space-y-4 animate-fade-in">
+        <div
+          ref={noticeRef}
+          className={`border-2 rounded-3xl p-6 sm:p-8 shadow-sm space-y-4 animate-fade-in transition-all duration-300 ${
+            isBlinking
+              ? 'bg-red-50/90 border-red-400 shadow-red-200'
+              : 'bg-amber-50/95 border-rose-400'
+          }`}
+        >
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-amber-200/80">
             <div className="flex items-center gap-3">
               <div className="p-3 rounded-2xl bg-amber-200/80 text-amber-900 shrink-0">
@@ -683,7 +699,10 @@ export default function StudentPortalContent() {
                   <CheckCircle2 className="w-3.5 h-3.5" /> Completed
                 </span>
               ) : issuanceClosed && !certificate?.certificate_id ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700">
+                <span
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 cursor-pointer"
+                  onClick={triggerBlink}
+                >
                   <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                   <span>Evaluation Paused</span>
                 </span>
@@ -790,7 +809,10 @@ export default function StudentPortalContent() {
                     </button>
                   </div>
                 ) : issuanceClosed && !certificate?.certificate_id ? (
-                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700">
+                  <span
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 cursor-pointer"
+                    onClick={triggerBlink}
+                  >
                     <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                     <span>Evaluation Paused</span>
                   </span>
@@ -842,7 +864,10 @@ export default function StudentPortalContent() {
                   <CheckCircle2 className="w-3.5 h-3.5" /> Completed
                 </span>
               ) : issuanceClosed && !certificate?.certificate_id ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-800">
+                <span
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-800 cursor-pointer"
+                  onClick={triggerBlink}
+                >
                   <Lock className="w-3.5 h-3.5 text-teal-700 shrink-0" />
                   <span>Evaluation Paused</span>
                 </span>
@@ -877,8 +902,6 @@ export default function StudentPortalContent() {
       <div className={`rounded-3xl p-8 border transition-all ${
         certificate?.certificate_id
           ? 'bg-gradient-to-br from-emerald-900 to-teal-950 text-white border-emerald-700 shadow-xl'
-          : issuanceClosed
-          ? 'bg-white border-amber-300 text-slate-900 shadow-sm'
           : certificateReady
           ? 'bg-gradient-to-br from-amber-950 via-slate-900 to-amber-900 text-white border-amber-500/60 shadow-xl ring-1 ring-amber-400/30'
           : 'bg-white border-slate-200 text-slate-900 shadow-sm'
@@ -888,8 +911,6 @@ export default function StudentPortalContent() {
             <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
               certificate?.certificate_id
                 ? 'bg-emerald-400 text-slate-950'
-                : issuanceClosed
-                ? 'bg-amber-100 text-amber-900 border border-amber-300'
                 : certificateReady
                 ? 'bg-amber-400 text-slate-950 animate-pulse'
                 : 'bg-slate-100 text-slate-700'
@@ -898,25 +919,21 @@ export default function StudentPortalContent() {
               <span>
                 {certificate?.certificate_id
                   ? 'Official Credential Issued'
-                  : issuanceClosed
-                  ? 'Issuance Paused'
                   : certificateReady
                   ? 'Steps Completed • Ready to Generate'
                   : 'Official Verification Certificate'}
               </span>
             </div>
-            <h2 className={`text-2xl font-extrabold ${certificate?.certificate_id || (certificateReady && !issuanceClosed) ? 'text-white' : 'text-slate-900'}`}>
+            <h2 className={`text-2xl font-extrabold ${certificate?.certificate_id || certificateReady ? 'text-white' : 'text-slate-900'}`}>
               {certificate?.certificate_id
                 ? 'Your Official Certificate is Issued & Verified!'
-                : issuanceClosed
-                ? 'Certificate Issuance is Paused'
                 : certificateReady
                 ? '🎉 Congratulations! Generate Your Official Certificate'
                 : 'Certificate Locked'}
             </h2>
             <div className="flex flex-wrap items-center gap-2.5 text-xs text-amber-300 font-medium">
               <span>Credential Recipient:</span>
-              <span className={`font-bold underline ${certificate?.certificate_id || (certificateReady && !issuanceClosed) ? 'text-white' : 'text-slate-900'}`}>
+              <span className={`font-bold underline ${certificate?.certificate_id || certificateReady ? 'text-white' : 'text-slate-900'}`}>
                 {certificate?.recipient_name || profile?.full_name || 'Participant'}
               </span>
               {certificate?.certificate_id && (
@@ -952,7 +969,7 @@ export default function StudentPortalContent() {
             <p className={`text-xs sm:text-sm leading-relaxed ${
               certificate?.certificate_id
                 ? 'text-emerald-100'
-                : (certificateReady && !issuanceClosed)
+                : certificateReady
                 ? 'text-amber-100'
                 : 'text-slate-500'
             }`}>
@@ -964,12 +981,6 @@ export default function StudentPortalContent() {
                   </span>
                   . Download your stamped PDF or view its live public registry entry.
                 </>
-              ) : issuanceClosed ? (
-                certificateReady ? (
-                  'You have successfully satisfied all 3 evaluation requirements! However, official certificate generation is temporarily paused by administration. Your verified progress is safely saved, and you will be able to generate and download your certificate as soon as the window re-opens.'
-                ) : (
-                  (issuanceClosedMessage || 'Certificate issuance and evaluation is currently paused for this phase.') + ' Once the window re-opens, you will be able to complete the remaining steps to earn your certificate.'
-                )
               ) : certificateReady ? (
                 'You have completed all 3 evaluation requirements! Click below to initialize your unique cryptographic serial number and download your stamped PDF certificate.'
               ) : (
@@ -1041,18 +1052,6 @@ export default function StudentPortalContent() {
                   </svg>
                   <span>Add to LinkedIn</span>
                 </a>
-              </div>
-            ) : issuanceClosed ? (
-              <div className="px-5 py-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 font-semibold text-xs flex flex-col items-center gap-2 text-center max-w-xs shadow-xs">
-                <div className="flex items-center gap-2 font-bold text-amber-950">
-                  <Lock className="w-4 h-4 text-amber-700 shrink-0" />
-                  <span>Issuance Paused</span>
-                </div>
-                <p className="text-[11px] text-amber-800 leading-relaxed font-normal">
-                  {certificateReady
-                    ? 'All 3 steps completed! Generation unlocks when administration re-opens the window.'
-                    : 'New certificate generation is temporarily paused by administration.'}
-                </p>
               </div>
             ) : certificateReady ? (
               <div className="flex flex-col items-center justify-center gap-2.5 w-full max-w-xs sm:max-w-sm">
