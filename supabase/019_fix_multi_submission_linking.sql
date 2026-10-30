@@ -185,7 +185,7 @@ BEGIN
     INSERT INTO public.certificates (
         user_id,
         certificate_id,
-        student_name,
+        recipient_name,
         student_id,
         department,
         issued_at

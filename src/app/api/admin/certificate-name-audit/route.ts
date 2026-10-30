@@ -65,7 +65,6 @@ export async function GET(req: NextRequest) {
         id,
         certificate_id,
         recipient_name,
-        student_name,
         old_name,
         name_change_used,
         name_changed_at,
@@ -101,7 +100,7 @@ export async function GET(req: NextRequest) {
       changedCertificates: changedCerts.map((c: any) => ({
         id: c.id,
         certificateId: c.certificate_id,
-        currentName: c.recipient_name || c.student_name,
+        currentName: c.recipient_name,
         oldName: c.old_name || '(Initial Google Name)',
         nameChangedAt: c.name_changed_at,
         reason: c.name_change_reason || 'Self-service correction via student portal',
@@ -114,7 +113,7 @@ export async function GET(req: NextRequest) {
       recentAll: allCerts.slice(0, 50).map((c: any) => ({
         id: c.id,
         certificateId: c.certificate_id,
-        currentName: c.recipient_name || c.student_name,
+        currentName: c.recipient_name,
         oldName: c.old_name,
         nameChangeUsed: Boolean(c.name_change_used),
         nameChangedAt: c.name_changed_at,
@@ -186,14 +185,13 @@ export async function POST(req: NextRequest) {
 
       const formattedName = formatCertificateName(newName.trim());
       const nowIso = new Date().toISOString();
-      const currentName = cert.recipient_name || cert.student_name;
+      const currentName = cert.recipient_name;
 
       const { data: updated, error: updateErr } = await adminClient
         .from('certificates')
         .update({
           old_name: currentName,
           recipient_name: formattedName,
-          student_name: formattedName,
           name_change_used: true,
           name_changed_at: nowIso,
           name_change_reason: adminNote?.trim() ? `[Admin Override: ${adminNote.trim()}]` : `[Direct update by admin ${auth.email}]`,

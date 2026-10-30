@@ -889,7 +889,7 @@ export default function StudentPortalContent() {
             <div className="flex flex-wrap items-center gap-2.5 text-xs text-amber-300 font-medium">
               <span>Credential Recipient:</span>
               <span className="font-bold text-white underline">
-                {certificate?.recipient_name || certificate?.student_name || profile?.full_name || 'Participant'}
+                {certificate?.recipient_name || profile?.full_name || 'Participant'}
               </span>
               {certificate?.certificate_id && (
                 certificate?.name_change_used ? (
@@ -1042,7 +1042,7 @@ export default function StudentPortalContent() {
         <EditCertNameModal
           isOpen={editNameModalOpen}
           onClose={() => setEditNameModalOpen(false)}
-          currentName={certificate?.recipient_name || certificate?.student_name || profile?.full_name || ''}
+          currentName={certificate?.recipient_name || profile?.full_name || ''}
           certificateId={certificate.certificate_id}
           onSuccess={(updatedCert) => {
             setCertificate(updatedCert);

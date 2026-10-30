@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const currentName = cert.recipient_name || cert.student_name || '';
+    const currentName = cert.recipient_name || '';
     const formattedNewName = formatCertificateName(rawNewName);
 
     if (formattedNewName.toLowerCase() === currentName.toLowerCase()) {
@@ -93,13 +93,12 @@ export async function POST(req: NextRequest) {
     const cleanReason = rawReason.slice(0, 300) || 'Self-service correction via student portal';
     const nowIso = new Date().toISOString();
 
-    // 1. Update public.certificates with audit trail and lock
+    // 1. Update public.certificates with audit trail and lock (recipient_name column only)
     const { data: updatedCert, error: updateCertErr } = await adminClient
       .from('certificates')
       .update({
         old_name: currentName,
         recipient_name: formattedNewName,
-        student_name: formattedNewName,
         name_change_used: true,
         name_changed_at: nowIso,
         name_change_reason: cleanReason,

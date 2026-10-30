@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const recipientName = cert.recipient_name || cert.student_name || 'Participant';
+    const recipientName = cert.recipient_name || 'Participant';
 
     // 3. Format Branch: High-Resolution PNG
     if (format === 'png') {
