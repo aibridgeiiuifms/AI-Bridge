@@ -298,7 +298,7 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
             type="button"
             onClick={handlePrevPreview}
             aria-label="Previous highlight"
-            className="absolute left-2 top-1/2 z-30 -translate-y-1/2 rounded-full border border-white/25 bg-slate-900/80 p-2 text-white shadow-lg hover:bg-slate-800 hover:text-emerald-200 sm:left-4 transition-transform active:scale-95"
+            className="absolute left-2 top-[calc(50%+3.5rem)] z-30 -translate-y-1/2 rounded-full border border-white/25 bg-slate-900/80 p-2 text-white shadow-lg hover:bg-slate-800 hover:text-emerald-200 sm:left-4 sm:top-1/2 transition-transform active:scale-95"
           >
             <ChevronLeft className="h-8 w-8" />
           </button>
@@ -317,7 +317,8 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
           <button
             type="button"
             onClick={closePreview}
-            className="absolute bottom-6 left-6 z-30 flex items-center gap-2 rounded-full border border-white/30 bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-xl hover:bg-slate-800 hover:text-emerald-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 sm:left-16 transition-all active:scale-95"
+            aria-label="Go back from preview"
+            className="absolute bottom-20 left-6 z-30 flex items-center gap-2 rounded-full border border-white/30 bg-slate-900 px-5 py-2.5 text-sm font-bold text-white shadow-xl hover:bg-slate-800 hover:text-emerald-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-300 transition-all active:scale-95"
           >
             ← Go Back
           </button>
