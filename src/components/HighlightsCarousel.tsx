@@ -298,7 +298,7 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
             type="button"
             onClick={handlePrevPreview}
             aria-label="Previous highlight"
-            className="absolute left-2 top-[calc(50%+3.5rem)] z-30 -translate-y-1/2 rounded-full border border-white/25 bg-slate-900/80 p-2 text-white shadow-lg hover:bg-slate-800 hover:text-emerald-200 sm:left-4 sm:top-1/2 transition-transform active:scale-95"
+            className="absolute left-2 top-1/2 z-30 hidden -translate-y-1/2 rounded-full border border-white/25 bg-slate-900/80 p-2 text-white shadow-lg hover:bg-slate-800 hover:text-emerald-200 sm:left-4 sm:block transition-transform active:scale-95"
           >
             <ChevronLeft className="h-8 w-8" />
           </button>
@@ -308,7 +308,7 @@ export default function HighlightsCarousel({ className = '' }: HighlightsCarouse
             type="button"
             onClick={handleNextPreview}
             aria-label="Next highlight"
-            className="absolute right-2 top-1/2 z-30 -translate-y-1/2 rounded-full border border-white/25 bg-slate-900/80 p-2 text-white shadow-lg hover:bg-slate-800 hover:text-emerald-200 sm:right-4 transition-transform active:scale-95"
+            className="absolute right-2 top-1/2 z-30 hidden -translate-y-1/2 rounded-full border border-white/25 bg-slate-900/80 p-2 text-white shadow-lg hover:bg-slate-800 hover:text-emerald-200 sm:right-4 sm:block transition-transform active:scale-95"
           >
             <ChevronRight className="h-8 w-8" />
           </button>
