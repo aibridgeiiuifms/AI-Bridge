@@ -1,4 +1,4 @@
-﻿import Image from 'next/image';
+import Image from 'next/image';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { getCurrentUser, getCurrentUserProfile } from '@/lib/supabase/queries';
@@ -23,6 +23,8 @@ const SdgSharedLayoutWheel = dynamic(
 
 import humHainPakistanLogo from '../../../Assets/hum hain pak logo.webp';
 import sdgLogo from '../../../Assets/SDG Logo.webp';
+import iiuiHeroBackground from '../../../Assets/home page iiui.jpeg';
+import iiuiMobileHeroBackground from '../../../Assets/home page  mobile iiui.jpeg';
 import { 
   Sparkles, 
   ArrowRight, 
@@ -63,9 +65,26 @@ export default async function HomePageContent() {
   return (
     <div className="space-y-8 pb-8 sm:space-y-16 sm:pb-16 lg:space-y-20 lg:pb-20">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-emerald-900 via-emerald-950 to-slate-900 px-3 py-3 text-white sm:px-6 sm:py-6 md:py-8 lg:px-8 lg:py-10">
+      <section className="relative overflow-hidden bg-emerald-950 px-3 py-3 text-white sm:px-6 sm:py-6 md:py-8 lg:px-8 lg:py-10">
+        <Image
+          src={iiuiMobileHeroBackground}
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-bottom sm:hidden"
+        />
+        <Image
+          src={iiuiHeroBackground}
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="hidden object-cover object-center sm:block"
+        />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-950/75 via-emerald-950/60 to-slate-950/65"></div>
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#EF6959_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none"></div>
-        <div className="relative z-10 mx-auto grid min-w-0 max-w-6xl grid-cols-1 items-center gap-3.5 sm:gap-6 md:grid-cols-2 md:gap-8 lg:gap-10">
+        <div className="relative z-10 mx-auto grid min-w-0 max-w-6xl grid-cols-1 items-center gap-3.5 sm:gap-6 md:gap-8 lg:gap-10">
           {/* Left Column: Logos, Content, CTAs, Metrics */}
           <div className="flex min-w-0 flex-col space-y-2 sm:space-y-4 text-center md:text-left">
             {/* Logos: SDG Logo & Hum Hain Pak Logo */}
@@ -90,14 +109,14 @@ export default async function HomePageContent() {
               </div>
             </div>
 
-            <h1 className="text-balance text-lg font-extrabold leading-snug tracking-tight text-white sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl">
+            <h1 className="w-full min-w-0 break-words text-balance text-base font-extrabold leading-[1.35] tracking-tight text-white sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl">
               The AI Bridge:
-              <span className="block bg-gradient-to-r from-emerald-300 via-teal-200 to-amber-200 bg-clip-text text-transparent">
+              <span className="block whitespace-nowrap pb-1 text-[clamp(0.625rem,3.2vw,0.875rem)] bg-gradient-to-r from-emerald-300 via-teal-200 to-amber-200 bg-clip-text text-transparent sm:whitespace-normal sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl">
                 Empowering Non-IT Educators & Learners
               </span>
             </h1>
 
-            <p className="mx-auto max-w-2xl text-[11px] leading-relaxed text-slate-300 sm:text-sm md:mx-0 lg:text-base">
+            <p className="mx-auto w-full min-w-0 max-w-2xl break-words px-1 text-pretty text-[11px] leading-[1.6] text-slate-200 sm:px-0 sm:text-sm md:mx-0 lg:text-base">
               Pioneered at the Faculty of Management Sciences (FMS), International Islamic University Islamabad under the leadership of Dr. Abdul Zahid Khan. Transforming dense classical curricula into interactive, multi-modal study guides and podcasts with source-grounded AI.
             </p>
 
@@ -133,8 +152,8 @@ export default async function HomePageContent() {
             </div>
           </div>
 
-          {/* Right Column: Highlights Image Container */}
-          <div className="flex w-full min-w-0 items-center justify-center">
+          {/* Highlights below the hero content */}
+          <div className="hidden">
             <HighlightsCarousel />
           </div>
         </div>
