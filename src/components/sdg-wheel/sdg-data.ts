@@ -74,7 +74,7 @@ export const TARGET_SDGS: readonly TargetSdg[] = [
     title: 'Goal 8: Decent Work & Economic Growth',
     color: SDG_COLOR[8],
     centerPos: { x: 53.824, y: 138.939 },
-    targetRotation: -158.82,
+    targetRotation: 21.18,
     description:
       'Directly combats educator burnout by automating repetitive lecture preparation and administrative formatting, saving faculty 3–5 hours weekly and redirecting that time toward meaningful student engagement.',
   },
@@ -83,7 +83,7 @@ export const TARGET_SDGS: readonly TargetSdg[] = [
     title: 'Goal 10: Reduced Inequalities',
     color: SDG_COLOR[10],
     centerPos: { x: -53.824, y: 138.939 },
-    targetRotation: 158.82,
+    targetRotation: -21.18,
     description:
       'Democratises AI tools beyond computer-science labs so that religious, legal, and linguistic scholars gain the same modern technological capabilities as their STEM counterparts.',
   },

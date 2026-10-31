@@ -148,7 +148,7 @@ export const SDG_SLICES_CONFIG: readonly SdgSliceConfig[] = [
     title: SDG_SHORT_LABEL[8],
     src: '/sdg-slices/sdg-8.svg',
     isTarget: true,
-    targetRotation: -158.82, // Counter-rotate to stand perfectly upright in card
+    targetRotation: 21.18, // Flip so the number is above the logo in the card
   },
   {
     num: 9,
@@ -178,7 +178,7 @@ export const SDG_SLICES_CONFIG: readonly SdgSliceConfig[] = [
     title: SDG_SHORT_LABEL[10],
     src: '/sdg-slices/sdg-10.svg',
     isTarget: true,
-    targetRotation: 158.82, // Counter-rotate (360 - 201.18 = 158.82) to stand upright in card
+    targetRotation: -21.18, // Flip so the number is above the logo in the card
   },
   {
     num: 11,
