@@ -2,15 +2,18 @@
 
 import type { MouseEvent, ReactNode } from 'react';
 
-const instagramWebUrl = 'https://www.instagram.com/theaibridgefmsiiui/';
-const instagramAppUrl = 'instagram://user?username=theaibridgefmsiiui';
-
-export default function MobileInstagramLink({
-  children,
+export default function MobileSocialAppLink({
+  href,
+  appHref,
+  label,
   className,
+  children,
 }: {
-  children: ReactNode;
+  href: string;
+  appHref: string;
+  label: string;
   className: string;
+  children: ReactNode;
 }) {
   function handleClick(event: MouseEvent<HTMLAnchorElement>) {
     if (
@@ -34,7 +37,7 @@ export default function MobileInstagramLink({
 
     const fallbackTimeout = window.setTimeout(() => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (!document.hidden) window.location.assign(instagramWebUrl);
+      if (!document.hidden) window.location.assign(href);
     }, 1200);
 
     function handleVisibilityChange() {
@@ -45,15 +48,15 @@ export default function MobileInstagramLink({
     }
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.location.assign(instagramAppUrl);
+    window.location.assign(appHref);
   }
 
   return (
     <a
-      href={instagramWebUrl}
+      href={href}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label="Follow The AI Bridge on Instagram"
+      aria-label={label}
       className={className}
       onClick={handleClick}
     >
