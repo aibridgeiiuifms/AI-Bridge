@@ -73,21 +73,21 @@ export default async function Footer() {
           {/* Col 3: SDG Commitments */}
           <div className="min-w-0 space-y-2 sm:space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-100">SDG Youth Mandate</h4>
-            <ul className="space-y-1.5 text-[11px] text-palette-cream sm:space-y-2 sm:text-xs">
-              <li className="flex items-start gap-1.5 sm:gap-2">
-                <span className="w-2 h-2 rounded-full bg-red-400"></span>
+            <ul className="space-y-1.5 text-[10px] leading-tight text-palette-cream sm:space-y-2 sm:text-[11px]">
+              <li className="flex items-center gap-2">
+                <Image src="/sdg-4.webp" alt="SDG 4 icon" width={28} height={28} className="h-7 w-7 flex-shrink-0 object-contain" />
                 <span>SDG 4: Quality Education</span>
               </li>
-              <li className="flex items-start gap-1.5 sm:gap-2">
-                <span className="w-2 h-2 rounded-full bg-red-700"></span>
+              <li className="flex items-center gap-2">
+                <Image src="/sdg-8.webp" alt="SDG 8 icon" width={28} height={28} className="h-7 w-7 flex-shrink-0 object-contain" />
                 <span>SDG 8: Decent Work & Economic Growth</span>
               </li>
-              <li className="flex items-start gap-1.5 sm:gap-2">
-                <span className="w-2 h-2 rounded-full bg-pink-500"></span>
+              <li className="flex items-center gap-2">
+                <Image src="/sdg-10.webp" alt="SDG 10 icon" width={28} height={28} className="h-7 w-7 flex-shrink-0 object-contain" />
                 <span>SDG 10: Reduced Inequalities</span>
               </li>
-              <li className="flex items-start gap-1.5 sm:gap-2">
-                <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+              <li className="flex items-center gap-2">
+                <Image src="/sdg-17.webp" alt="SDG 17 icon" width={28} height={28} className="h-7 w-7 flex-shrink-0 object-contain" />
                 <span>SDG 17: Partnerships for the Goals</span>
               </li>
             </ul>
@@ -134,7 +134,7 @@ export default async function Footer() {
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:gap-4">
             <span className="text-palette-cream">Quick Impact Project (QIP) Framework</span>
             <span className="text-palette-sandy">•</span>
-            <span className="text-emerald-400 font-medium">11 FMS SDG Ambassadors</span>
+            <span className="text-emerald-400 font-medium">10 FMS SDG Ambassadors</span>
           </div>
         </div>
       </div>
