@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { hasAmbassadorPortalRole } from '@/lib/access';
+import MobileSocialAppLink from '@/components/MobileSocialAppLink';
 import bridgeLogo from '../../../Assets/logo.jpg';
 import hhpLogo from '../../../Assets/hum hain pak logo.jpg';
 import iiuiLogo from '../../../Assets/IIUI Logo.jpg';
@@ -21,6 +22,7 @@ import {
   LayoutDashboard,
   LogOut,
   Share2,
+  Instagram,
 } from 'lucide-react';
 
 export default function ProfilePageContent() {
@@ -377,6 +379,14 @@ export default function ProfilePageContent() {
 
         {/* Social Links */}
         <div className="mt-3 flex items-center justify-center gap-3 border-t border-white/10 pt-3">
+          <MobileSocialAppLink
+            href="https://www.instagram.com/theaibridgefmsiiui/"
+            appHref="instagram://user?username=theaibridgefmsiiui"
+            label="Follow The AI Bridge on Instagram"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-slate-300 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+          >
+            <Instagram className="h-5 w-5" aria-hidden="true" />
+          </MobileSocialAppLink>
           <a
             href="https://www.facebook.com/profile.php?id=61594783725793"
             target="_blank"
@@ -401,18 +411,16 @@ export default function ProfilePageContent() {
               <path d="M18.9 2H22l-6.8 7.8L23.2 22h-6.3L12 14.6 5.5 22H2.3l7.3-8.4L1.8 2h6.5l4.5 6.8L18.9 2Zm-1.1 17.9h1.7L7.3 3.9H5.5l12.3 16Z" />
             </svg>
           </a>
-          <a
-            href="https://www.linkedin.com/company/the-ai-bridge-iiui-fms/home/?viewAsMember=true"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Visit The AI Bridge on LinkedIn"
-            title="LinkedIn"
+          <MobileSocialAppLink
+            href="https://www.linkedin.com/company/the-ai-bridge-iiui-fms/"
+            appHref="linkedin://company/145282223"
+            label="Visit The AI Bridge on LinkedIn"
             className="flex h-9 w-9 items-center justify-center rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current" aria-hidden="true">
               <path d="M5.2 3a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4ZM3.3 9h3.8v12H3.3V9Zm6.2 0h3.6v1.6h.1c.5-.9 1.7-2 3.6-2 3.9 0 4.6 2.5 4.6 5.7V21h-3.8v-5.9c0-1.4 0-3.2-2-3.2s-2.3 1.5-2.3 3.1V21H9.5V9Z" />
             </svg>
-          </a>
+          </MobileSocialAppLink>
         </div>
       </section>
     </div>
