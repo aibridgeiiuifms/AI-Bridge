@@ -339,6 +339,43 @@ async function syncSurveyRow(supabase: any, rowData: any) {
     }
   }
 
+  // 3. Dual-write into survey_responses_v2 (Safe analysis pipeline)
+  try {
+    const isStudentEmail = email.toLowerCase().endsWith('@student.iiu.edu.pk');
+    const isMisrouted = participantType === 'teacher' && isStudentEmail;
+    const effectiveParticipant = isMisrouted ? 'student' : participantType;
+    const formSource = `${participantType}_${surveyType}`;
+
+    await supabase.from('survey_responses_v2').upsert(
+      {
+        form_source: formSource,
+        participant_type: effectiveParticipant,
+        survey_phase: surveyType,
+        match_key: matchKey,
+        email: email.toLowerCase(),
+        login_email: loginEmail,
+        full_name: fullName,
+        reg_no: regNo,
+        dept_code: deptCode,
+        semester: semester,
+        designation: rowData.designation || answers['Designation'] || answers['Designation / Academic Rank'] || null,
+        department_name: rowData.department_name || answers['Department'] || null,
+        teaching_experience: rowData.teaching_experience || answers['Teaching Experience'] || null,
+        is_misrouted: isMisrouted,
+        hours_saved_category: hoursCategory || null,
+        ai_familiarity_rating: rating,
+        feedback_notes: rowData.feedback_notes || null,
+        answers: answers,
+        sheet_row_number: rowData.sheet_row_number || null,
+        submitted_at: new Date().toISOString(),
+        synced_at: new Date().toISOString(),
+      },
+      { onConflict: 'match_key,form_source' }
+    );
+  } catch (v2Err) {
+    console.warn('survey_responses_v2 dual-write skipped or table pending migration:', v2Err);
+  }
+
   return { email, fullName, participantType, deptCode, semester, regNo };
 }
 
@@ -407,6 +444,7 @@ export async function POST(req: NextRequest) {
       const deptCodesToUpsert = new Set<string>();
       const studentBatch: any[] = [];
       const teacherBatch: any[] = [];
+      const v2Batch: any[] = [];
 
       // Query existing user_ids for these match keys so bulk sync never overwrites a bonded user_id with null
       const allMatchKeys = validRows.map(r => r.resolved_match_key);
@@ -488,6 +526,36 @@ export async function POST(req: NextRequest) {
             updated_at: new Date().toISOString(),
           });
         }
+
+        // Collect V2 dual-write record for survey_responses_v2
+        const isStudentEmail = email.toLowerCase().endsWith('@student.iiu.edu.pk');
+        const isMisrouted = participantType === 'teacher' && isStudentEmail;
+        const effectiveParticipant = isMisrouted ? 'student' : participantType;
+        const formSource = `${participantType}_${surveyType}`;
+
+        v2Batch.push({
+          form_source: formSource,
+          participant_type: effectiveParticipant,
+          survey_phase: surveyType,
+          match_key: matchKey,
+          email: email.toLowerCase(),
+          login_email: loginEmail || null,
+          full_name: fullName || null,
+          reg_no: regNo || null,
+          dept_code: deptCode || null,
+          semester: semester || null,
+          designation: rowData.designation || answers['Designation'] || answers['Designation / Academic Rank'] || null,
+          department_name: rowData.department_name || answers['Department'] || null,
+          teaching_experience: rowData.teaching_experience || answers['Teaching Experience'] || null,
+          is_misrouted: isMisrouted,
+          hours_saved_category: hoursCategory || null,
+          ai_familiarity_rating: rating,
+          feedback_notes: rowData.feedback_notes || null,
+          answers: answers,
+          sheet_row_number: rowData.sheet_row_number || null,
+          submitted_at: new Date().toISOString(),
+          synced_at: new Date().toISOString(),
+        });
       }
 
       // Batch upsert department codes in 1 query
@@ -537,6 +605,21 @@ export async function POST(req: NextRequest) {
             console.error('Batch upsert teacher_surveys error:', error);
           } else {
             teacherSuccessCount += chunk.length;
+          }
+        }
+      }
+
+      // High-speed chunked batch upsert for survey_responses_v2 (Safe Analysis Table)
+      if (v2Batch.length > 0) {
+        for (let i = 0; i < v2Batch.length; i += 100) {
+          const chunk = v2Batch.slice(i, i + 100);
+          try {
+            const { error: v2Error } = await supabase.from('survey_responses_v2').upsert(chunk, { onConflict: 'match_key,form_source' });
+            if (v2Error) {
+              console.warn('survey_responses_v2 bulk upsert warning:', v2Error.message);
+            }
+          } catch (v2Err) {
+            console.warn('survey_responses_v2 bulk error:', v2Err);
           }
         }
       }
