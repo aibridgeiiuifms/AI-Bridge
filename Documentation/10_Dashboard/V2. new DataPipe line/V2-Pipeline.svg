@@ -1,0 +1,212 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180.849333333333 1604.8000000000002" width="1180.849333333333" height="1604.8000000000002" style="--bg:#18181B;--fg:#F4F4F5;--line:#71717A;--muted:#A1A1AA;--surface:#27272A;--border:#3F3F46;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="arrowhead" markerWidth="8" markerHeight="5" refX="7" refY="2.5" orient="auto">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+  <marker id="arrowhead-start" markerWidth="8" markerHeight="5" refX="1" refY="2.5" orient="auto-start-reverse">
+    <polygon points="8 0, 0 2.5, 8 5" fill="var(--_arrow)" stroke="var(--_arrow)" stroke-width="0.75" stroke-linejoin="round" />
+  </marker>
+</defs>
+<g class="subgraph" data-id="Forms" data-label="1. Google Forms (Input)">
+  <rect x="40" y="40" width="1021.8359999999998" height="96.9" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="40" y="40" width="1021.8359999999998" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="52" y="54" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">1. Google Forms (Input)</text>
+</g>
+<g class="subgraph" data-id="Sheets" data-label="2. Google Spreadsheets (Raw Data)">
+  <rect x="186.71799999999985" y="196.9" width="728.4000000000001" height="113.80000000000001" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="186.71799999999985" y="196.9" width="728.4000000000001" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="198.71799999999985" y="210.9" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">2. Google Spreadsheets (Raw Data)</text>
+</g>
+<g class="subgraph" data-id="Engine" data-label="3. Google Apps Script (02_SyncEngine.gs)">
+  <rect x="261.8549999999999" y="370.70000000000005" width="582.5719999999999" height="258.70000000000005" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="261.8549999999999" y="370.70000000000005" width="582.5719999999999" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="273.8549999999999" y="384.70000000000005" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">3. Google Apps Script (02_SyncEngine.gs)</text>
+</g>
+<g class="subgraph" data-id="Webhook" data-label="4. Ingestion Webhook (/api/webhooks/google-sheets)">
+  <rect x="366.11349999999993" y="757.7" width="359.23499999999996" height="300.5" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="366.11349999999993" y="757.7" width="359.23499999999996" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="378.11349999999993" y="771.7" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">4. Ingestion Webhook (/api/webhooks/google-sheets)</text>
+</g>
+<g class="subgraph" data-id="CertSystem" data-label="5A. Certification System (Unchanged &amp; Protected)">
+  <rect x="46.81916666666655" y="1247.4" width="425.48" height="300.5" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="46.81916666666655" y="1247.4" width="425.48" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="58.81916666666655" y="1261.4" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">5A. Certification System (Unchanged &amp; Protected)</text>
+</g>
+<g class="subgraph" data-id="V2System" data-label="5B. V2 Analytics System (Isolated &amp; Clean)">
+  <rect x="500.29916666666657" y="1247.4" width="640.5501666666665" height="317.40000000000003" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="500.29916666666657" y="1247.4" width="640.5501666666665" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="512.2991666666666" y="1261.4" font-size="12" font-weight="600" fill="var(--_text-sec)" dy="4.199999999999999">5B. V2 Analytics System (Isolated &amp; Clean)</text>
+</g>
+<polyline class="edge" data-from="F1" data-to="S1" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="422.2064999999999,120.9 422.2064999999999,178.9 458.88599999999985,178.9 458.88599999999985,240.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="F2" data-to="S2" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="672.9604999999998,120.9 672.9604999999999,178.9 636.281,178.9 636.2809999999998,240.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="F3" data-to="S3" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="169.97049999999996,120.9 169.9705,178.9 280.0089999999999,178.9 280.00899999999984,240.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="F4" data-to="S4" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="929.6424999999998,120.9 929.6424999999998,178.9 819.6039999999999,178.9 819.6039999999999,240.9" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S1" data-to="TR1" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="458.88599999999985,294.7 458.88599999999985,358.70000000000005 401.08799999999985,358.70000000000005 401.08799999999985,474.70000000000005" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S1" data-to="TR2" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="458.88599999999985,294.7 458.88599999999985,358.70000000000005 690.3739999999998,358.70000000000005 690.3739999999998,474.70000000000005" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S2" data-to="TR1" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="636.2809999999998,294.7 636.2809999999998,358.70000000000005 401.08799999999985,358.70000000000005 401.08799999999985,474.70000000000005" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S2" data-to="TR2" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="636.2809999999998,294.7 636.2809999999998,358.70000000000005 690.3739999999998,358.70000000000005 690.3739999999998,474.70000000000005" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S3" data-to="TR1" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="280.00899999999984,294.7 280.00899999999984,358.70000000000005 401.08799999999985,358.70000000000005 401.08799999999985,474.70000000000005" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S3" data-to="TR2" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="280.00899999999984,294.7 280.00899999999984,358.70000000000005 690.3739999999998,358.70000000000005 690.3739999999998,474.70000000000005" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S4" data-to="TR1" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="819.6039999999999,294.7 819.6039999999999,358.70000000000005 401.08799999999985,358.70000000000005 401.08799999999985,474.70000000000005" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="S4" data-to="TR2" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="819.6039999999999,294.7 819.6039999999999,358.70000000000005 690.3739999999998,358.70000000000005 690.3739999999998,474.70000000000005" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="MK" data-to="AUTH" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="POST with Bearer Auth" points="545.7309999999998,613.4000000000001 545.7309999999999,801.7" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="ROUTER" data-to="BranchA" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="Branch 1: Legacy Operational" points="491.19183333333325,1042.2 491.19183333333325,1076.2 258.81816666666657,1076.2 258.81816666666657,1156.5" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="ROUTER" data-to="BranchB" data-style="solid" data-arrow-start="false" data-arrow-end="true" data-label="Branch 2: New V2 Analysis" points="600.2701666666666,1042.2 600.2701666666666,1076.2 914.5966666666666,1076.2 914.5966666666666,1156.5" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="BranchA" data-to="SS" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="258.81816666666657,1193.4 258.81816666666657,1242.4 153.44816666666657,1242.4 153.44816666666657,1291.4" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="BranchA" data-to="TS" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="258.81816666666657,1193.4 258.81816666666657,1242.4 364.1881666666666,1242.4 364.1881666666666,1291.4" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="BranchB" data-to="V2" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="914.5966666666666,1193.4 914.5966666666666,1384.75" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="TR1" data-to="MK" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="401.08799999999985,511.6 401.08799999999985,535.6 545.7309999999999,535.6 545.7309999999999,559.6" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="TR2" data-to="MK" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="690.3739999999998,511.6 690.3739999999998,535.6 545.7309999999999,535.6 545.7309999999999,559.6" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="AUTH" data-to="PARSE" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="545.7309999999999,838.6 545.7309999999999,886.6" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PARSE" data-to="ROUTER" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="545.7309999999999,940.4000000000001 545.7309999999999,988.4000000000001" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="SS" data-to="CERT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="153.44816666666657,1328.3000000000002 153.44816666666657,1356.525 258.81816666666657,1356.525 258.81816666666657,1384.75" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="TS" data-to="CERT" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="364.1881666666666,1328.3000000000002 364.1881666666666,1356.525 258.81816666666657,1356.525 258.81816666666657,1384.75" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="CERT" data-to="PORTAL" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="258.81816666666657,1438.55 258.81816666666657,1486.5500000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="V2" data-to="DASH" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="914.5966666666666,1438.55 914.5966666666666,1462.5500000000002 680.4863333333332,1462.5500000000002 680.4863333333332,1486.5500000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="V2" data-to="GUEST" data-style="solid" data-arrow-start="false" data-arrow-end="true" points="914.5966666666666,1438.55 914.5966666666666,1462.5500000000002 978.2748333333332,1462.5500000000002 978.2748333333332,1486.5500000000002" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#arrowhead)" />
+<polyline class="edge" data-from="PERMS" data-to="DASH" data-style="dotted" data-arrow-start="false" data-arrow-end="true" data-label="Filters chart visibility" points="642.4961666666666,1345.2 642.4961666666666,1486.5500000000002" fill="none" stroke="var(--_line)" stroke-width="1" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<g class="edge-label" data-from="MK" data-to="AUTH" data-label="POST with Bearer Auth">
+  <rect x="482.7309999999999" y="678.4000000000001" width="125.16400000000003" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="545.3129999999999" y="693.5500000000001" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">POST with Bearer Auth</text>
+</g>
+<g class="edge-label" data-from="ROUTER" data-to="BranchA" data-label="Branch 1: Legacy Operational">
+  <rect x="181.31816666666657" y="1083.2" width="154.864" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="258.7501666666666" y="1098.3500000000001" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Branch 1: Legacy Operational</text>
+</g>
+<g class="edge-label" data-from="ROUTER" data-to="BranchB" data-label="Branch 2: New V2 Analysis">
+  <rect x="842.5966666666666" y="1083.2" width="143.57799999999997" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="914.3856666666666" y="1098.3500000000001" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Branch 2: New V2 Analysis</text>
+</g>
+<g class="edge-label" data-from="PERMS" data-to="DASH" data-label="Filters chart visibility">
+  <rect x="584.4961666666665" y="1404.95" width="115.06600000000005" height="30.3" rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1" />
+  <text x="642.0291666666665" y="1420.1000000000001" text-anchor="middle" font-size="11" font-weight="400" fill="var(--_text-sec)" dy="3.8499999999999996">Filters chart visibility</text>
+</g>
+<g class="node" data-id="BranchA" data-label="Certification Path" data-shape="rectangle">
+  <rect x="188.56666666666655" y="1156.5" width="140.50300000000001" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="258.81816666666657" y="1174.95" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Certification Path</text>
+</g>
+<g class="node" data-id="BranchB" data-label="Analytics Path" data-shape="rectangle">
+  <rect x="851.7551666666666" y="1156.5" width="125.68299999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="914.5966666666666" y="1174.95" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Analytics Path</text>
+</g>
+<g class="node" data-id="F1" data-label="Student Pre-Assessment Form" data-shape="rectangle">
+  <rect x="311.9409999999999" y="84" width="220.53099999999995" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="422.2064999999999" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Student Pre-Assessment Form</text>
+</g>
+<g class="node" data-id="F2" data-label="Student Post-Assessment Form" data-shape="rectangle">
+  <rect x="560.4719999999999" y="84" width="224.97699999999995" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="672.9604999999998" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Student Post-Assessment Form</text>
+</g>
+<g class="node" data-id="F3" data-label="Teacher Pre-Assessment Form" data-shape="rectangle">
+  <rect x="56" y="84" width="227.94099999999995" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="169.97049999999996" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Teacher Pre-Assessment Form</text>
+</g>
+<g class="node" data-id="F4" data-label="Teacher Post-Assessment Form" data-shape="rectangle">
+  <rect x="813.4489999999998" y="84" width="232.38699999999994" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="929.6424999999998" y="102.45" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Teacher Post-Assessment Form</text>
+</g>
+<g class="node" data-id="S1" data-label="Student Pre Sheet
+(1,272 rows)" data-shape="rectangle">
+  <rect x="385.29999999999984" y="240.9" width="147.17200000000003" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="458.88599999999985" y="267.8" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="458.88599999999985" dy="-3.9000000000000012">Student Pre Sheet</tspan><tspan x="458.88599999999985" dy="16.900000000000002">(1,272 rows)</tspan></text>
+</g>
+<g class="node" data-id="S2" data-label="Student Post Sheet
+(824 rows)" data-shape="rectangle">
+  <rect x="560.4719999999999" y="240.9" width="151.618" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="636.2809999999998" y="267.8" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="636.2809999999998" dy="-3.9000000000000012">Student Post Sheet</tspan><tspan x="636.2809999999998" dy="16.900000000000002">(824 rows)</tspan></text>
+</g>
+<g class="node" data-id="S3" data-label="Teacher Pre Sheet
+(120 rows)" data-shape="rectangle">
+  <rect x="202.71799999999985" y="240.9" width="154.582" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="280.00899999999984" y="267.8" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="280.00899999999984" dy="-3.9000000000000012">Teacher Pre Sheet</tspan><tspan x="280.00899999999984" dy="16.900000000000002">(120 rows)</tspan></text>
+</g>
+<g class="node" data-id="S4" data-label="Teacher Post Sheet
+(91 rows)" data-shape="rectangle">
+  <rect x="740.0899999999999" y="240.9" width="159.028" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="819.6039999999999" y="267.8" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="819.6039999999999" dy="-3.9000000000000012">Teacher Post Sheet</tspan><tspan x="819.6039999999999" dy="16.900000000000002">(91 rows)</tspan></text>
+</g>
+<g class="node" data-id="TR1" data-label="⚡ onFormSubmit (Instant New Row)" data-shape="rectangle">
+  <rect x="277.8549999999999" y="474.70000000000005" width="246.46599999999995" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="401.08799999999985" y="493.15000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">⚡ onFormSubmit (Instant New Row)</text>
+</g>
+<g class="node" data-id="TR2" data-label="✏️ syncEditedRow (Instant Edit/Update)" data-shape="rectangle">
+  <rect x="552.3209999999999" y="474.70000000000005" width="276.1059999999999" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="690.3739999999998" y="493.15000000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">✏️ syncEditedRow (Instant Edit/Update)</text>
+</g>
+<g class="node" data-id="MK" data-label="Stable Identity Key
+match_key = ts:Timestamp" data-shape="rectangle">
+  <rect x="449.17399999999986" y="559.6" width="193.11399999999998" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="545.7309999999999" y="586.5" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="545.7309999999999" dy="-3.9000000000000012">Stable Identity Key</tspan><tspan x="545.7309999999999" dy="16.900000000000002">match_key = ts:Timestamp</tspan></text>
+</g>
+<g class="node" data-id="AUTH" data-label="Secret Bearer Token Check" data-shape="rectangle">
+  <rect x="441.3934999999999" y="801.7" width="208.67499999999998" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="545.7309999999999" y="820.1500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">Secret Bearer Token Check</text>
+</g>
+<g class="node" data-id="PARSE" data-label="Email Parser &amp; Cleaning
+Extracts: RegNo, Dept, Semester" data-shape="rectangle">
+  <rect x="430.27849999999995" y="886.6" width="230.90499999999994" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="545.7309999999999" y="913.5" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="545.7309999999999" dy="-3.9000000000000012">Email Parser &amp; Cleaning</tspan><tspan x="545.7309999999999" dy="16.900000000000002">Extracts: RegNo, Dept, Semester</tspan></text>
+</g>
+<g class="node" data-id="ROUTER" data-label="Misrouted Student Check
+If @student.iiu in Teacher Form -&gt; Route to Student" data-shape="rectangle">
+  <rect x="382.11349999999993" y="988.4000000000001" width="327.23499999999996" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="545.7309999999999" y="1015.3000000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="545.7309999999999" dy="-3.9000000000000012">Misrouted Student Check</tspan><tspan x="545.7309999999999" dy="16.900000000000002">If @student.iiu in Teacher Form -&gt; Route to Student</tspan></text>
+</g>
+<g class="node" data-id="SS" data-label="public.student_surveys" data-shape="rectangle">
+  <rect x="62.81916666666655" y="1291.4" width="181.258" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="153.44816666666657" y="1309.8500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">public.student_surveys</text>
+</g>
+<g class="node" data-id="TS" data-label="public.teacher_surveys" data-shape="rectangle">
+  <rect x="272.0771666666666" y="1291.4" width="184.22199999999998" height="36.900000000000006" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="364.1881666666666" y="1309.8500000000001" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)" dy="4.55">public.teacher_surveys</text>
+</g>
+<g class="node" data-id="CERT" data-label="public.certificates
+(Linked by verified student_email)" data-shape="rectangle">
+  <rect x="140.40166666666659" y="1384.75" width="236.8329999999999" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="258.81816666666657" y="1411.65" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="258.81816666666657" dy="-3.9000000000000012">public.certificates</tspan><tspan x="258.81816666666657" dy="16.900000000000002">(Linked by verified student_email)</tspan></text>
+</g>
+<g class="node" data-id="PORTAL" data-label="Student Portal (/portal)
+View &amp; Download Certificate" data-shape="rectangle">
+  <rect x="158.18566666666658" y="1486.5500000000002" width="201.2649999999999" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="258.8181666666665" y="1513.4500000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="258.8181666666665" dy="-3.9000000000000012">Student Portal (/portal)</tspan><tspan x="258.8181666666665" dy="16.900000000000002">View &amp; Download Certificate</tspan></text>
+</g>
+<g class="node" data-id="V2" data-label="public.survey_responses_v2
+(2,307 Clean Rows · Zero Duplicates · Flagged Misrouted)" data-shape="rectangle">
+  <rect x="723.5621666666666" y="1384.75" width="382.0689999999999" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="914.5966666666666" y="1411.65" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="914.5966666666666" dy="-3.9000000000000012">public.survey_responses_v2</tspan><tspan x="914.5966666666666" dy="16.900000000000002">(2,307 Clean Rows · Zero Duplicates · Flagged Misrouted)</tspan></text>
+</g>
+<g class="node" data-id="DASH" data-label="Admin Dashboard (/dashboard)
+4 Tabs · 34 Comparative Charts" data-shape="rectangle">
+  <rect x="566.5158333333331" y="1486.5500000000002" width="227.94099999999995" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="680.4863333333332" y="1513.4500000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="680.4863333333332" dy="-3.9000000000000012">Admin Dashboard (/dashboard)</tspan><tspan x="680.4863333333332" dy="16.900000000000002">4 Tabs · 34 Comparative Charts</tspan></text>
+</g>
+<g class="node" data-id="GUEST" data-label="Outsider Evaluator Portal (/guest-analytics)
+QR Code Scan + Shared Passcode" data-shape="rectangle">
+  <rect x="831.7003333333332" y="1486.5500000000002" width="293.1489999999999" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="978.2748333333332" y="1513.4500000000003" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="978.2748333333332" dy="-3.9000000000000012">Outsider Evaluator Portal (/guest-analytics)</tspan><tspan x="978.2748333333332" dy="16.900000000000002">QR Code Scan + Shared Passcode</tspan></text>
+</g>
+<g class="node" data-id="PERMS" data-label="Granular Permissions
+(public.member_chart_permissions)" data-shape="rectangle">
+  <rect x="516.2991666666666" y="1291.4" width="252.39399999999992" height="53.800000000000004" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="642.4961666666666" y="1318.3000000000002" text-anchor="middle" font-size="13" font-weight="500" fill="var(--_text)"><tspan x="642.4961666666666" dy="-3.9000000000000012">Granular Permissions</tspan><tspan x="642.4961666666666" dy="16.900000000000002">(public.member_chart_permissions)</tspan></text>
+</g>
+</svg>
