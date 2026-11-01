@@ -70,7 +70,7 @@ export default async function Footer() {
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-100">Join our Social Community</h4>
               <div className="flex items-center gap-3">
                 <MobileSocialAppLink
-                  href="https://www.instagram.com/theaibridgefmsiiui/"
+                  href="https://www.instagram.com/theaibridgefmsiiui?psln=M24xMXhoNDMyZzkw"
                   appHref="instagram://user?username=theaibridgefmsiiui"
                   label="Follow The AI Bridge on Instagram"
                   className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 text-palette-cream transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 lg:h-11 lg:w-11"
@@ -89,8 +89,9 @@ export default async function Footer() {
                   </svg>
                 </a>
                 <MobileSocialAppLink
-                  href="https://www.linkedin.com/company/the-ai-bridge-iiui-fms/"
-                  appHref="linkedin://company/145282223"
+                  href="https://www.linkedin.com/company/the-ai-bridge-iiui-fms/posts/"
+                  appHref="https://www.linkedin.com/company/the-ai-bridge-iiui-fms/posts/"
+                  androidAppHref="intent://www.linkedin.com/company/the-ai-bridge-iiui-fms/posts/#Intent;scheme=https;package=com.linkedin.android;end"
                   label="Visit The AI Bridge on LinkedIn"
                   className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 text-palette-cream transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 lg:h-11 lg:w-11"
                 >

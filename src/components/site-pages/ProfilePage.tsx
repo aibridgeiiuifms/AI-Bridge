@@ -412,8 +412,9 @@ export default function ProfilePageContent() {
             </svg>
           </a>
           <MobileSocialAppLink
-            href="https://www.linkedin.com/company/the-ai-bridge-iiui-fms/"
-            appHref="linkedin://company/145282223"
+            href="https://www.linkedin.com/company/the-ai-bridge-iiui-fms/posts/"
+            appHref="https://www.linkedin.com/company/the-ai-bridge-iiui-fms/posts/"
+            androidAppHref="intent://www.linkedin.com/company/the-ai-bridge-iiui-fms/posts/#Intent;scheme=https;package=com.linkedin.android;end"
             label="Visit The AI Bridge on LinkedIn"
             className="flex h-9 w-9 items-center justify-center rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
           >
