@@ -75,19 +75,19 @@ export default async function Footer() {
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-100">SDG Youth Mandate</h4>
             <ul className="space-y-1.5 text-[10px] leading-tight text-palette-cream sm:space-y-2 sm:text-[11px]">
               <li className="flex items-center gap-2">
-                <Image src="/sdg-4.webp" alt="SDG 4 icon" width={28} height={28} className="h-7 w-7 flex-shrink-0 object-contain" />
+                <Image src="/sdg-4-logo-box.svg" alt="SDG 4: Quality Education" width={32} height={32} className="h-8 w-8 flex-shrink-0 object-contain" />
                 <span>SDG 4: Quality Education</span>
               </li>
               <li className="flex items-center gap-2">
-                <Image src="/sdg-8.webp" alt="SDG 8 icon" width={28} height={28} className="h-7 w-7 flex-shrink-0 object-contain" />
+                <Image src="/sdg-8-logo-box.svg" alt="SDG 8: Decent Work and Economic Growth" width={32} height={32} className="h-8 w-8 flex-shrink-0 object-contain" />
                 <span>SDG 8: Decent Work & Economic Growth</span>
               </li>
               <li className="flex items-center gap-2">
-                <Image src="/sdg-10.webp" alt="SDG 10 icon" width={28} height={28} className="h-7 w-7 flex-shrink-0 object-contain" />
+                <Image src="/sdg-10-logo-box.svg" alt="SDG 10: Reduced Inequalities" width={32} height={32} className="h-8 w-8 flex-shrink-0 object-contain" />
                 <span>SDG 10: Reduced Inequalities</span>
               </li>
               <li className="flex items-center gap-2">
-                <Image src="/sdg-17.webp" alt="SDG 17 icon" width={28} height={28} className="h-7 w-7 flex-shrink-0 object-contain" />
+                <Image src="/sdg-17-logo-box.svg" alt="SDG 17: Partnerships for the Goals" width={32} height={32} className="h-8 w-8 flex-shrink-0 object-contain" />
                 <span>SDG 17: Partnerships for the Goals</span>
               </li>
             </ul>
