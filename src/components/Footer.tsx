@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { HeartHandshake, Instagram, ShieldCheck, ExternalLink } from 'lucide-react';
+import MobileInstagramLink from '@/components/MobileInstagramLink';
 import { getCurrentUser, getCurrentUserProfile } from '@/lib/supabase/queries';
 import { hasAmbassadorPortalRole } from '@/lib/access';
 
@@ -68,15 +69,9 @@ export default async function Footer() {
             <div className="space-y-2">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-100">Join our Social Community</h4>
               <div className="flex items-center gap-3">
-                <a
-                  href="https://www.instagram.com/theaibridgefmsiiui/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Follow The AI Bridge on Instagram"
-                  className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 text-palette-cream transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 lg:h-11 lg:w-11"
-                >
+                <MobileInstagramLink className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 text-palette-cream transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 lg:h-11 lg:w-11">
                   <Instagram className="h-5 w-5 lg:h-6 lg:w-6" aria-hidden="true" />
-                </a>
+                </MobileInstagramLink>
                 <a
                   href="https://www.facebook.com/profile.php?id=61594783725793"
                   target="_blank"
