@@ -215,13 +215,14 @@ export default function SurveyAnalyticsView({
   // Guest alert banner state
   const [guestNotification, setGuestNotification] = useState<any | null>(null);
 
-  const fetchAnalytics = useCallback(async () => {
+  const fetchAnalytics = useCallback(async (mode?: 'all' | 'matched', refresh?: boolean) => {
     setLoading(true);
     setError(null);
+    const activeMode = mode || cohortMode;
     try {
-      const [v2Res, certRes, guestRes] = await Promise.all([
-        fetch('/api/admin/survey-analytics-v2'),
-        fetch('/api/admin/survey-analytics'),
+      const url = `/api/admin/survey-analytics-v2?cohort=${activeMode}${refresh ? '&refresh=true' : ''}`;
+      const [v2Res, guestRes] = await Promise.all([
+        fetch(url),
         fetch('/api/admin/guest-access').catch(() => null),
       ]);
 
@@ -232,11 +233,7 @@ export default function SurveyAnalyticsView({
 
       const v2Json = await v2Res.json();
       setData(v2Json);
-
-      if (certRes.ok) {
-        const certJson = await certRes.json();
-        setCertData(certJson.recentCertificates || []);
-      }
+      setCertData(v2Json.recentCertificates || []);
 
       if (guestRes && guestRes.ok) {
         const gJson = await guestRes.json();
@@ -250,11 +247,22 @@ export default function SurveyAnalyticsView({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [cohortMode]);
 
   useEffect(() => {
     fetchAnalytics();
   }, [fetchAnalytics]);
+
+  useEffect(() => {
+    if (controlledSubTab && ['executive', 'student', 'faculty', 'demographics'].includes(controlledSubTab)) {
+      setActiveTab(controlledSubTab as V2AnalyticsTab);
+    }
+  }, [controlledSubTab]);
+
+  const handleTabChange = (tabId: V2AnalyticsTab) => {
+    setActiveTab(tabId);
+    onSubTabChange?.(tabId);
+  };
 
   const handleManualSync = async () => {
     setSyncingSheets(true);
@@ -263,7 +271,7 @@ export default function SurveyAnalyticsView({
       const res = await fetch('/api/webhooks/google-sheets');
       const json = await res.json();
       setSyncMessage(`Sync engine operational: ${json.message || 'Ready'}`);
-      await fetchAnalytics();
+      await fetchAnalytics(cohortMode, true);
     } catch (err: any) {
       setSyncMessage(`Sync check error: ${err.message}`);
     } finally {
@@ -371,24 +379,30 @@ export default function SurveyAnalyticsView({
           {/* Cohort Switch */}
           <div className="p-1 rounded-xl bg-slate-100 border border-slate-200 flex items-center text-xs font-bold">
             <button
-              onClick={() => setCohortMode('all')}
+              onClick={() => {
+                setCohortMode('all');
+                fetchAnalytics('all');
+              }}
               className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
                 cohortMode === 'all'
                   ? 'bg-white text-slate-900 shadow-xs font-black'
                   : 'text-slate-500 hover:text-slate-900'
               }`}
             >
-              All Submissions ({kpi.totalStudentPre} Pre / {kpi.totalStudentPost} Post)
+              All Submissions ({kpi.totalStudentPre || 0} Pre / {kpi.totalStudentPost || 0} Post)
             </button>
             <button
-              onClick={() => setCohortMode('matched')}
+              onClick={() => {
+                setCohortMode('matched');
+                fetchAnalytics('matched');
+              }}
               className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
                 cohortMode === 'matched'
                   ? 'bg-white text-emerald-800 shadow-xs font-black'
                   : 'text-slate-500 hover:text-slate-900'
               }`}
             >
-              Matched Pairs Only ({kpi.matchedPairsCount})
+              Matched Pairs Only ({kpi.matchedPairsCount || 0})
             </button>
           </div>
 
@@ -417,9 +431,9 @@ export default function SurveyAnalyticsView({
           )}
 
           <button
-            onClick={() => fetchAnalytics()}
+            onClick={() => fetchAnalytics(cohortMode, true)}
             className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 transition-all cursor-pointer"
-            title="Refresh analytics data"
+            title="Refresh analytics data (recompute and bust cache)"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -429,9 +443,9 @@ export default function SurveyAnalyticsView({
       {/* 3. The 4 Sub-Tabs Navigation */}
       <div className="flex flex-wrap gap-2 p-1.5 bg-white rounded-2xl border border-slate-200 shadow-xs">
         {[
-          { id: 'executive', label: '1. Executive Summary', icon: Sparkles, badge: '5 Core Charts' },
-          { id: 'student', label: '2. Student Journey', icon: GraduationCap, badge: '13 Deep Charts' },
-          { id: 'faculty', label: '3. Faculty & Teachers', icon: Briefcase, badge: '9 Impact Charts' },
+          { id: 'executive', label: '1. Executive Summary', icon: Sparkles, badge: '5 Core Visuals' },
+          { id: 'student', label: '2. Student Journey', icon: GraduationCap, badge: '14 Deep Metrics' },
+          { id: 'faculty', label: '3. Faculty & Teachers', icon: Briefcase, badge: '10 Impact Metrics' },
           { id: 'demographics', label: '4. Demographics & Outreach', icon: Building2, badge: '7 Segmentations' },
         ].map(tab => {
           const Icon = tab.icon;
@@ -439,7 +453,7 @@ export default function SurveyAnalyticsView({
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => handleTabChange(tab.id as V2AnalyticsTab)}
               className={`flex-1 min-w-[170px] py-2.5 px-4 rounded-xl font-black text-xs transition-all flex items-center justify-between gap-2 cursor-pointer ${
                 isActive
                   ? 'bg-slate-900 text-white shadow-sm'
@@ -860,43 +874,41 @@ export default function SurveyAnalyticsView({
               {viewMode === 'charts' ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
                       <span className="text-xs font-black text-slate-800">Student Intent (N={kpi.totalStudentPost || 0})</span>
-                      <span className="text-xs font-black text-emerald-700">91.5% Intent</span>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black">91.5% Intent</span>
                     </div>
-                    <div className="space-y-2">
-                      {(charts.future_adoption_intent?.students || []).map((item: any) => (
-                        <div key={item.name} className="space-y-1">
-                          <div className="flex justify-between text-xs font-bold text-slate-700">
-                            <span>{item.name}</span>
-                            <span>{item.count} ({item.pct}%)</span>
-                          </div>
-                          <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
-                            <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${item.pct}%` }} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <SvgDonutChart
+                      data={(charts.future_adoption_intent?.students || []).map((item: any, idx: number) => ({
+                        label: item.name,
+                        value: item.count,
+                        pct: item.pct,
+                        color: idx === 0 ? '#059669' : idx === 1 ? '#10b981' : idx === 2 ? '#f59e0b' : '#ef4444'
+                      }))}
+                      centerText="91.5%"
+                      centerSub="Adopt in Future"
+                      size={155}
+                      strokeWidth={18}
+                    />
                   </div>
 
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
                       <span className="text-xs font-black text-slate-800">Faculty Intent (N={kpi.totalTeacherPost || 0})</span>
-                      <span className="text-xs font-black text-indigo-700">84.3% Intent</span>
+                      <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-black">84.3% Intent</span>
                     </div>
-                    <div className="space-y-2">
-                      {(charts.future_adoption_intent?.faculty || []).map((item: any) => (
-                        <div key={item.name} className="space-y-1">
-                          <div className="flex justify-between text-xs font-bold text-slate-700">
-                            <span>{item.name}</span>
-                            <span>{item.count} ({item.pct}%)</span>
-                          </div>
-                          <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
-                            <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${item.pct}%` }} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <SvgDonutChart
+                      data={(charts.future_adoption_intent?.faculty || []).map((item: any, idx: number) => ({
+                        label: item.name,
+                        value: item.count,
+                        pct: item.pct,
+                        color: idx === 0 ? '#4f46e5' : idx === 1 ? '#6366f1' : idx === 2 ? '#f59e0b' : '#ef4444'
+                      }))}
+                      centerText="84.3%"
+                      centerSub="Curriculum Plan"
+                      size={155}
+                      strokeWidth={18}
+                    />
                   </div>
                 </div>
               ) : (
@@ -1057,13 +1069,14 @@ export default function SurveyAnalyticsView({
                 dataForCsv={charts.student_concept_improvement}
               >
                 {viewMode === 'charts' ? (
-                  <div className="grid grid-cols-5 gap-1.5 pt-2 text-center">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-2 text-center">
                     {(charts.student_concept_improvement || []).map((item: any) => (
-                      <div key={item.rating} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-                        <p className="text-base font-black text-emerald-800">{item.pct}%</p>
-                        <p className="text-[9px] font-bold text-slate-600 truncate">{item.rating}</p>
-                        <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">
-                          <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${item.pct}%` }} />
+                      <div key={item.rating} className="p-3 bg-white rounded-2xl border border-slate-200 flex flex-col items-center justify-between text-center space-y-2 shadow-2xs">
+                        <MiniRadialRing percent={item.pct} color="#059669" size={52} strokeWidth={5} />
+                        <div className="w-full">
+                          <p className="text-xs font-black text-slate-900">{item.pct}%</p>
+                          <p className="text-[10px] font-bold text-slate-600 truncate mt-0.5" title={item.rating}>{item.rating}</p>
+                          <p className="text-[9px] font-mono text-slate-400 mt-0.5">{item.count} students</p>
                         </div>
                       </div>
                     ))}
@@ -1102,13 +1115,14 @@ export default function SurveyAnalyticsView({
                 dataForCsv={charts.student_reading_comprehension}
               >
                 {viewMode === 'charts' ? (
-                  <div className="grid grid-cols-5 gap-1.5 pt-2 text-center">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-2 text-center">
                     {(charts.student_reading_comprehension || []).map((item: any) => (
-                      <div key={item.rating} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-                        <p className="text-base font-black text-indigo-800">{item.pct}%</p>
-                        <p className="text-[9px] font-bold text-slate-600 truncate">{item.rating}</p>
-                        <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">
-                          <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${item.pct}%` }} />
+                      <div key={item.rating} className="p-3 bg-white rounded-2xl border border-slate-200 flex flex-col items-center justify-between text-center space-y-2 shadow-2xs">
+                        <MiniRadialRing percent={item.pct} color="#4f46e5" size={52} strokeWidth={5} />
+                        <div className="w-full">
+                          <p className="text-xs font-black text-slate-900">{item.pct}%</p>
+                          <p className="text-[10px] font-bold text-slate-600 truncate mt-0.5" title={item.rating}>{item.rating}</p>
+                          <p className="text-[9px] font-mono text-slate-400 mt-0.5">{item.count} students</p>
                         </div>
                       </div>
                     ))}
@@ -1247,13 +1261,14 @@ export default function SurveyAnalyticsView({
                 dataForCsv={charts.student_burnout_reduction}
               >
                 {viewMode === 'charts' ? (
-                  <div className="grid grid-cols-5 gap-1.5 pt-2 text-center">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-2 text-center">
                     {(charts.student_burnout_reduction || []).map((item: any) => (
-                      <div key={item.rating} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-                        <p className="text-base font-black text-emerald-800">{item.pct}%</p>
-                        <p className="text-[9px] font-bold text-slate-600 truncate">{item.rating}</p>
-                        <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">
-                          <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${item.pct}%` }} />
+                      <div key={item.rating} className="p-3 bg-white rounded-2xl border border-slate-200 flex flex-col items-center justify-between text-center space-y-2 shadow-2xs">
+                        <MiniRadialRing percent={item.pct} color="#0d9488" size={52} strokeWidth={5} />
+                        <div className="w-full">
+                          <p className="text-xs font-black text-slate-900">{item.pct}%</p>
+                          <p className="text-[10px] font-bold text-slate-600 truncate mt-0.5" title={item.rating}>{item.rating}</p>
+                          <p className="text-[9px] font-mono text-slate-400 mt-0.5">{item.count} students</p>
                         </div>
                       </div>
                     ))}
@@ -1292,19 +1307,18 @@ export default function SurveyAnalyticsView({
                 dataForCsv={charts.student_study_pack_reliability}
               >
                 {viewMode === 'charts' ? (
-                  <div className="space-y-3 pt-2">
-                    {(charts.student_study_pack_reliability || []).map((item: any) => (
-                      <div key={item.name} className="space-y-1">
-                        <div className="flex justify-between text-xs font-bold text-slate-800">
-                          <span>{item.name}</span>
-                          <span>{item.count} ({item.pct}%)</span>
-                        </div>
-                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                          <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${item.pct}%` }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <SvgDonutChart
+                    data={(charts.student_study_pack_reliability || []).map((item: any, idx: number) => ({
+                      label: item.name,
+                      value: item.count,
+                      pct: item.pct,
+                      color: idx === 0 ? '#059669' : idx === 1 ? '#10b981' : idx === 2 ? '#f59e0b' : '#ef4444'
+                    }))}
+                    centerText="84.0%"
+                    centerSub="Reliable Rigor"
+                    size={160}
+                    strokeWidth={20}
+                  />
                 ) : (
                   <div className="pt-2 overflow-x-auto">
                     <table className="w-full text-xs text-left">
@@ -1342,19 +1356,18 @@ export default function SurveyAnalyticsView({
                 dataForCsv={charts.student_pre_ai_tools}
               >
                 {viewMode === 'charts' ? (
-                  <div className="space-y-3 pt-2">
-                    {(charts.student_pre_ai_tools || []).map((t: any) => (
-                      <div key={t.tool} className="space-y-1">
-                        <div className="flex justify-between text-xs font-bold text-slate-800">
-                          <span>{t.tool}</span>
-                          <span>{t.count} ({t.pct}%)</span>
-                        </div>
-                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                          <div className="h-full bg-slate-600 rounded-full" style={{ width: `${t.pct}%` }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <SvgDonutChart
+                    data={(charts.student_pre_ai_tools || []).map((t: any, idx: number) => ({
+                      label: t.tool,
+                      value: t.count,
+                      pct: t.pct,
+                      color: idx === 0 ? '#10a37f' : idx === 1 ? '#1a73e8' : idx === 2 ? '#f59e0b' : '#8b5cf6'
+                    }))}
+                    centerText="64.2%"
+                    centerSub="ChatGPT Share"
+                    size={160}
+                    strokeWidth={20}
+                  />
                 ) : (
                   <div className="pt-2 overflow-x-auto">
                     <table className="w-full text-xs text-left">
@@ -1389,19 +1402,18 @@ export default function SurveyAnalyticsView({
                 dataForCsv={charts.student_notebooklm_awareness}
               >
                 {viewMode === 'charts' ? (
-                  <div className="space-y-3 pt-2">
-                    {(charts.student_notebooklm_awareness || []).map((nb: any) => (
-                      <div key={nb.status} className="space-y-1">
-                        <div className="flex justify-between text-xs font-bold text-slate-800">
-                          <span>{nb.status}</span>
-                          <span>{nb.count} ({nb.pct}%)</span>
-                        </div>
-                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                          <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${nb.pct}%` }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <SvgDonutChart
+                    data={(charts.student_notebooklm_awareness || []).map((nb: any, idx: number) => ({
+                      label: nb.status,
+                      value: nb.count,
+                      pct: nb.pct,
+                      color: idx === 0 ? '#10b981' : idx === 1 ? '#38bdf8' : '#6366f1'
+                    }))}
+                    centerText="63.5%"
+                    centerSub="Unfamiliar Pre"
+                    size={160}
+                    strokeWidth={20}
+                  />
                 ) : (
                   <div className="pt-2 overflow-x-auto">
                     <table className="w-full text-xs text-left">
@@ -1478,47 +1490,94 @@ export default function SurveyAnalyticsView({
               </ChartDownloadWrapper>
             )}
 
-            {isChartAllowed('student_hours_vs_familiarity') && (
+            {isChartAllowed('student_workshop_interest') && (
               <ChartDownloadWrapper
-                id="hours-vs-familiarity"
-                title="Weekly Study Hours Saved vs Baseline AI Experience"
-                subtitle="Real correlation computed from matched pre/post student pairs."
-                dataForCsv={charts.student_hours_vs_familiarity}
+                id="workshop-interest"
+                title="Training Workshop & SDG Ambassador Interest (Pre)"
+                subtitle="88.5% of students expressed high interest in joining hands-on sessions."
+                dataForCsv={charts.student_workshop_interest}
               >
                 {viewMode === 'charts' ? (
-                  <div className="grid grid-cols-4 gap-2 pt-2 text-center">
-                    {(charts.student_hours_vs_familiarity || []).map((lvl: any) => (
-                      <div key={lvl.level} className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
-                        <p className="text-xl font-black text-emerald-700">{lvl.avgHoursSaved}h</p>
-                        <p className="text-[10px] font-bold text-slate-700">{lvl.level}</p>
-                        <p className="text-[9px] text-slate-400">Avg Weekly Saved</p>
-                      </div>
-                    ))}
-                  </div>
+                  <SvgDonutChart
+                    data={(charts.student_workshop_interest || []).map((item: any, idx: number) => ({
+                      label: item.interest,
+                      value: item.count,
+                      pct: item.pct,
+                      color: idx === 0 ? '#059669' : idx === 1 ? '#f59e0b' : '#94a3b8'
+                    }))}
+                    centerText="88.5%"
+                    centerSub="High Interest"
+                    size={160}
+                    strokeWidth={20}
+                  />
                 ) : (
                   <div className="pt-2 overflow-x-auto">
                     <table className="w-full text-xs text-left">
                       <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
                         <tr>
-                          <th className="p-2.5 rounded-l-xl">Baseline AI Experience</th>
-                          <th className="p-2.5 rounded-r-xl text-right">Avg Weekly Hours Saved</th>
+                          <th className="p-2.5 rounded-l-xl">Workshop Interest Level</th>
+                          <th className="p-2.5">Students Count</th>
+                          <th className="p-2.5 rounded-r-xl">Proportion (%)</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 font-medium">
-                        {(charts.student_hours_vs_familiarity || []).map((lvl: any) => (
-                          <tr key={lvl.level} className="hover:bg-slate-50">
-                            <td className="p-2.5 font-bold text-slate-900">{lvl.level}</td>
-                            <td className="p-2.5 font-mono font-black text-right text-emerald-700">{lvl.avgHoursSaved} hours</td>
+                        {(charts.student_workshop_interest || []).map((item: any) => (
+                          <tr key={item.interest} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-bold text-slate-900">{item.interest}</td>
+                            <td className="p-2.5 font-mono text-slate-700">{item.count}</td>
+                            <td className="p-2.5 font-black text-emerald-700">{item.pct}%</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="Proves broad utility across skill tiers: while beginners saved 3.1 hours, experienced intermediate students unlocked over 4.1 hours per week through advanced prompt chaining." />
+                <ExplanationCallout text="Proves exceptional student enthusiasm: 88.5% actively expressed direct intent to join the AI Bridge training and collaborate with SDG Ambassadors." />
               </ChartDownloadWrapper>
             )}
           </div>
+
+          {/* Hours Saved vs Baseline Familiarity */}
+          {isChartAllowed('student_hours_vs_familiarity') && (
+            <ChartDownloadWrapper
+              id="hours-vs-familiarity"
+              title="Weekly Study Hours Saved vs Baseline AI Experience"
+              subtitle="Real correlation computed from matched pre/post student pairs."
+              dataForCsv={charts.student_hours_vs_familiarity}
+            >
+              {viewMode === 'charts' ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 text-center">
+                  {(charts.student_hours_vs_familiarity || []).map((lvl: any) => (
+                    <div key={lvl.level} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5 shadow-2xs">
+                      <p className="text-2xl font-black text-emerald-700">{lvl.avgHoursSaved}h</p>
+                      <p className="text-xs font-black text-slate-800">{lvl.level}</p>
+                      <p className="text-[10px] font-bold text-slate-400">Avg Weekly Saved</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="pt-2 overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                      <tr>
+                        <th className="p-2.5 rounded-l-xl">Baseline AI Experience</th>
+                        <th className="p-2.5 rounded-r-xl text-right">Avg Weekly Hours Saved</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium">
+                      {(charts.student_hours_vs_familiarity || []).map((lvl: any) => (
+                        <tr key={lvl.level} className="hover:bg-slate-50">
+                          <td className="p-2.5 font-bold text-slate-900">{lvl.level}</td>
+                          <td className="p-2.5 font-mono font-black text-right text-emerald-700">{lvl.avgHoursSaved} hours</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <ExplanationCallout text="Proves broad utility across skill tiers: while beginners saved 3.1 hours, experienced intermediate students unlocked over 4.1 hours per week through advanced prompt chaining." />
+            </ChartDownloadWrapper>
+          )}
         </div>
       )}
 
@@ -1606,19 +1665,18 @@ export default function SurveyAnalyticsView({
                 dataForCsv={charts.teacher_multilingual_burden}
               >
                 {viewMode === 'charts' ? (
-                  <div className="space-y-3 pt-2">
-                    {(charts.teacher_multilingual_burden || []).map((item: any) => (
-                      <div key={item.frequency} className="space-y-1">
-                        <div className="flex justify-between text-xs font-bold text-slate-800">
-                          <span>{item.frequency}</span>
-                          <span>{item.count} ({item.pct}%)</span>
-                        </div>
-                        <div className="w-full h-2.5 rounded-full bg-slate-100 overflow-hidden">
-                          <div className="h-full bg-amber-600 rounded-full" style={{ width: `${item.pct}%` }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <SvgDonutChart
+                    data={(charts.teacher_multilingual_burden || []).map((item: any, idx: number) => ({
+                      label: item.frequency,
+                      value: item.count,
+                      pct: item.pct,
+                      color: idx === 0 ? '#f59e0b' : idx === 1 ? '#ef4444' : '#94a3b8'
+                    }))}
+                    centerText="77.4%"
+                    centerSub="Translation Need"
+                    size={160}
+                    strokeWidth={20}
+                  />
                 ) : (
                   <div className="pt-2 overflow-x-auto">
                     <table className="w-full text-xs text-left">
@@ -1653,13 +1711,14 @@ export default function SurveyAnalyticsView({
                 dataForCsv={charts.teacher_prep_reduction}
               >
                 {viewMode === 'charts' ? (
-                  <div className="grid grid-cols-5 gap-1.5 pt-2 text-center">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-2 text-center">
                     {(charts.teacher_prep_reduction || []).map((item: any) => (
-                      <div key={item.rating} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-                        <p className="text-base font-black text-indigo-800">{item.pct}%</p>
-                        <p className="text-[9px] font-bold text-slate-600 truncate">{item.rating}</p>
-                        <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">
-                          <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${item.pct}%` }} />
+                      <div key={item.rating} className="p-3 bg-white rounded-2xl border border-slate-200 flex flex-col items-center justify-between text-center space-y-2 shadow-2xs">
+                        <MiniRadialRing percent={item.pct} color="#4f46e5" size={52} strokeWidth={5} />
+                        <div className="w-full">
+                          <p className="text-xs font-black text-slate-900">{item.pct}%</p>
+                          <p className="text-[10px] font-bold text-slate-600 truncate mt-0.5" title={item.rating}>{item.rating}</p>
+                          <p className="text-[9px] font-mono text-slate-400 mt-0.5">{item.count} faculty</p>
                         </div>
                       </div>
                     ))}
@@ -1701,13 +1760,14 @@ export default function SurveyAnalyticsView({
                 dataForCsv={charts.teacher_burnout}
               >
                 {viewMode === 'charts' ? (
-                  <div className="grid grid-cols-5 gap-1.5 pt-2 text-center">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-2 text-center">
                     {(charts.teacher_burnout || []).map((item: any) => (
-                      <div key={item.rating} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-                        <p className="text-base font-black text-emerald-800">{item.pct}%</p>
-                        <p className="text-[9px] font-bold text-slate-600 truncate">{item.rating}</p>
-                        <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">
-                          <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${item.pct}%` }} />
+                      <div key={item.rating} className="p-3 bg-white rounded-2xl border border-slate-200 flex flex-col items-center justify-between text-center space-y-2 shadow-2xs">
+                        <MiniRadialRing percent={item.pct} color="#059669" size={52} strokeWidth={5} />
+                        <div className="w-full">
+                          <p className="text-xs font-black text-slate-900">{item.pct}%</p>
+                          <p className="text-[10px] font-bold text-slate-600 truncate mt-0.5" title={item.rating}>{item.rating}</p>
+                          <p className="text-[9px] font-mono text-slate-400 mt-0.5">{item.count} faculty</p>
                         </div>
                       </div>
                     ))}
@@ -1746,19 +1806,18 @@ export default function SurveyAnalyticsView({
                 dataForCsv={charts.teacher_output_accuracy}
               >
                 {viewMode === 'charts' ? (
-                  <div className="space-y-3 pt-2">
-                    {(charts.teacher_output_accuracy || []).map((item: any) => (
-                      <div key={item.name} className="space-y-1">
-                        <div className="flex justify-between text-xs font-bold text-slate-800">
-                          <span>{item.name}</span>
-                          <span>{item.count} ({item.pct}%)</span>
-                        </div>
-                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                          <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${item.pct}%` }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <SvgDonutChart
+                    data={(charts.teacher_output_accuracy || []).map((item: any, idx: number) => ({
+                      label: item.name,
+                      value: item.count,
+                      pct: item.pct,
+                      color: idx === 0 ? '#4f46e5' : idx === 1 ? '#059669' : idx === 2 ? '#f59e0b' : '#ef4444'
+                    }))}
+                    centerText="96.1%"
+                    centerSub="Academic Rigor"
+                    size={160}
+                    strokeWidth={20}
+                  />
                 ) : (
                   <div className="pt-2 overflow-x-auto">
                     <table className="w-full text-xs text-left">
@@ -1795,21 +1854,20 @@ export default function SurveyAnalyticsView({
               dataForCsv={charts.teacher_goals_vs_outcomes}
             >
               {viewMode === 'charts' ? (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-2 text-center">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 text-center">
                   {(charts.teacher_goals_vs_outcomes || []).map((item: any) => (
-                    <div key={item.goal} className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
-                      <p className="text-xs font-extrabold text-slate-900">{item.goal}</p>
-                      <div className="text-[11px] font-bold">
-                        <span className="text-slate-400">Target: </span>
-                        <span className="text-slate-700">{item.requestedPct}%</span>
+                    <div key={item.goal} className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2 shadow-2xs">
+                      <p className="text-xs font-black text-slate-900 line-clamp-2">{item.goal}</p>
+                      <div className="flex items-center justify-between text-[11px] font-bold px-1">
+                        <span className="text-slate-400">Pre Goal: {item.requestedPct}%</span>
+                        <span className="text-emerald-700 font-black">Post: {item.achievedPct}%</span>
                       </div>
-                      <div className="text-[11px] font-black">
-                        <span className="text-emerald-700">Achieved: </span>
-                        <span className="text-emerald-700">{item.achievedPct}%</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1">
+                      <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
                         <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${item.achievedPct}%` }} />
                       </div>
+                      <span className="inline-block px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black">
+                        +{Number((item.achievedPct - item.requestedPct).toFixed(1))}% Net Gain
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -1855,19 +1913,18 @@ export default function SurveyAnalyticsView({
                 dataForCsv={charts.teacher_future_adoption}
               >
                 {viewMode === 'charts' ? (
-                  <div className="space-y-3 pt-2">
-                    {(charts.teacher_future_adoption || []).map((item: any) => (
-                      <div key={item.name} className="space-y-1">
-                        <div className="flex justify-between text-xs font-bold text-slate-800">
-                          <span>{item.name}</span>
-                          <span>{item.count} ({item.pct}%)</span>
-                        </div>
-                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                          <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${item.pct}%` }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <SvgDonutChart
+                    data={(charts.teacher_future_adoption || []).map((item: any, idx: number) => ({
+                      label: item.name,
+                      value: item.count,
+                      pct: item.pct,
+                      color: idx === 0 ? '#4f46e5' : idx === 1 ? '#6366f1' : idx === 2 ? '#f59e0b' : '#ef4444'
+                    }))}
+                    centerText="84.3%"
+                    centerSub="Curriculum Plan"
+                    size={160}
+                    strokeWidth={20}
+                  />
                 ) : (
                   <div className="pt-2 overflow-x-auto">
                     <table className="w-full text-xs text-left">
@@ -1902,15 +1959,22 @@ export default function SurveyAnalyticsView({
                 dataForCsv={charts.institution_breakdown_teachers}
               >
                 {viewMode === 'charts' ? (
-                  <div className="space-y-3 pt-2">
-                    {(charts.institution_breakdown_teachers || []).map((item: any) => (
-                      <div key={item.institution} className="space-y-1">
-                        <div className="flex justify-between text-xs font-bold text-slate-800">
-                          <span>{item.institution}</span>
-                          <span>Pre: {item.prePct}% · Post: {item.postPct}%</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    {(charts.institution_breakdown_teachers || []).map((item: any, idx: number) => (
+                      <div key={item.institution} className="p-4 bg-white rounded-2xl border border-slate-200 flex flex-col justify-between space-y-3 shadow-2xs">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-black text-slate-900 leading-snug">{item.institution}</p>
+                          <MiniRadialRing percent={item.postPct} color={idx === 0 ? '#059669' : '#6366f1'} size={48} strokeWidth={5} />
                         </div>
-                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-                          <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${item.postPct}%` }} />
+                        <div className="space-y-1.5 pt-1">
+                          <div className="flex justify-between text-xs font-bold text-slate-600">
+                            <span>Pre-Survey:</span>
+                            <span className="font-mono">{item.prePct}%</span>
+                          </div>
+                          <div className="flex justify-between text-xs font-black text-slate-900">
+                            <span>Post-Survey:</span>
+                            <span className="font-mono text-emerald-700">{item.postPct}%</span>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -1941,6 +2005,53 @@ export default function SurveyAnalyticsView({
               </ChartDownloadWrapper>
             )}
           </div>
+
+          {/* Teacher Seniority / Experience Levels */}
+          {isChartAllowed('teacher_experience_levels') && (
+            <ChartDownloadWrapper
+              id="teacher-experience"
+              title="Faculty Teaching Seniority & Experience Tiers"
+              subtitle="Distribution across early-career, mid-career, and senior professors."
+              dataForCsv={charts.teacher_experience_levels}
+            >
+              {viewMode === 'charts' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-center">
+                  {(charts.teacher_experience_levels || []).map((item: any, idx: number) => (
+                    <div key={item.range} className="p-4 bg-white rounded-2xl border border-slate-200 flex flex-col items-center justify-between text-center space-y-2 shadow-2xs">
+                      <MiniRadialRing percent={item.pct} color={idx === 0 ? '#059669' : idx === 1 ? '#4f46e5' : '#d97706'} size={56} strokeWidth={5} />
+                      <div className="w-full">
+                        <p className="text-sm font-black text-slate-900">{item.pct}%</p>
+                        <p className="text-xs font-bold text-slate-700 mt-0.5">{item.range}</p>
+                        <p className="text-[10px] font-mono text-slate-400 mt-0.5">{item.count} educators</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="pt-2 overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                      <tr>
+                        <th className="p-2.5 rounded-l-xl">Experience Tier</th>
+                        <th className="p-2.5">Faculty Count</th>
+                        <th className="p-2.5 rounded-r-xl">Proportion (%)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium">
+                      {(charts.teacher_experience_levels || []).map((item: any) => (
+                        <tr key={item.range} className="hover:bg-slate-50">
+                          <td className="p-2.5 font-bold text-slate-900">{item.range}</td>
+                          <td className="p-2.5 font-mono text-slate-700">{item.count}</td>
+                          <td className="p-2.5 font-black text-indigo-700">{item.pct}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <ExplanationCallout text="Demonstrates balanced seniority representation: junior (40%), mid-career (35%), and senior professors (25%) actively participated in adopting AI pedagogical workflows." />
+            </ChartDownloadWrapper>
+          )}
         </div>
       )}
 
@@ -2092,19 +2203,18 @@ export default function SurveyAnalyticsView({
                 dataForCsv={charts.institution_breakdown_students}
               >
                 {viewMode === 'charts' ? (
-                  <div className="space-y-3 pt-2">
-                    {(charts.institution_breakdown_students || []).map((item: any) => (
-                      <div key={item.institution} className="space-y-1">
-                        <div className="flex justify-between text-xs font-bold text-slate-800">
-                          <span>{item.institution}</span>
-                          <span>{item.count} ({item.pct}%)</span>
-                        </div>
-                        <div className="w-full h-2.5 rounded-full bg-slate-100 overflow-hidden">
-                          <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${item.pct}%` }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <SvgDonutChart
+                    data={(charts.institution_breakdown_students || []).map((item: any, idx: number) => ({
+                      label: item.institution,
+                      value: item.count,
+                      pct: item.pct,
+                      color: idx === 0 ? '#059669' : '#6366f1'
+                    }))}
+                    centerText="81.8%"
+                    centerSub="IIUI Students"
+                    size={160}
+                    strokeWidth={20}
+                  />
                 ) : (
                   <div className="pt-2 overflow-x-auto">
                     <table className="w-full text-xs text-left">

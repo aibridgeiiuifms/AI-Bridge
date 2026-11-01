@@ -3,10 +3,21 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient as createServerSupabase } from '@/lib/supabase/server';
 import { ANALYTICS_V2_CHARTS } from '@/lib/surveyAnalyticsV2Catalog';
 
+// In-memory 60s TTL cache store for instant dashboard reloads (<50ms)
+interface CacheEntry {
+  timestamp: number;
+  data: any;
+}
+const memoryCache: Record<string, CacheEntry> = {};
+const CACHE_TTL_MS = 60 * 1000; // 60 seconds
+
 export async function GET(req: NextRequest) {
   try {
     const admin = createAdminClient();
     const supabase = await createServerSupabase();
+
+    const cohortParam = req.nextUrl.searchParams.get('cohort') === 'matched' ? 'matched' : 'all';
+    const forceRefresh = req.nextUrl.searchParams.get('refresh') === 'true';
 
     // 1. Authenticate caller (Admin, Member, or Guest)
     const { data: { user } } = await supabase.auth.getUser();
@@ -62,6 +73,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Authentication required. Please log in or enter guest passcode.' }, { status: 401 });
     }
 
+    // Check memory cache before hitting database
+    const cacheKey = `${cohortParam}_${isAdmin ? 'admin' : (user ? user.id : 'guest')}`;
+    if (!forceRefresh && memoryCache[cacheKey] && (Date.now() - memoryCache[cacheKey].timestamp < CACHE_TTL_MS)) {
+      return NextResponse.json(memoryCache[cacheKey].data);
+    }
+
     // 2. Query Survey Data from survey_responses_v2 (Full Pagination beyond 1000 limit)
     let v2Rows: any[] = [];
     let page = 0;
@@ -87,10 +104,11 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 3. Query Real Official Certificates Count
-    const { count: certCount } = await admin
-      .from('certificates')
-      .select('*', { count: 'exact', head: true });
+    // 3. Query Real Official Certificates Count & Recent 25 for Registry
+    const [{ count: certCount }, { data: recentCerts }] = await Promise.all([
+      admin.from('certificates').select('*', { count: 'exact', head: true }),
+      admin.from('certificates').select('id, certificate_id, recipient_name, department, completion_date, created_at, name_change_used').order('created_at', { ascending: false }).limit(25),
+    ]);
     const totalCertificatesIssued = certCount || 0;
 
     // 4. Query Real Quiz Attempts Data
@@ -125,24 +143,30 @@ export async function GET(req: NextRequest) {
     const totalQuizAttempts = quizRows.length;
 
     // Segment Collections from survey_responses_v2 ONLY (No fallback to old tables)
-    const studentPre = v2Rows.filter(r => r.participant_type === 'student' && r.survey_phase === 'pre');
-    const studentPost = v2Rows.filter(r => r.participant_type === 'student' && r.survey_phase === 'post');
+    let studentPre = v2Rows.filter(r => r.participant_type === 'student' && r.survey_phase === 'pre');
+    let studentPost = v2Rows.filter(r => r.participant_type === 'student' && r.survey_phase === 'post');
     const teacherPre = v2Rows.filter(r => r.participant_type === 'teacher' && r.survey_phase === 'pre');
     const teacherPost = v2Rows.filter(r => r.participant_type === 'teacher' && r.survey_phase === 'post');
     const misroutedCount = v2Rows.filter(r => r.is_misrouted).length;
-
-    // Student Pre valid rows (excluding 58 misrouted who answered teacher form)
-    const studentPreValid = studentPre.filter(r => !r.is_misrouted);
-    const sPreValidTotal = Math.max(1, studentPreValid.length);
-
-    const totalStudents = studentPre.length + studentPost.length;
-    const totalTeachers = teacherPre.length + teacherPost.length;
 
     // Matched Pairs (students who completed BOTH pre and post)
     const preEmails = new Set(studentPre.map(r => (r.email || '').toLowerCase()).filter(Boolean));
     const postEmails = new Set(studentPost.map(r => (r.email || '').toLowerCase()).filter(Boolean));
     const matchedEmails = new Set(Array.from(preEmails).filter(e => postEmails.has(e)));
     const matchedCount = matchedEmails.size;
+
+    // If cohortParam === 'matched', filter student collections strictly down to the 743 matched pairs
+    if (cohortParam === 'matched') {
+      studentPre = studentPre.filter(r => matchedEmails.has((r.email || '').toLowerCase()));
+      studentPost = studentPost.filter(r => matchedEmails.has((r.email || '').toLowerCase()));
+    }
+
+    // Student Pre valid rows (excluding misrouted who answered teacher form)
+    const studentPreValid = studentPre.filter(r => !r.is_misrouted);
+    const sPreValidTotal = Math.max(1, studentPreValid.length);
+
+    const totalStudents = studentPre.length + studentPost.length;
+    const totalTeachers = teacherPre.length + teacherPost.length;
 
     // 4. Compute Specific Chart Data
 
@@ -166,6 +190,7 @@ export async function GET(req: NextRequest) {
     const hoursSavedPct = studentPost.length > 0 ? Math.round((targetSavedCount / studentPost.length) * 100) : 0;
 
     const kpiSummary = {
+      cohortMode: cohortParam,
       totalStudents: totalStudents,
       totalStudentPre: studentPre.length,
       totalStudentPost: studentPost.length,
@@ -752,9 +777,11 @@ export async function GET(req: NextRequest) {
     ];
 
     // Return Full Structured Response
-    return NextResponse.json({
+    const responsePayload = {
       role: userRole,
       isAdmin,
+      cohortMode: cohortParam,
+      recentCertificates: recentCerts || [],
       allowedCharts: allowedChartMap,
       kpiSummary,
       charts: {
@@ -814,7 +841,15 @@ export async function GET(req: NextRequest) {
           { category: 'Students in Faculty Forms (Corrected to Student)', count: misroutedCount, status: 'Auto-Rerouted' },
         ],
       },
-    });
+    };
+
+    // Save to in-memory 60s cache
+    memoryCache[cacheKey] = {
+      timestamp: Date.now(),
+      data: responsePayload,
+    };
+
+    return NextResponse.json(responsePayload);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
