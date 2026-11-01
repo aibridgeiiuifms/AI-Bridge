@@ -31,14 +31,14 @@ export default async function Footer() {
                   <p className="text-[10px] text-emerald-400 font-medium">Empowering Non-IT Academia</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1 text-[9px] text-palette-ecru sm:hidden">
-                <div className="flex items-center gap-1 rounded border border-slate-700/60 bg-slate-800/80 px-1.5 py-1 whitespace-nowrap">
-                  <Image src="/iiui-logo.webp" alt="IIUI Logo" width={16} height={16} className="h-4 w-4 rounded-full bg-white object-contain" />
+              <div className="flex shrink-0 items-center gap-1 text-[8px] text-palette-ecru sm:hidden">
+                <div className="flex items-center gap-0.5 whitespace-nowrap rounded border border-slate-700/60 bg-slate-800/80 px-1 py-1">
+                  <Image src="/iiui-logo.webp" alt="IIUI Logo" width={12} height={12} className="h-3 w-3 shrink-0 rounded-full bg-white object-contain" />
                   <span>FMS • IIUI</span>
                 </div>
-                <div className="flex items-center gap-1 rounded border border-slate-700/60 bg-slate-800/80 px-1.5 py-1 whitespace-nowrap">
-                  <Image src="/hhp-logo.webp" alt="HHP Logo" width={16} height={16} className="h-4 w-4 rounded-full bg-white object-contain" />
-                  <span>HHP Youth Campaign</span>
+                <div className="flex items-center gap-0.5 whitespace-nowrap rounded border border-slate-700/60 bg-slate-800/80 px-1 py-1">
+                  <Image src="/hhp-logo.webp" alt="HHP Logo" width={12} height={12} className="h-3 w-3 shrink-0 rounded-full bg-white object-contain" />
+                  <span>HHP Youth</span>
                 </div>
               </div>
             </div>
