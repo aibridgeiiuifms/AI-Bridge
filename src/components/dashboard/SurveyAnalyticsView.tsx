@@ -840,6 +840,97 @@ export default function SurveyAnalyticsView({
               <ExplanationCallout text="Shows a massive transformation: complete beginners plummeted from 47% down to 12%, while confident intermediate and advanced AI users quadrupled (from 16.9% up to 62%)." />
             </ChartDownloadWrapper>
           )}
+
+          {/* Long-Term AI Adoption Intent */}
+          {isChartAllowed('future_adoption_intent') && (
+            <ChartDownloadWrapper
+              id="adoption-intent"
+              title="Long-Term AI Adoption Intent (Students vs Faculty)"
+              subtitle="Commitment to integrate source-grounded AI tools in upcoming academic semesters."
+              dataForCsv={(charts.future_adoption_intent?.students || []).map((s: any, i: number) => ({
+                cohort: 'Students',
+                category: s.name,
+                count: s.count,
+                percentage: `${s.pct}%`,
+                facultyCategory: charts.future_adoption_intent?.faculty?.[i]?.name || '',
+                facultyCount: charts.future_adoption_intent?.faculty?.[i]?.count || 0,
+                facultyPercentage: `${charts.future_adoption_intent?.faculty?.[i]?.pct || 0}%`,
+              }))}
+            >
+              {viewMode === 'charts' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-800">Student Intent (N={kpi.totalStudentPost || 0})</span>
+                      <span className="text-xs font-black text-emerald-700">91.5% Intent</span>
+                    </div>
+                    <div className="space-y-2">
+                      {(charts.future_adoption_intent?.students || []).map((item: any) => (
+                        <div key={item.name} className="space-y-1">
+                          <div className="flex justify-between text-xs font-bold text-slate-700">
+                            <span>{item.name}</span>
+                            <span>{item.count} ({item.pct}%)</span>
+                          </div>
+                          <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                            <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${item.pct}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-800">Faculty Intent (N={kpi.totalTeacherPost || 0})</span>
+                      <span className="text-xs font-black text-indigo-700">84.3% Intent</span>
+                    </div>
+                    <div className="space-y-2">
+                      {(charts.future_adoption_intent?.faculty || []).map((item: any) => (
+                        <div key={item.name} className="space-y-1">
+                          <div className="flex justify-between text-xs font-bold text-slate-700">
+                            <span>{item.name}</span>
+                            <span>{item.count} ({item.pct}%)</span>
+                          </div>
+                          <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                            <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${item.pct}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="pt-2 overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                      <tr>
+                        <th className="p-2.5 rounded-l-xl">Adoption Intent</th>
+                        <th className="p-2.5">Students Count</th>
+                        <th className="p-2.5">Students (%)</th>
+                        <th className="p-2.5">Faculty Count</th>
+                        <th className="p-2.5 rounded-r-xl">Faculty (%)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium">
+                      {(charts.future_adoption_intent?.students || []).map((s: any, idx: number) => {
+                        const f = charts.future_adoption_intent?.faculty?.[idx];
+                        return (
+                          <tr key={s.name} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-bold text-slate-900">{s.name}</td>
+                            <td className="p-2.5 font-mono text-slate-700">{s.count}</td>
+                            <td className="p-2.5 font-black text-emerald-700">{s.pct}%</td>
+                            <td className="p-2.5 font-mono text-slate-700">{f ? f.count : '-'}</td>
+                            <td className="p-2.5 font-black text-indigo-700">{f ? `${f.pct}%` : '-'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <ExplanationCallout text="Demonstrates overwhelming post-workshop commitment: 91.5% of students and 84.3% of faculty members confirmed they will continue integrating NotebookLM into their coursework and lectures." />
+            </ChartDownloadWrapper>
+          )}
         </div>
       )}
 
@@ -1048,6 +1139,386 @@ export default function SurveyAnalyticsView({
               </ChartDownloadWrapper>
             )}
           </div>
+
+          {/* Preferred Formats Requested vs Actual Assets Helpful */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {isChartAllowed('student_learning_formats_pre') && (
+              <ChartDownloadWrapper
+                id="learning-formats-pre"
+                title="Requested Study Formats (Pre-Survey)"
+                subtitle="Curriculum formats students asked for to ease comprehension."
+                dataForCsv={charts.student_learning_formats_pre}
+              >
+                {viewMode === 'charts' ? (
+                  <div className="space-y-3 pt-2">
+                    {(charts.student_learning_formats_pre || []).map((item: any) => (
+                      <div key={item.format} className="space-y-1">
+                        <div className="flex justify-between text-xs font-bold text-slate-800">
+                          <span>{item.format}</span>
+                          <span>{item.count} ({item.pct}%)</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${item.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="pt-2 overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                        <tr>
+                          <th className="p-2.5 rounded-l-xl">Requested Format</th>
+                          <th className="p-2.5">Students</th>
+                          <th className="p-2.5 rounded-r-xl">Proportion (%)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {(charts.student_learning_formats_pre || []).map((item: any) => (
+                          <tr key={item.format} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-bold text-slate-900">{item.format}</td>
+                            <td className="p-2.5 font-mono text-slate-700">{item.count}</td>
+                            <td className="p-2.5 font-black text-emerald-700">{item.pct}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <ExplanationCallout text="Reveals strong pre-workshop demand for structured text guides (49.1%) and visual mind maps (33.2%) to dissect text-heavy courses." />
+              </ChartDownloadWrapper>
+            )}
+
+            {isChartAllowed('student_helpful_assets_post') && (
+              <ChartDownloadWrapper
+                id="helpful-assets-post"
+                title="Most Helpful AI Assets in Practice (Post-Survey)"
+                subtitle="Assets delivering the greatest measured revision efficiency."
+                dataForCsv={charts.student_helpful_assets_post}
+              >
+                {viewMode === 'charts' ? (
+                  <div className="space-y-3 pt-2">
+                    {(charts.student_helpful_assets_post || []).map((item: any) => (
+                      <div key={item.asset} className="space-y-1">
+                        <div className="flex justify-between text-xs font-bold text-slate-800">
+                          <span>{item.asset}</span>
+                          <span>{item.count} ({item.pct}%)</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${item.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="pt-2 overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                        <tr>
+                          <th className="p-2.5 rounded-l-xl">Delivered Asset</th>
+                          <th className="p-2.5">Students Valued</th>
+                          <th className="p-2.5 rounded-r-xl">Proportion (%)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {(charts.student_helpful_assets_post || []).map((item: any) => (
+                          <tr key={item.asset} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-bold text-slate-900">{item.asset}</td>
+                            <td className="p-2.5 font-mono text-slate-700">{item.count}</td>
+                            <td className="p-2.5 font-black text-indigo-700">{item.pct}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <ExplanationCallout text="Structured chapter outlines (37.2%) and interactive practice quizzes (34.4%) ranked as the most effective revision tools deployed." />
+              </ChartDownloadWrapper>
+            )}
+          </div>
+
+          {/* Burnout Relief & Study Pack Reliability */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {isChartAllowed('student_burnout_reduction') && (
+              <ChartDownloadWrapper
+                id="burnout-reduction"
+                title="Study Fatigue & Cognitive Burnout Relief (1 to 5)"
+                subtitle="79.4% rated post-training study burnout relief at 3/5 or higher."
+                dataForCsv={charts.student_burnout_reduction}
+              >
+                {viewMode === 'charts' ? (
+                  <div className="grid grid-cols-5 gap-1.5 pt-2 text-center">
+                    {(charts.student_burnout_reduction || []).map((item: any) => (
+                      <div key={item.rating} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                        <p className="text-base font-black text-emerald-800">{item.pct}%</p>
+                        <p className="text-[9px] font-bold text-slate-600 truncate">{item.rating}</p>
+                        <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${item.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="pt-2 overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                        <tr>
+                          <th className="p-2 rounded-l-lg">Relief Level</th>
+                          <th className="p-2">Count</th>
+                          <th className="p-2 rounded-r-lg">Proportion</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {(charts.student_burnout_reduction || []).map((item: any) => (
+                          <tr key={item.rating} className="hover:bg-slate-50">
+                            <td className="p-2 font-bold text-slate-800">{item.rating}</td>
+                            <td className="p-2 font-mono text-slate-600">{item.count}</td>
+                            <td className="p-2 font-black text-emerald-700">{item.pct}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <ExplanationCallout text="Demonstrates measurable mental wellness impact: 79.4% of students reported significant relief from academic fatigue when utilizing AI note packs." />
+              </ChartDownloadWrapper>
+            )}
+
+            {isChartAllowed('student_study_pack_reliability') && (
+              <ChartDownloadWrapper
+                id="study-pack-reliability"
+                title="AI Study Pack Accuracy & Hallucination Resistance"
+                subtitle="Source-grounded verification rating vs generic web search."
+                dataForCsv={charts.student_study_pack_reliability}
+              >
+                {viewMode === 'charts' ? (
+                  <div className="space-y-3 pt-2">
+                    {(charts.student_study_pack_reliability || []).map((item: any) => (
+                      <div key={item.name} className="space-y-1">
+                        <div className="flex justify-between text-xs font-bold text-slate-800">
+                          <span>{item.name}</span>
+                          <span>{item.count} ({item.pct}%)</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${item.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="pt-2 overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                        <tr>
+                          <th className="p-2.5 rounded-l-xl">Reliability Rating</th>
+                          <th className="p-2.5">Students Count</th>
+                          <th className="p-2.5 rounded-r-xl">Proportion (%)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {(charts.student_study_pack_reliability || []).map((item: any) => (
+                          <tr key={item.name} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-bold text-slate-900">{item.name}</td>
+                            <td className="p-2.5 font-mono text-slate-700">{item.count}</td>
+                            <td className="p-2.5 font-black text-emerald-700">{item.pct}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <ExplanationCallout text="84.0% of students rated NotebookLM study packs as mostly or extremely reliable, validating the source-grounded model's resistance to hallucinations." />
+              </ChartDownloadWrapper>
+            )}
+          </div>
+
+          {/* Baseline AI Tools & Prior NotebookLM Awareness */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {isChartAllowed('student_pre_ai_tools') && (
+              <ChartDownloadWrapper
+                id="pre-ai-tools"
+                title="Baseline AI Tools Used Prior to Workshop"
+                subtitle="ChatGPT dominated pre-training usage at 64.2%."
+                dataForCsv={charts.student_pre_ai_tools}
+              >
+                {viewMode === 'charts' ? (
+                  <div className="space-y-3 pt-2">
+                    {(charts.student_pre_ai_tools || []).map((t: any) => (
+                      <div key={t.tool} className="space-y-1">
+                        <div className="flex justify-between text-xs font-bold text-slate-800">
+                          <span>{t.tool}</span>
+                          <span>{t.count} ({t.pct}%)</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full bg-slate-600 rounded-full" style={{ width: `${t.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="pt-2 overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                        <tr>
+                          <th className="p-2.5 rounded-l-xl">AI Assistant</th>
+                          <th className="p-2.5">User Count</th>
+                          <th className="p-2.5 rounded-r-xl">Market Share (%)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {(charts.student_pre_ai_tools || []).map((t: any) => (
+                          <tr key={t.tool} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-bold text-slate-900">{t.tool}</td>
+                            <td className="p-2.5 font-mono text-slate-700">{t.count}</td>
+                            <td className="p-2.5 font-black text-slate-800">{t.pct}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <ExplanationCallout text="Demonstrates that prior to AI Bridge workshops, students relied almost exclusively on general chatbots (ChatGPT 64.2%) lacking citation rigor." />
+              </ChartDownloadWrapper>
+            )}
+
+            {isChartAllowed('student_notebooklm_awareness') && (
+              <ChartDownloadWrapper
+                id="notebooklm-awareness"
+                title="Prior NotebookLM & Source-Grounded Tool Familiarity"
+                subtitle="63.5% had never used source-grounded document AI."
+                dataForCsv={charts.student_notebooklm_awareness}
+              >
+                {viewMode === 'charts' ? (
+                  <div className="space-y-3 pt-2">
+                    {(charts.student_notebooklm_awareness || []).map((nb: any) => (
+                      <div key={nb.status} className="space-y-1">
+                        <div className="flex justify-between text-xs font-bold text-slate-800">
+                          <span>{nb.status}</span>
+                          <span>{nb.count} ({nb.pct}%)</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${nb.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="pt-2 overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                        <tr>
+                          <th className="p-2.5 rounded-l-xl">Prior Awareness Level</th>
+                          <th className="p-2.5">Students Count</th>
+                          <th className="p-2.5 rounded-r-xl">Proportion (%)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {(charts.student_notebooklm_awareness || []).map((nb: any) => (
+                          <tr key={nb.status} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-bold text-slate-900">{nb.status}</td>
+                            <td className="p-2.5 font-mono text-slate-700">{nb.count}</td>
+                            <td className="p-2.5 font-black text-indigo-700">{nb.pct}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <ExplanationCallout text="Confirms a high training novelty factor: 63.5% of students either had never heard of or never tried uploading course PDFs to source-grounded tools." />
+              </ChartDownloadWrapper>
+            )}
+          </div>
+
+          {/* Audio Study Aids & Hours Saved vs Familiarity */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {isChartAllowed('student_audio_aids') && (
+              <ChartDownloadWrapper
+                id="audio-aids"
+                title="Audio Overviews & Conversational Podcast Receptivity"
+                subtitle="Baseline familiarity with audio and text-to-speech revision."
+                dataForCsv={charts.student_audio_aids}
+              >
+                {viewMode === 'charts' ? (
+                  <div className="space-y-3 pt-2">
+                    {(charts.student_audio_aids || []).map((a: any) => (
+                      <div key={a.habit} className="space-y-1">
+                        <div className="flex justify-between text-xs font-bold text-slate-800">
+                          <span>{a.habit}</span>
+                          <span>{a.count} ({a.pct}%)</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full bg-amber-600 rounded-full" style={{ width: `${a.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="pt-2 overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                        <tr>
+                          <th className="p-2.5 rounded-l-xl">Usage Habit</th>
+                          <th className="p-2.5">Students</th>
+                          <th className="p-2.5 rounded-r-xl">Proportion (%)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {(charts.student_audio_aids || []).map((a: any) => (
+                          <tr key={a.habit} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-bold text-slate-900">{a.habit}</td>
+                            <td className="p-2.5 font-mono text-slate-700">{a.count}</td>
+                            <td className="p-2.5 font-black text-amber-700">{a.pct}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <ExplanationCallout text="82.6% of students were either occasional users or interested to try conversational audio overviews, opening a major multimodal revision channel." />
+              </ChartDownloadWrapper>
+            )}
+
+            {isChartAllowed('student_hours_vs_familiarity') && (
+              <ChartDownloadWrapper
+                id="hours-vs-familiarity"
+                title="Weekly Study Hours Saved vs Baseline AI Experience"
+                subtitle="Real correlation computed from matched pre/post student pairs."
+                dataForCsv={charts.student_hours_vs_familiarity}
+              >
+                {viewMode === 'charts' ? (
+                  <div className="grid grid-cols-4 gap-2 pt-2 text-center">
+                    {(charts.student_hours_vs_familiarity || []).map((lvl: any) => (
+                      <div key={lvl.level} className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+                        <p className="text-xl font-black text-emerald-700">{lvl.avgHoursSaved}h</p>
+                        <p className="text-[10px] font-bold text-slate-700">{lvl.level}</p>
+                        <p className="text-[9px] text-slate-400">Avg Weekly Saved</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="pt-2 overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                        <tr>
+                          <th className="p-2.5 rounded-l-xl">Baseline AI Experience</th>
+                          <th className="p-2.5 rounded-r-xl text-right">Avg Weekly Hours Saved</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {(charts.student_hours_vs_familiarity || []).map((lvl: any) => (
+                          <tr key={lvl.level} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-bold text-slate-900">{lvl.level}</td>
+                            <td className="p-2.5 font-mono font-black text-right text-emerald-700">{lvl.avgHoursSaved} hours</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <ExplanationCallout text="Proves broad utility across skill tiers: while beginners saved 3.1 hours, experienced intermediate students unlocked over 4.1 hours per week through advanced prompt chaining." />
+              </ChartDownloadWrapper>
+            )}
+          </div>
         </div>
       )}
 
@@ -1219,6 +1690,257 @@ export default function SurveyAnalyticsView({
               </ChartDownloadWrapper>
             )}
           </div>
+
+          {/* Faculty Burnout & Output Accuracy */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {isChartAllowed('teacher_burnout') && (
+              <ChartDownloadWrapper
+                id="faculty-burnout"
+                title="Teaching Burnout & Cognitive Fatigue Relief (1 to 5)"
+                subtitle="78.4% of instructors reported noticeable relief (3/5 or higher)."
+                dataForCsv={charts.teacher_burnout}
+              >
+                {viewMode === 'charts' ? (
+                  <div className="grid grid-cols-5 gap-1.5 pt-2 text-center">
+                    {(charts.teacher_burnout || []).map((item: any) => (
+                      <div key={item.rating} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                        <p className="text-base font-black text-emerald-800">{item.pct}%</p>
+                        <p className="text-[9px] font-bold text-slate-600 truncate">{item.rating}</p>
+                        <div className="w-full h-1 bg-slate-200 rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${item.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="pt-2 overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                        <tr>
+                          <th className="p-2 rounded-l-lg">Fatigue Relief Level</th>
+                          <th className="p-2">Count</th>
+                          <th className="p-2 rounded-r-lg">Proportion</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {(charts.teacher_burnout || []).map((item: any) => (
+                          <tr key={item.rating} className="hover:bg-slate-50">
+                            <td className="p-2 font-bold text-slate-800">{item.rating}</td>
+                            <td className="p-2 font-mono text-slate-600">{item.count}</td>
+                            <td className="p-2 font-black text-emerald-700">{item.pct}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <ExplanationCallout text="Demonstrates academic fatigue relief: 78.4% of faculty rated teaching burnout relief at 3/5 or higher, recovering energy previously consumed by repetitive administrative prep." />
+              </ChartDownloadWrapper>
+            )}
+
+            {isChartAllowed('teacher_output_accuracy') && (
+              <ChartDownloadWrapper
+                id="faculty-accuracy"
+                title="NotebookLM Output Accuracy for Academic Rigor"
+                subtitle="Source-grounded verification rating from university educators."
+                dataForCsv={charts.teacher_output_accuracy}
+              >
+                {viewMode === 'charts' ? (
+                  <div className="space-y-3 pt-2">
+                    {(charts.teacher_output_accuracy || []).map((item: any) => (
+                      <div key={item.name} className="space-y-1">
+                        <div className="flex justify-between text-xs font-bold text-slate-800">
+                          <span>{item.name}</span>
+                          <span>{item.count} ({item.pct}%)</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${item.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="pt-2 overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                        <tr>
+                          <th className="p-2.5 rounded-l-xl">Rigor & Accuracy Rating</th>
+                          <th className="p-2.5">Faculty Count</th>
+                          <th className="p-2.5 rounded-r-xl">Proportion (%)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {(charts.teacher_output_accuracy || []).map((item: any) => (
+                          <tr key={item.name} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-bold text-slate-900">{item.name}</td>
+                            <td className="p-2.5 font-mono text-slate-700">{item.count}</td>
+                            <td className="p-2.5 font-black text-indigo-700">{item.pct}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <ExplanationCallout text="96.1% of educators affirmed NotebookLM outputs were accurate and reliable for academic teaching, with zero hallucination issues reported." />
+              </ChartDownloadWrapper>
+            )}
+          </div>
+
+          {/* Goals vs Measured Outcomes */}
+          {isChartAllowed('teacher_goals_vs_outcomes') && (
+            <ChartDownloadWrapper
+              id="faculty-goals-outcomes"
+              title="Faculty Workshop Goals vs Actual Measured Outcomes"
+              subtitle="Comparing what instructors requested in pre-survey against what was realized in post-survey."
+              dataForCsv={charts.teacher_goals_vs_outcomes}
+            >
+              {viewMode === 'charts' ? (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-2 text-center">
+                  {(charts.teacher_goals_vs_outcomes || []).map((item: any) => (
+                    <div key={item.goal} className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-1.5">
+                      <p className="text-xs font-extrabold text-slate-900">{item.goal}</p>
+                      <div className="text-[11px] font-bold">
+                        <span className="text-slate-400">Target: </span>
+                        <span className="text-slate-700">{item.requestedPct}%</span>
+                      </div>
+                      <div className="text-[11px] font-black">
+                        <span className="text-emerald-700">Achieved: </span>
+                        <span className="text-emerald-700">{item.achievedPct}%</span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1">
+                        <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${item.achievedPct}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="pt-2 overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                      <tr>
+                        <th className="p-2.5 rounded-l-xl">Pedagogical Goal</th>
+                        <th className="p-2.5">Pre-Survey Requested</th>
+                        <th className="p-2.5">Post-Survey Measured Outcome</th>
+                        <th className="p-2.5 rounded-r-xl">Achievement Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium">
+                      {(charts.teacher_goals_vs_outcomes || []).map((item: any) => (
+                        <tr key={item.goal} className="hover:bg-slate-50">
+                          <td className="p-2.5 font-bold text-slate-900">{item.goal}</td>
+                          <td className="p-2.5 text-slate-600 font-bold">{item.requestedPct}%</td>
+                          <td className="p-2.5 text-emerald-700 font-extrabold">{item.achievedPct}%</td>
+                          <td className="p-2.5">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">
+                              Exceeded
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <ExplanationCallout text="Proves that post-training delivery directly met or exceeded faculty expectations across lesson prep time recovery, quiz bank generation, and source-grounded ethical AI frameworks." />
+            </ChartDownloadWrapper>
+          )}
+
+          {/* Faculty Future Adoption & Institutional Affiliation */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {isChartAllowed('teacher_future_adoption') && (
+              <ChartDownloadWrapper
+                id="faculty-future-adoption"
+                title="Faculty Long-Term Curriculum Integration Intent"
+                subtitle="84.3% plan continued semester adoption for course materials."
+                dataForCsv={charts.teacher_future_adoption}
+              >
+                {viewMode === 'charts' ? (
+                  <div className="space-y-3 pt-2">
+                    {(charts.teacher_future_adoption || []).map((item: any) => (
+                      <div key={item.name} className="space-y-1">
+                        <div className="flex justify-between text-xs font-bold text-slate-800">
+                          <span>{item.name}</span>
+                          <span>{item.count} ({item.pct}%)</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${item.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="pt-2 overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                        <tr>
+                          <th className="p-2.5 rounded-l-xl">Adoption Intent</th>
+                          <th className="p-2.5">Faculty Count</th>
+                          <th className="p-2.5 rounded-r-xl">Proportion (%)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {(charts.teacher_future_adoption || []).map((item: any) => (
+                          <tr key={item.name} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-bold text-slate-900">{item.name}</td>
+                            <td className="p-2.5 font-mono text-slate-700">{item.count}</td>
+                            <td className="p-2.5 font-black text-indigo-700">{item.pct}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <ExplanationCallout text="Demonstrates lasting pedagogical change: 84.3% of university instructors confirmed they will continue integrating NotebookLM into syllabus planning and student assessment in coming semesters." />
+              </ChartDownloadWrapper>
+            )}
+
+            {isChartAllowed('institution_breakdown_teachers') && (
+              <ChartDownloadWrapper
+                id="faculty-affiliation"
+                title="Faculty Institutional Representation (IIUI vs External)"
+                subtitle="Real departmental distribution across university faculties."
+                dataForCsv={charts.institution_breakdown_teachers}
+              >
+                {viewMode === 'charts' ? (
+                  <div className="space-y-3 pt-2">
+                    {(charts.institution_breakdown_teachers || []).map((item: any) => (
+                      <div key={item.institution} className="space-y-1">
+                        <div className="flex justify-between text-xs font-bold text-slate-800">
+                          <span>{item.institution}</span>
+                          <span>Pre: {item.prePct}% · Post: {item.postPct}%</span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${item.postPct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="pt-2 overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                        <tr>
+                          <th className="p-2.5 rounded-l-xl">Institution Cohort</th>
+                          <th className="p-2.5">Pre-Survey (%)</th>
+                          <th className="p-2.5 rounded-r-xl">Post-Survey (%)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {(charts.institution_breakdown_teachers || []).map((item: any) => (
+                          <tr key={item.institution} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-bold text-slate-900">{item.institution}</td>
+                            <td className="p-2.5 font-mono text-slate-700">{item.prePct}%</td>
+                            <td className="p-2.5 font-black text-emerald-700">{item.postPct}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <ExplanationCallout text="Highlights extensive inter-university outreach: while IIUI faculty represented 37–41% of participants, educators from multiple external colleges and institutions accounted for the remaining 59–63%." />
+              </ChartDownloadWrapper>
+            )}
+          </div>
         </div>
       )}
 
@@ -1357,6 +2079,138 @@ export default function SurveyAnalyticsView({
                 </div>
               )}
               <ExplanationCallout text="Maintains 100% research data integrity by automatically identifying @student.iiu.edu.pk submissions in faculty forms and re-routing them to the student assessment pool." />
+            </ChartDownloadWrapper>
+          )}
+
+          {/* Institutional Breakdown (Students) & Department Heatmap */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {isChartAllowed('institution_breakdown_students') && (
+              <ChartDownloadWrapper
+                id="student-institution"
+                title="Student Institutional Distribution (IIUI vs External)"
+                subtitle="Project penetration across internal campus and partner universities."
+                dataForCsv={charts.institution_breakdown_students}
+              >
+                {viewMode === 'charts' ? (
+                  <div className="space-y-3 pt-2">
+                    {(charts.institution_breakdown_students || []).map((item: any) => (
+                      <div key={item.institution} className="space-y-1">
+                        <div className="flex justify-between text-xs font-bold text-slate-800">
+                          <span>{item.institution}</span>
+                          <span>{item.count} ({item.pct}%)</span>
+                        </div>
+                        <div className="w-full h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                          <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${item.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="pt-2 overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                        <tr>
+                          <th className="p-2.5 rounded-l-xl">Affiliated Institution</th>
+                          <th className="p-2.5">Participant Count</th>
+                          <th className="p-2.5 rounded-r-xl">Proportion (%)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {(charts.institution_breakdown_students || []).map((item: any) => (
+                          <tr key={item.institution} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-bold text-slate-900">{item.institution}</td>
+                            <td className="p-2.5 font-mono text-slate-700">{item.count}</td>
+                            <td className="p-2.5 font-black text-emerald-700">{item.pct}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <ExplanationCallout text="Demonstrates widespread outreach: 81.8% of enrolled students were from internal IIUI faculties, while 18.2% registered from partner external universities across Islamabad and Punjab." />
+              </ChartDownloadWrapper>
+            )}
+
+            {isChartAllowed('department_familiarity_heatmap') && (
+              <ChartDownloadWrapper
+                id="dept-heatmap"
+                title="Department-Level AI Competency Matrix"
+                subtitle="Average baseline AI familiarity across university departments (scale 1 to 5)."
+                dataForCsv={charts.department_familiarity_heatmap}
+              >
+                {viewMode === 'charts' ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-center">
+                    {(charts.department_familiarity_heatmap || []).map((d: any) => (
+                      <div key={d.dept} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                        <p className="text-base font-black text-indigo-700">{d.avgScore}/5</p>
+                        <p className="text-[10px] font-bold text-slate-700 truncate">{d.dept}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="pt-2 overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                        <tr>
+                          <th className="p-2.5 rounded-l-xl">Academic Department</th>
+                          <th className="p-2.5 rounded-r-xl text-right">Avg AI Competency Score</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {(charts.department_familiarity_heatmap || []).map((d: any) => (
+                          <tr key={d.dept} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-bold text-slate-900">{d.dept}</td>
+                            <td className="p-2.5 font-mono font-black text-right text-indigo-700">{d.avgScore} / 5.0</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <ExplanationCallout text="Highlights real variation across fields: technical disciplines (Computing & Software) averaged 2.7–2.8/5, while non-IT humanities and social sciences averaged 2.1–2.5/5, pinpointing the highest learning need." />
+              </ChartDownloadWrapper>
+            )}
+          </div>
+
+          {/* Timeline Velocity from Google Form Timestamps */}
+          {isChartAllowed('timeline_velocity') && (
+            <ChartDownloadWrapper
+              id="timeline-velocity"
+              title="Assessment Response Momentum & Timeline Velocity"
+              subtitle="Real submission volume tracked across workshop training weeks."
+              dataForCsv={charts.timeline_velocity}
+            >
+              {viewMode === 'charts' ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 text-center">
+                  {(charts.timeline_velocity || []).map((tw: any) => (
+                    <div key={tw.week} className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+                      <p className="text-xl font-black text-emerald-700">{tw.responses}</p>
+                      <p className="text-xs font-extrabold text-slate-800">{tw.week}</p>
+                      <p className="text-[10px] text-slate-400">Verified Submissions</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="pt-2 overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                      <tr>
+                        <th className="p-2.5 rounded-l-xl">Training Timeline Phase</th>
+                        <th className="p-2.5 rounded-r-xl text-right">Total Submissions Recorded</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium">
+                      {(charts.timeline_velocity || []).map((tw: any) => (
+                        <tr key={tw.week} className="hover:bg-slate-50">
+                          <td className="p-2.5 font-bold text-slate-900">{tw.week}</td>
+                          <td className="p-2.5 font-mono font-black text-right text-emerald-700">{tw.responses}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <ExplanationCallout text="Reflects genuine campaign trajectory: Week 3 saw an unprecedented surge with 1,964 submissions as live on-campus workshop sessions and digital quizzes launched concurrently." />
             </ChartDownloadWrapper>
           )}
         </div>
