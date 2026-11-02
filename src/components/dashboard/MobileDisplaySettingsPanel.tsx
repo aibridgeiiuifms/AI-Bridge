@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { CheckCircle2, Smartphone } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { CheckCircle2, Smartphone, Sparkles } from 'lucide-react';
 import SdgLoading from '@/components/SdgLoading';
 import { useMobileNavigationMode, type MobileNavigationMode } from '@/components/MobileNavigationModeProvider';
 
@@ -11,6 +11,12 @@ export default function MobileDisplaySettingsPanel() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [sdgAnimationEnabled, setSdgAnimationEnabled] = useState(false);
+  const [selectedSdgAnimationEnabled, setSelectedSdgAnimationEnabled] = useState(false);
+  const [sdgAnimationLoading, setSdgAnimationLoading] = useState(true);
+  const [savingSdgAnimation, setSavingSdgAnimation] = useState(false);
+  const [sdgAnimationLoadError, setSdgAnimationLoadError] = useState<string | null>(null);
+  const [sdgAnimationFeedback, setSdgAnimationFeedback] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     if (siteModeReady) {
@@ -18,6 +24,39 @@ export default function MobileDisplaySettingsPanel() {
       setLoading(false);
     }
   }, [mode, siteModeReady]);
+
+  const loadSdgAnimationSetting = useCallback(async () => {
+    setSdgAnimationLoading(true);
+    setSdgAnimationLoadError(null);
+    try {
+      const response = await fetch('/api/admin/sdg-wheel-animation', { cache: 'no-store' });
+      const result: unknown = await response.json();
+      if (
+        !response.ok
+        || typeof result !== 'object'
+        || result === null
+        || !('enabled' in result)
+        || typeof result.enabled !== 'boolean'
+      ) {
+        const apiError = typeof result === 'object' && result !== null && 'error' in result
+          ? result.error
+          : null;
+        throw new Error(typeof apiError === 'string' ? apiError : 'The SDG animation setting response was invalid.');
+      }
+
+      setSdgAnimationEnabled(result.enabled);
+      setSelectedSdgAnimationEnabled(result.enabled);
+    } catch (error) {
+      console.error('Could not load the SDG wheel animation setting:', error);
+      setSdgAnimationLoadError(error instanceof Error ? error.message : 'Could not load the SDG animation setting.');
+    } finally {
+      setSdgAnimationLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSdgAnimationSetting();
+  }, [loadSdgAnimationSetting]);
 
   const saveMode = async () => {
     setSaving(true);
@@ -50,6 +89,46 @@ export default function MobileDisplaySettingsPanel() {
     }
   };
 
+  const saveSdgAnimationSetting = async () => {
+    setSavingSdgAnimation(true);
+    setSdgAnimationFeedback(null);
+    try {
+      const response = await fetch('/api/admin/sdg-wheel-animation', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: selectedSdgAnimationEnabled }),
+      });
+      const result: unknown = await response.json();
+      if (
+        !response.ok
+        || typeof result !== 'object'
+        || result === null
+        || !('success' in result)
+        || result.success !== true
+        || !('enabled' in result)
+        || result.enabled !== selectedSdgAnimationEnabled
+      ) {
+        const apiError = typeof result === 'object' && result !== null && 'error' in result
+          ? result.error
+          : null;
+        throw new Error(typeof apiError === 'string' ? apiError : 'Could not save the SDG animation setting.');
+      }
+
+      setSdgAnimationEnabled(selectedSdgAnimationEnabled);
+      setSdgAnimationFeedback({
+        type: 'success',
+        text: `SDG wheel animation is now ${selectedSdgAnimationEnabled ? 'on' : 'off'}. The change appears for visitors on their next page load.`,
+      });
+    } catch (error) {
+      setSdgAnimationFeedback({
+        type: 'error',
+        text: error instanceof Error ? error.message : 'Could not save the SDG animation setting.',
+      });
+    } finally {
+      setSavingSdgAnimation(false);
+    }
+  };
+
   return (
     <section className="space-y-5 animate-fade-in">
       <header className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
@@ -60,7 +139,7 @@ export default function MobileDisplaySettingsPanel() {
           <div>
             <h2 className="text-xl font-extrabold text-slate-900">Mobile Website Display</h2>
             <p className="mt-1 max-w-2xl text-sm leading-relaxed text-slate-600">
-              Choose how the main website pages appear on phones. This setting does not change the desktop layout.
+              Set mobile navigation and SDG wheel display for visitors on phones and computers.
             </p>
           </div>
         </div>
@@ -132,6 +211,77 @@ export default function MobileDisplaySettingsPanel() {
           )}
         </div>
       )}
+
+      <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+            <Sparkles className="h-5 w-5" />
+          </span>
+          <div>
+            <h3 className="text-lg font-extrabold text-slate-900">SDG Wheel Animation</h3>
+            <p className="mt-1 text-sm leading-relaxed text-slate-600">
+              This setting applies to the homepage on phones and computers. When off, SDGs 4, 8, 10 and 17 stay in their information cards, the other goals form an upright wheel with SDG 1 at the top, and scrolling does not animate the section.
+            </p>
+          </div>
+        </div>
+
+        {sdgAnimationLoading ? (
+          <div className="mt-5 flex items-center gap-3 text-sm font-semibold text-slate-600">
+            <SdgLoading size={22} label="Loading SDG wheel animation setting" />
+            Loading current setting…
+          </div>
+        ) : sdgAnimationLoadError ? (
+          <div className="mt-5 rounded-xl bg-rose-50 p-4 text-sm text-rose-800">
+            <p role="alert" className="font-semibold">{sdgAnimationLoadError}</p>
+            <button
+              type="button"
+              onClick={() => void loadSdgAnimationSetting()}
+              className="mt-3 rounded-lg border border-rose-300 px-3 py-2 font-bold hover:bg-rose-100"
+            >
+              Retry loading
+            </button>
+          </div>
+        ) : (
+          <>
+            <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 p-4 transition hover:border-emerald-300">
+              <input
+                type="checkbox"
+                role="switch"
+                checked={selectedSdgAnimationEnabled}
+                onChange={(event) => setSelectedSdgAnimationEnabled(event.target.checked)}
+                className="mt-0.5 h-5 w-5 shrink-0 accent-emerald-700"
+              />
+              <span>
+                <span className="block text-sm font-bold text-slate-900">
+                  {selectedSdgAnimationEnabled ? 'Animation on' : 'Animation off'}
+                </span>
+                <span className="mt-1 block text-xs leading-relaxed text-slate-600">
+                  Visitors with “reduce motion” enabled on their device will see the static wheel even when this option is on.
+                </span>
+              </span>
+            </label>
+
+            <button
+              type="button"
+              onClick={saveSdgAnimationSetting}
+              disabled={savingSdgAnimation || selectedSdgAnimationEnabled === sdgAnimationEnabled}
+              className="mt-5 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {savingSdgAnimation ? <SdgLoading size={18} label="Saving SDG wheel animation setting" /> : <CheckCircle2 className="h-4 w-4" />}
+              {savingSdgAnimation ? 'Saving…' : 'Save SDG animation'}
+            </button>
+
+            {sdgAnimationFeedback && (
+              <p
+                role="status"
+                className={`mt-4 rounded-xl p-3 text-sm font-semibold ${sdgAnimationFeedback.type === 'success' ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}
+              >
+                {sdgAnimationFeedback.text}
+              </p>
+            )}
+          </>
+        )}
+      </div>
     </section>
   );
 }

@@ -46,6 +46,24 @@ export default async function HomePageContent() {
   const profile = user ? await getCurrentUserProfile(user.id) : null;
   const canAccessAmbassadorPortal = hasAmbassadorPortalRole(profile?.role);
 
+  let sdgWheelAnimationEnabled = false;
+  try {
+    const adminDb = createAdminClient();
+    const { data, error } = await adminDb
+      .from('system_settings')
+      .select('value')
+      .eq('key', 'sdg_wheel_animation')
+      .maybeSingle();
+
+    if (error) {
+      console.error('Failed to load SDG wheel animation setting:', error);
+    } else {
+      sdgWheelAnimationEnabled = data?.value?.enabled === true;
+    }
+  } catch (error) {
+    console.error('Could not load SDG wheel animation setting; using static layout:', error);
+  }
+
   // Fetch certificate issuance toggle (server-side)
   let issuanceClosed = false;
   let issuanceClosedMsg = '';
@@ -276,7 +294,7 @@ export default async function HomePageContent() {
 
       {/* Interactive Framer Motion Shared Layout SDG Wheel Section */}
       <section className="border-y border-slate-200/80 bg-[#F7F5E9]">
-        <SdgSharedLayoutWheel />
+        <SdgSharedLayoutWheel animationEnabled={sdgWheelAnimationEnabled} />
       </section>
 
       {canAccessAmbassadorPortal && (

@@ -17,7 +17,7 @@
  * 6. Hardware-accelerated GPU transforms (x, y, scale, rotate) with spring physics.
  */
 
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import Image from 'next/image';
 import {
   motion,
@@ -234,7 +234,7 @@ function AnimatedWheelLayers({
   );
 }
 
-export default function SdgSharedLayoutWheel({ className = '' }: { className?: string }) {
+function AnimatedSdgWheel({ className = '' }: { className?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const wheelRef = useRef<HTMLDivElement>(null);
   const cardsRef = useRef<HTMLDivElement>(null);
@@ -496,4 +496,144 @@ export default function SdgSharedLayoutWheel({ className = '' }: { className?: s
 
     </div>
   );
+}
+
+function StaticSdgWheel({ className = '' }: { className?: string }) {
+  return (
+    <div className={`w-full px-4 py-10 sm:px-6 sm:py-14 lg:px-8 ${className}`}>
+      <header className="mx-auto mb-8 max-w-2xl text-center sm:mb-10">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-800">
+          SDG Alignment
+        </span>
+        <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
+          United Nations Sustainable Development Goals
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+          Explore how our campaign supports SDGs 4, 8, 10 and 17.
+        </p>
+      </header>
+
+      <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-8 lg:flex-row lg:items-center lg:gap-12">
+        <div className="relative aspect-square w-[min(82vw,410px)] shrink-0">
+          {STATIC_SLICES.map((slice) => {
+            return (
+              <div
+                key={slice.num}
+                aria-hidden="true"
+                className="absolute"
+                style={{
+                  left: `${slice.leftPct}%`,
+                  top: `${slice.topPct}%`,
+                  width: `${slice.widthPct}%`,
+                  height: `${slice.heightPct}%`,
+                  transformOrigin: `${((50 - slice.leftPct) / slice.widthPct) * 100}% ${((50 - slice.topPct) / slice.heightPct) * 100}%`,
+                  transform: `rotate(${balancedRotationByNum[slice.num]}deg)`,
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={slice.src}
+                  alt=""
+                  className="h-full w-full select-none object-contain"
+                  draggable={false}
+                />
+              </div>
+            );
+          })}
+          <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 flex aspect-square w-[38%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white bg-white p-[2%] shadow-md ring-1 ring-slate-200/80">
+            <Image
+              src="/sdg-logo-for-wheel.webp"
+              alt="Sustainable Development Goals"
+              width={1311}
+              height={776}
+              className="h-full w-full object-contain"
+              priority
+            />
+          </div>
+        </div>
+
+        <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+          {TARGET_SDGS.map((target) => {
+            const slice = TARGET_SLICES.find(({ num }) => num === target.num);
+            if (!slice) return null;
+
+            const maxDimension = 70;
+            const maxSliceDimension = Math.max(slice.widthPct, slice.heightPct);
+            const imageWidth = (slice.widthPct / maxSliceDimension) * maxDimension;
+            const imageHeight = (slice.heightPct / maxSliceDimension) * maxDimension;
+
+            return (
+              <article
+                key={target.num}
+                className="flex min-h-full gap-3 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-sm sm:p-5"
+                style={{ borderTop: `4px solid ${target.color}` }}
+              >
+                <div
+                  className="relative h-12 w-12 shrink-0 rounded-xl"
+                  style={{ backgroundColor: `${target.color}15` }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={slice.src}
+                    alt={`SDG ${target.num}`}
+                    className="absolute max-w-none"
+                    style={{
+                      width: `${imageWidth}px`,
+                      height: `${imageHeight}px`,
+                      left: `calc(50% - ${imageWidth * slice.localCenterXPct / 100}px)`,
+                      top: `calc(50% - ${imageHeight * slice.localCenterYPct / 100}px)`,
+                      transformOrigin: `${slice.localCenterXPct}% ${slice.localCenterYPct}%`,
+                      transform: `rotate(${target.targetRotation}deg)`,
+                    }}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <span
+                    className="mb-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-extrabold text-white"
+                    style={{ backgroundColor: target.color }}
+                  >
+                    SDG {target.num}
+                  </span>
+                  <h3 className="text-sm font-bold leading-snug text-slate-900">
+                    {target.title}
+                  </h3>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-600">
+                    {target.description}
+                  </p>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function SdgSharedLayoutWheel({
+  className = '',
+  animationEnabled = false,
+}: {
+  className?: string;
+  animationEnabled?: boolean;
+}) {
+  const [motionPreferenceReady, setMotionPreferenceReady] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updatePreference = () => setPrefersReducedMotion(mediaQuery.matches);
+
+    updatePreference();
+    setMotionPreferenceReady(true);
+    mediaQuery.addEventListener('change', updatePreference);
+
+    return () => mediaQuery.removeEventListener('change', updatePreference);
+  }, []);
+
+  if (!animationEnabled || !motionPreferenceReady || prefersReducedMotion) {
+    return <StaticSdgWheel className={className} />;
+  }
+
+  return <AnimatedSdgWheel className={className} />;
 }
