@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireAmbassadorPortalAccess } from '@/lib/ambassador-access';
+import { slugifyTeamProfileName } from '@/lib/teamProfileSlug';
 
 /**
  * Team Management API
@@ -65,6 +66,7 @@ export async function POST(req: NextRequest) {
     const {
       email,
       full_name,
+      profile_slug,
       team_role = 'team-member',
       designation,
       bio = '',
@@ -89,6 +91,9 @@ export async function POST(req: NextRequest) {
 
     const normalizedEmail = email ? email.trim().toLowerCase() : null;
     const isSuperAdminEmail = normalizedEmail === 'ai.bridge.iiui.fms@gmail.com';
+    const normalizedSlug = slugifyTeamProfileName(
+      typeof profile_slug === 'string' && profile_slug.trim() ? profile_slug : full_name
+    );
 
     // Only admins may grant the admin team role. Super admin email is always admin.
     const finalTeamRole = isSuperAdminEmail
@@ -100,6 +105,7 @@ export async function POST(req: NextRequest) {
       .insert({
         email: normalizedEmail,
         full_name: full_name.trim(),
+        profile_slug: normalizedSlug,
         team_role: finalTeamRole,
         designation: designation.trim(),
         bio: bio?.trim() || null,
@@ -120,7 +126,10 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+      const message = error.code === '23505' && error.message.includes('profile_slug')
+        ? 'That public profile URL is already in use. Choose a different slug.'
+        : error.message;
+      return NextResponse.json({ success: false, error: message }, { status: 400 });
     }
 
     // Recompute the linked profile's role now that a members row exists.
@@ -158,6 +167,13 @@ export async function PATCH(req: NextRequest) {
     };
 
     if (updates.full_name !== undefined) updatePayload.full_name = updates.full_name.trim();
+    if (updates.profile_slug !== undefined) {
+      updatePayload.profile_slug = slugifyTeamProfileName(
+        typeof updates.profile_slug === 'string' && updates.profile_slug.trim()
+          ? updates.profile_slug
+          : updates.full_name || ''
+      );
+    }
     if (updates.designation !== undefined) updatePayload.designation = updates.designation.trim();
     if (updates.bio !== undefined) updatePayload.bio = updates.bio.trim();
     if (updates.avatar_url !== undefined) updatePayload.avatar_url = updates.avatar_url;
@@ -188,7 +204,10 @@ export async function PATCH(req: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+      const message = error.code === '23505' && error.message.includes('profile_slug')
+        ? 'That public profile URL is already in use. Choose a different slug.'
+        : error.message;
+      return NextResponse.json({ success: false, error: message }, { status: 400 });
     }
 
     // Keep the linked profile role in sync (team_role / email changes).

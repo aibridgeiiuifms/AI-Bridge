@@ -23,6 +23,7 @@ import { readClientCache, writeClientCache } from '@/lib/clientCache';
 
 interface TeamMember {
   id: string;
+  profile_slug: string | null;
   email: string | null;
   full_name: string;
   designation: string;
@@ -35,7 +36,7 @@ interface TeamMember {
   is_published: boolean;
 }
 
-const TEAM_CACHE_KEY = 'ai-bridge:public-team:v1';
+const TEAM_CACHE_KEY = 'ai-bridge:public-team:v2';
 const PUBLIC_CONTENT_CACHE_TTL = 6 * 60 * 60 * 1000;
 
 export default function TeamPageContent() {
@@ -194,6 +195,14 @@ export default function TeamPageContent() {
 
                       {/* Social & Contact Links */}
                       <div className="flex items-center justify-center md:justify-start gap-3 pt-2">
+                        {tier1Leader.profile_slug && (
+                          <Link
+                            href={`/team/${encodeURIComponent(tier1Leader.profile_slug)}`}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-800 px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-900"
+                          >
+                            View profile
+                          </Link>
+                        )}
                         {tier1Leader.email && (
                           <a
                             href={`mailto:${tier1Leader.email}`}
@@ -298,7 +307,14 @@ export default function TeamPageContent() {
 
                         {/* Card Footer Links */}
                         <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                          {member.email ? (
+                          {member.profile_slug ? (
+                            <Link
+                              href={`/team/${encodeURIComponent(member.profile_slug)}`}
+                              className="font-bold text-emerald-800 hover:text-emerald-950"
+                            >
+                              View profile
+                            </Link>
+                          ) : member.email ? (
                             <a
                               href={`mailto:${member.email}`}
                               className="text-slate-500 hover:text-emerald-700 font-mono text-[11px] truncate flex items-center gap-1"
@@ -404,7 +420,14 @@ export default function TeamPageContent() {
 
                         {/* Footer info */}
                         <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                          {member.email ? (
+                          {member.profile_slug ? (
+                            <Link
+                              href={`/team/${encodeURIComponent(member.profile_slug)}`}
+                              className="text-[11px] font-bold text-emerald-800 hover:text-emerald-950"
+                            >
+                              View profile
+                            </Link>
+                          ) : member.email ? (
                             <a
                               href={`mailto:${member.email}`}
                               className="text-slate-400 hover:text-emerald-700 text-[11px] font-mono truncate"

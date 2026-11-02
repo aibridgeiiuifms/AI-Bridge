@@ -56,6 +56,7 @@ import {
   Smartphone
 } from 'lucide-react';
 import { compressImageToMaxKB, uploadTeamAvatar } from '@/lib/imageCompression';
+import { slugifyTeamProfileName } from '@/lib/teamProfileSlug';
 import GalleryManager from '@/components/dashboard/GalleryManager';
 import AdminResourcesPanel from '@/components/dashboard/AdminResourcesPanel';
 import CertificateNameAuditPanel from '@/components/dashboard/CertificateNameAuditPanel';
@@ -65,6 +66,7 @@ import SurveyAnalyticsView, { SurveySubTab } from '@/components/dashboard/Survey
 import LiveAnalyticsView, { LiveAnalyticsSubTab } from '@/components/dashboard/LiveAnalyticsView';
 import SdgLoading from '@/components/SdgLoading';
 import MobileDisplaySettingsPanel from '@/components/dashboard/MobileDisplaySettingsPanel';
+import TeamQrExportPanel from '@/components/dashboard/TeamQrExportPanel';
 
 export type DashboardTab = 
   | 'survey_impact' 
@@ -341,6 +343,7 @@ export default function AdminDashboard() {
     id: '',
     email: '',
     full_name: '',
+    profile_slug: '',
     team_role: 'team-member' as 'admin' | 'team-member',
     designation: '',
     bio: '',
@@ -834,6 +837,7 @@ export default function AdminDashboard() {
       id: '',
       email: '',
       full_name: '',
+      profile_slug: '',
       team_role: 'team-member',
       designation: '',
       bio: '',
@@ -860,6 +864,7 @@ export default function AdminDashboard() {
       id: member.id,
       email: member.email || '',
       full_name: member.full_name || '',
+      profile_slug: member.profile_slug || '',
       team_role: (member.team_role || 'team-member') as 'admin' | 'team-member',
       designation: member.designation || '',
       bio: member.bio || '',
@@ -935,6 +940,7 @@ export default function AdminDashboard() {
 
       const payload = {
         ...memberForm,
+        profile_slug: memberForm.profile_slug.trim() || slugifyTeamProfileName(memberForm.full_name),
         avatar_url: finalAvatarUrl,
         position_order: Number(memberForm.position_order) || 99
       };
@@ -1706,6 +1712,8 @@ export default function AdminDashboard() {
 
             {teamSubTab === 'roster' && (
               <>
+            <TeamQrExportPanel members={teamMembers} />
+
             {/* Search, filters, and view controls */}
             <div className="flex flex-col items-stretch justify-between gap-3 md:flex-row md:items-center">
               {/* Search Bar */}
@@ -4123,6 +4131,26 @@ export default function AdminDashboard() {
                         ))}
                       </datalist>
                     </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-slate-700">Public profile URL slug</label>
+                    <div className="flex items-center overflow-hidden rounded-xl border border-slate-300 bg-white focus-within:ring-2 focus-within:ring-emerald-500">
+                      <span className="shrink-0 border-r border-slate-200 bg-slate-50 px-3 py-2.5 text-[10px] text-slate-500">
+                        /team/
+                      </span>
+                      <input
+                        type="text"
+                        value={memberForm.profile_slug}
+                        onChange={(event) => setMemberForm({ ...memberForm, profile_slug: event.target.value })}
+                        placeholder={slugifyTeamProfileName(memberForm.full_name || 'member-name')}
+                        className="min-w-0 flex-1 px-3 py-2.5 text-xs focus:outline-none"
+                        aria-describedby="team-profile-slug-help"
+                      />
+                    </div>
+                    <p id="team-profile-slug-help" className="text-[10px] text-slate-500">
+                      Editable and stable after saving. Leave blank to generate from the member’s name.
+                    </p>
                   </div>
 
                   {/* Account Role & Platform Permissions */}
