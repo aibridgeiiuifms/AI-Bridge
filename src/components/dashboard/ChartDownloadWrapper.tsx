@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { Download, Image as ImageIcon, FileSpreadsheet, Check, Sparkles } from 'lucide-react';
-import { toPng, toSvg } from 'html-to-image';
+import { Image as ImageIcon, FileSpreadsheet, Check } from 'lucide-react';
+import { toPng } from 'html-to-image';
 import SdgLoading from '@/components/SdgLoading';
+import { ChartDataHelpButton } from '@/components/dashboard/ChartDataHelp';
 
 interface ChartDownloadWrapperProps {
   id: string;
@@ -118,51 +119,55 @@ export default function ChartDownloadWrapper({
           )}
         </div>
 
-        {/* Download & Export Controls (Hidden inside PNG capture) */}
-        {allowDownload && (
-          <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto no-export">
-            {downloadSuccess && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200 animate-fade-in">
-                <Check className="w-3 h-3 text-emerald-700" />
-                <span>{downloadSuccess}</span>
-              </span>
-            )}
+        <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+          <ChartDataHelpButton sourceId={id} />
 
-            <button
-              type="button"
-              onClick={handleDownloadImage}
-              disabled={Boolean(downloading)}
-              title="Download High-Res PNG Image"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-700 text-xs font-bold transition-all border border-slate-200 cursor-pointer disabled:opacity-50"
-            >
-              {downloading === 'png' ? (
-                <SdgLoading size={14} label="Preparing chart image" />
-              ) : (
-                <ImageIcon className="w-3.5 h-3.5 text-emerald-700" />
+          {/* Download & Export Controls (Hidden inside PNG capture) */}
+          {allowDownload && (
+            <div className="flex items-center gap-2 no-export">
+              {downloadSuccess && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200 animate-fade-in">
+                  <Check className="w-3 h-3 text-emerald-700" />
+                  <span>{downloadSuccess}</span>
+                </span>
               )}
-              <span className="hidden sm:inline">Image (PNG)</span>
-              <span className="sm:hidden">PNG</span>
-            </button>
 
-            {dataForCsv && dataForCsv.length > 0 && (
               <button
                 type="button"
-                onClick={handleDownloadCsv}
+                onClick={handleDownloadImage}
                 disabled={Boolean(downloading)}
-                title="Download CSV Raw Data"
+                title="Download High-Res PNG Image"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-700 text-xs font-bold transition-all border border-slate-200 cursor-pointer disabled:opacity-50"
               >
-                {downloading === 'csv' ? (
-                  <SdgLoading size={14} label="Preparing CSV download" />
+                {downloading === 'png' ? (
+                  <SdgLoading size={14} label="Preparing chart image" />
                 ) : (
-                  <FileSpreadsheet className="w-3.5 h-3.5 text-teal-700" />
+                  <ImageIcon className="w-3.5 h-3.5 text-emerald-700" />
                 )}
-                <span className="hidden sm:inline">Data (CSV)</span>
-                <span className="sm:hidden">CSV</span>
+                <span className="hidden sm:inline">Image (PNG)</span>
+                <span className="sm:hidden">PNG</span>
               </button>
-            )}
-          </div>
-        )}
+
+              {dataForCsv && dataForCsv.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleDownloadCsv}
+                  disabled={Boolean(downloading)}
+                  title="Download CSV Raw Data"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-700 text-xs font-bold transition-all border border-slate-200 cursor-pointer disabled:opacity-50"
+                >
+                  {downloading === 'csv' ? (
+                    <SdgLoading size={14} label="Preparing CSV download" />
+                  ) : (
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-teal-700" />
+                  )}
+                  <span className="hidden sm:inline">Data (CSV)</span>
+                  <span className="sm:hidden">CSV</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Main Visual Content */}

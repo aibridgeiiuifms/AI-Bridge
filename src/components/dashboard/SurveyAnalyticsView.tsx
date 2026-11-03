@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import SdgLoading from '@/components/SdgLoading';
 import ChartDownloadWrapper from '@/components/dashboard/ChartDownloadWrapper';
+import { ChartDataHelpButton, ChartDataHelpProvider } from '@/components/dashboard/ChartDataHelp';
 import MemberChartPermissionsModal from '@/components/dashboard/MemberChartPermissionsModal';
 import GuestAccessModal from '@/components/dashboard/GuestAccessModal';
 
@@ -182,6 +183,7 @@ export type V2AnalyticsTab = 'executive' | 'student' | 'faculty' | 'demographics
 export type SurveySubTab = string;
 
 interface SurveyAnalyticsViewProps {
+  isAdmin?: boolean;
   activeSubTab?: any;
   onSubTabChange?: (tab: any) => void;
   onVisibleSubTabsChange?: (tabs: any[]) => void;
@@ -189,6 +191,7 @@ interface SurveyAnalyticsViewProps {
 }
 
 export default function SurveyAnalyticsView({
+  isAdmin = false,
   activeSubTab: controlledSubTab,
   onSubTabChange,
   onVisibleSubTabsChange,
@@ -279,9 +282,11 @@ export default function SurveyAnalyticsView({
     }
   };
 
+  const isSurveyAdmin = isAdmin || data?.isAdmin === true || data?.role === 'admin';
+
   const isChartAllowed = (chartId: string) => {
     if (!data) return false;
-    if (data.isAdmin) return true;
+    if (isSurveyAdmin) return true;
     return data.allowedCharts?.[chartId] !== false;
   };
 
@@ -325,6 +330,7 @@ export default function SurveyAnalyticsView({
   }
 
   return (
+    <ChartDataHelpProvider isAdmin={isSurveyAdmin}>
     <div className="space-y-6">
       
       {/* 1. Live Guest Notification Banner (if any outsider logged in) */}
@@ -519,7 +525,11 @@ export default function SurveyAnalyticsView({
           
           {/* Executive 6 Core KPI Cards */}
           {isChartAllowed('kpi_cards') && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="space-y-3">
+              <div className="flex justify-end">
+                <ChartDataHelpButton sourceId="kpi-summary" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               
               {/* Card 1: Total Students */}
               <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-2 flex flex-col justify-between">
@@ -643,6 +653,7 @@ export default function SurveyAnalyticsView({
                 </div>
               </div>
 
+              </div>
             </div>
           )}
 
@@ -2411,5 +2422,6 @@ export default function SurveyAnalyticsView({
         onClose={() => setShowGuestModal(false)}
       />
     </div>
+    </ChartDataHelpProvider>
   );
 }

@@ -34,14 +34,19 @@ export async function GET(req: NextRequest) {
     });
 
     if (user) {
-      const isSuperAdmin = user.email?.toLowerCase() === 'ai.bridge.iiui.fms@gmail.com';
-      const { data: profile } = await admin
+      const isSuperAdmin = user.email?.trim().toLowerCase() === 'ai.bridge.iiui.fms@gmail.com';
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', user.id)
         .maybeSingle();
 
-      isAdmin = isSuperAdmin || profile?.role === 'admin';
+      if (profileError) {
+        console.error('Failed to verify survey analytics admin role:', profileError);
+        return NextResponse.json({ error: 'Unable to verify analytics access.' }, { status: 500 });
+      }
+
+      isAdmin = isSuperAdmin || String(profile?.role || '').trim().toLowerCase() === 'admin';
       userRole = isAdmin ? 'admin' : 'member';
 
       // If team member, check granular permissions

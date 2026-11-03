@@ -1535,6 +1535,7 @@ export default function AdminDashboard() {
           {activeTab === 'survey_impact' && (
             <div className="space-y-6 animate-fade-in">
               <SurveyAnalyticsView
+                isAdmin={isSuperAdmin}
                 activeSubTab={surveySubTab}
                 onSubTabChange={(sub) => setSurveySubTab(sub)}
                 onVisibleSubTabsChange={handleVisibleSurveySubTabsChange}

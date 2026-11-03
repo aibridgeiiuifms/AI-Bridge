@@ -1,5 +1,23 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { MCQQuestion } from '../../types/database';
+import * as fs from 'fs';
+import * as path from 'path';
+import sharp from 'sharp';
+
+/**
+ * Crops a JPG/PNG image buffer into a circle and returns a PNG buffer
+ * with a transparent background outside the circle.
+ */
+async function makeCircularPng(inputBuffer: Buffer, size: number): Promise<Buffer> {
+  const circleSvg = Buffer.from(
+    `<svg width="${size}" height="${size}"><circle cx="${size / 2}" cy="${size / 2}" r="${size / 2}" fill="white"/></svg>`
+  );
+  return sharp(inputBuffer)
+    .resize(size, size, { fit: 'cover', position: 'centre' })
+    .composite([{ input: circleSvg, blend: 'dest-in' }])
+    .png()
+    .toBuffer();
+}
 
 export interface GenerateMcqPdfOptions {
   title?: string;
@@ -89,6 +107,25 @@ export async function generateMcqPoolPdf(
   const passPercentage = Math.round((passingScore / totalExamQuestions) * 100);
   const categoryDrawConfig = options.categoryDrawConfig || [];
 
+  // Load logos as circular PNGs (graceful — skip if file missing)
+  const publicDir = path.join(process.cwd(), 'public');
+  let iiuiImg: any = null;
+  let aibImg: any = null;
+  let aibWatermarkImg: any = null;
+  try {
+    const raw = fs.readFileSync(path.join(publicDir, 'iiui-logo.jpg'));
+    const circular = await makeCircularPng(raw, 120);
+    iiuiImg = await doc.embedPng(circular);
+  } catch { /* skip */ }
+  try {
+    const raw = fs.readFileSync(path.join(publicDir, 'logo.jpg'));
+    const circular = await makeCircularPng(raw, 120);
+    aibImg = await doc.embedPng(circular);
+    // Watermark version: larger, will be drawn at low opacity
+    const wmCircular = await makeCircularPng(raw, 400);
+    aibWatermarkImg = await doc.embedPng(wmCircular);
+  } catch { /* skip */ }
+
   let page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   let y = PAGE_HEIGHT;
 
@@ -130,38 +167,66 @@ export async function generateMcqPoolPdf(
   // ==========================================
   // PAGE 1: TOP INSTITUTIONAL STRIP & HEADER
   // ==========================================
+  const STRIP_H = 68;
+  const LOGO_SIZE = 50; // square fit
+  const LOGO_PAD = 9;
+
   page.drawRectangle({
     x: 0,
-    y: y - 48,
+    y: y - STRIP_H,
     width: PAGE_WIDTH,
-    height: 48,
+    height: STRIP_H,
     color: cEmeraldDark,
   });
+
+  // Centre text block (leave room for logos on each side)
+  const textX = MARGIN_X + LOGO_SIZE + 10;
+  const textMaxW = PAGE_WIDTH - textX - LOGO_SIZE - MARGIN_X - 10;
   page.drawText('INTERNATIONAL ISLAMIC UNIVERSITY ISLAMABAD (IIUI)', {
-    x: MARGIN_X,
+    x: textX,
     y: y - 22,
-    size: 10,
+    size: 9.5,
     font: fontBold,
     color: rgb(1, 1, 1),
   });
   page.drawText('FACULTY OF MANAGEMENT SCIENCES (FMS)  --  PROJECT GOVERNANCE UNIT', {
-    x: MARGIN_X,
+    x: textX,
     y: y - 36,
-    size: 7.5,
+    size: 7,
     font: fontRegular,
     color: rgb(0.655, 0.898, 0.784),
   });
-  y -= 64;
-
-  // Initiative Sub-badge
-  page.drawText('THE AI BRIDGE: ACADEMIC EMPOWERMENT & DIGITAL PRODUCTIVITY', {
-    x: MARGIN_X,
-    y,
-    size: 8,
-    font: fontBold,
-    color: cEmeraldMed,
+  page.drawText('THE AI BRIDGE -- ACADEMIC EMPOWERMENT & DIGITAL PRODUCTIVITY INITIATIVE', {
+    x: textX,
+    y: y - 50,
+    size: 6.5,
+    font: fontRegular,
+    color: rgb(0.502, 0.839, 0.702),
   });
-  y -= 16;
+
+  // IIUI logo — left side
+  if (iiuiImg) {
+    const dims = iiuiImg.scaleToFit(LOGO_SIZE, LOGO_SIZE);
+    page.drawImage(iiuiImg, {
+      x: LOGO_PAD + (LOGO_SIZE - dims.width) / 2,
+      y: y - STRIP_H + (STRIP_H - dims.height) / 2,
+      width: dims.width,
+      height: dims.height,
+    });
+  }
+
+  // AI Bridge logo — right side
+  if (aibImg) {
+    const dims = aibImg.scaleToFit(LOGO_SIZE, LOGO_SIZE);
+    page.drawImage(aibImg, {
+      x: PAGE_WIDTH - LOGO_PAD - LOGO_SIZE + (LOGO_SIZE - dims.width) / 2,
+      y: y - STRIP_H + (STRIP_H - dims.height) / 2,
+      width: dims.width,
+      height: dims.height,
+    });
+  }
+
+  y -= (STRIP_H + 16);
 
   // Main Document Title
   const docTitle = options.title || 'Course Assessment Question Bank & Specification Roster';
@@ -469,6 +534,18 @@ export async function generateMcqPoolPdf(
       font: fontBold,
       color: cTextMed,
     });
+
+    // Watermark: AI Bridge circular logo, centered on every page at low opacity
+    if (aibWatermarkImg) {
+      const wmSize = 280;
+      p.drawImage(aibWatermarkImg, {
+        x: (PAGE_WIDTH - wmSize) / 2,
+        y: (PAGE_HEIGHT - wmSize) / 2,
+        width: wmSize,
+        height: wmSize,
+        opacity: 0.07,
+      });
+    }
   }
 
   return await doc.save();
