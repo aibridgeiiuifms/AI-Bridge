@@ -781,6 +781,51 @@ export async function GET(req: NextRequest) {
       },
     ];
 
+    const teachingExperienceCounts: Record<string, number> = {
+      '1 to 3 years': 0,
+      '3 to 5 years': 0,
+      '5+ years': 0,
+      'Other / unspecified': 0,
+    };
+    let teachingExperienceResponses = 0;
+    teacherPre.forEach((row) => {
+      const raw = String(
+        row.teaching_experience ||
+        row.answers?.['Teaching Experience'] ||
+        ''
+      ).trim().toLowerCase();
+      if (!raw) return;
+
+      teachingExperienceResponses++;
+      if (/5\s*\+|more than 5|over 5|5 or more/.test(raw)) {
+        teachingExperienceCounts['5+ years']++;
+      } else if (/3\s*[-–to]+\s*5|three\s*to\s*five/.test(raw)) {
+        teachingExperienceCounts['3 to 5 years']++;
+      } else if (/1\s*[-–to]+\s*3|less than 3|under 3|one\s*to\s*three/.test(raw)) {
+        teachingExperienceCounts['1 to 3 years']++;
+      } else {
+        const years = Number(raw.match(/\d+(?:\.\d+)?/)?.[0]);
+        if (/less than 1|under 1|0\s*[-–to]+\s*1/.test(raw)) {
+          teachingExperienceCounts['Other / unspecified']++;
+        } else if (Number.isFinite(years) && years >= 5) {
+          teachingExperienceCounts['5+ years']++;
+        } else if (Number.isFinite(years) && years >= 3) {
+          teachingExperienceCounts['3 to 5 years']++;
+        } else if (Number.isFinite(years) && years >= 1) {
+          teachingExperienceCounts['1 to 3 years']++;
+        } else {
+          teachingExperienceCounts['Other / unspecified']++;
+        }
+      }
+    });
+    const teacherExperienceLevels = Object.entries(teachingExperienceCounts)
+      .filter(([, count]) => count > 0)
+      .map(([range, count]) => ({
+        range,
+        count,
+        pct: Number(((count / teachingExperienceResponses) * 100).toFixed(1)),
+      }));
+
     // Return Full Structured Response
     const responsePayload = {
       role: userRole,
@@ -827,11 +872,7 @@ export async function GET(req: NextRequest) {
         teacher_designations: [
           { rank: 'Participating University Educators (All Faculties)', count: totalTeachers, pct: 100 }
         ],
-        teacher_experience_levels: [
-          { range: '1 to 3 years', count: Math.round(teacherPre.length * 0.4), pct: 40.0 },
-          { range: '3 to 5 years', count: Math.round(teacherPre.length * 0.35), pct: 35.0 },
-          { range: '5+ years senior faculty', count: Math.round(teacherPre.length * 0.25), pct: 25.0 },
-        ],
+        teacher_experience_levels: teacherExperienceLevels,
 
         // Demographics
         institution_breakdown_students: studentAffiliation,

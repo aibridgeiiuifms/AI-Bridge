@@ -261,10 +261,10 @@ export const SURVEY_CHART_SOURCES: Record<string, SurveyChartSource> = {
   },
   'teacher-experience': {
     title: 'Faculty Teaching Experience Levels',
-    source: 'No survey answer is currently used; the displayed distribution is hardcoded in the analytics API.',
-    questions: ['No source survey question is currently connected to this chart.'],
-    calculation: 'Displays fixed 40% / 35% / 25% experience categories.',
-    limitations: 'The chart is not based on collected teacher experience responses.',
+    source: 'Teacher Pre survey responses in survey_responses_v2, using the teaching_experience field or the “Teaching Experience” answer.',
+    questions: ['“Teaching Experience” (Teacher Pre survey).'],
+    calculation: 'Counts reported experience ranges and calculates each range as a share of teacher responses with an answer.',
+    limitations: 'Responses with unrecognized ranges are grouped as “Other / unspecified”; missing answers are excluded.',
   },
   'dept-participation': {
     title: 'Department Participation',

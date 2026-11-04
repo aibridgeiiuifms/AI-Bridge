@@ -51,7 +51,7 @@ The chart registry defines **34** entries. The UI renders **33**: Executive 5, S
 | Workshop goals vs outcomes | Goals compared with post-training responses | Pre and post denominators differ and are not matched; outcome proxies do not necessarily measure the stated goal. |
 | Long-term adoption intent | Faculty willingness to integrate AI | Intention, not observed curriculum integration. |
 | Faculty institution distribution | IIUI vs other institutions | Derived from answers/email rules; missing affiliation is treated as external, which can skew the split. |
-| Teaching experience levels | Faculty experience distribution | Fixed 40/35/25 percentages and counts, not survey-derived. |
+| Teaching experience levels | Faculty experience distribution | Derived from teacher pre-survey answers; missing answers are excluded and unrecognized ranges are grouped as “Other / unspecified.” |
 
 **Registry/UI mismatch:** “Faculty Academic Rank Breakdown” is defined and returned but is not rendered. Its API value is a single 100% “all educators” category, not an actual rank breakdown.
 

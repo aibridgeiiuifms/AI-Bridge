@@ -37,16 +37,105 @@ import MemberChartPermissionsModal from '@/components/dashboard/MemberChartPermi
 import GuestAccessModal from '@/components/dashboard/GuestAccessModal';
 
 // ─── Visual Chart & Callout Helpers ──────────────────────────────────────────
-function ExplanationCallout({ text }: { text: string }) {
+const DONUT_COLORS = ['#3b6fb6', '#e3a23b', '#238a7b', '#8064a2', '#cc6677', '#667085'];
+
+function getChartInsight(data: any, chartId: string): string {
+  if (!data) return 'No chart data is currently available.';
+  if (chartId === 'teacher-experience' && Array.isArray(data) && data.length === 0) {
+    return 'No teaching-experience answers were found in the teacher pre-survey records.';
+  }
+
+  if (chartId === 'future_adoption_intent') {
+    const getIntent = (items: any[]) => {
+      const total = items.reduce((sum, item) => sum + Number(item.count || 0), 0);
+      const continuing = items
+        .filter((item) => String(item.name || '').toLowerCase().startsWith('yes'))
+        .reduce((sum, item) => sum + Number(item.count || 0), 0);
+      return total ? `${((continuing / total) * 100).toFixed(1)}%` : 'no responses';
+    };
+    return `Respondents indicating they will continue: students ${getIntent(data.students || [])}; faculty ${getIntent(data.faculty || [])}. This reflects stated intent, not observed future use.`;
+  }
+
+  const rows = Array.isArray(data) ? data : [];
+  if (!rows.length) return 'No responses are available to summarize.';
+
+  if (rows.some((item) => item.preNeedPct !== undefined || item.postDeliveredPct !== undefined)) {
+    const topNeed = [...rows].sort((a, b) => Number(b.preNeedPct || 0) - Number(a.preNeedPct || 0))[0];
+    const topDelivered = [...rows].sort((a, b) => Number(b.postDeliveredPct || 0) - Number(a.postDeliveredPct || 0))[0];
+    return `Highest pre-survey request: ${topNeed.format} (${topNeed.preNeedPct}%). Highest post-survey helpful asset: ${topDelivered.format} (${topDelivered.postDeliveredPct}%). These are separate survey groups, not necessarily paired students.`;
+  }
+
+  if (rows.some((item) => item.baselinePre !== undefined && item.postTraining !== undefined)) {
+    const top = [...rows].sort((a, b) => Number(b.postTraining || 0) - Number(a.postTraining || 0))[0];
+    return `Highest displayed post-training measure: ${top.axis} (${top.postTraining}%). Some radar baselines are configured reference values rather than measured pre-survey results, so this is not a measured overall gain.`;
+  }
+
+  if (rows.some((item) => item.prePct !== undefined && item.postPct !== undefined)) {
+    const largestShift = [...rows].sort((a, b) =>
+      Math.abs(Number(b.postPct || 0) - Number(b.prePct || 0)) -
+      Math.abs(Number(a.postPct || 0) - Number(a.prePct || 0))
+    )[0];
+    const direction = Number(largestShift.postPct) >= Number(largestShift.prePct) ? 'increased' : 'decreased';
+    const caveat = chartId === 'familiarity-shift'
+      ? 'Post responses measure perceived concept improvement, not AI familiarity.'
+      : 'Pre and post respondents may differ.';
+    return `Largest displayed change: ${largestShift.level} ${direction} from ${largestShift.prePct}% to ${largestShift.postPct}%. ${caveat}`;
+  }
+
+  if (rows.some((item) => item.avgHoursSaved !== undefined)) {
+    const top = [...rows].sort((a, b) => Number(b.avgHoursSaved || 0) - Number(a.avgHoursSaved || 0))[0];
+    return `Highest estimated average: ${top.level}, ${top.avgHoursSaved} hours saved per week. Hour ranges are represented by estimated midpoints; unmatched responses may be grouped as Novice.`;
+  }
+
+  if (rows.some((item) => item.achievedPct !== undefined)) {
+    const top = [...rows].sort((a, b) => Number(b.achievedPct || 0) - Number(a.achievedPct || 0))[0];
+    return `Highest post-survey outcome proxy: ${top.goal} (${top.achievedPct}%). Pre and post percentages use separate respondent groups and do not establish a matched change.`;
+  }
+
+  if (rows.some((item) => item.avgScore !== undefined)) {
+    const top = [...rows].sort((a, b) => Number(b.avgScore || 0) - Number(a.avgScore || 0))[0];
+    return `Highest displayed department average: ${top.dept}, ${top.avgScore}/5. The score is an approximate mapping of survey answer categories.`;
+  }
+
+  const labelKey = ['name', 'label', 'obstacle', 'format', 'asset', 'tool', 'status', 'habit', 'interest', 'frequency', 'institution', 'department', 'semester', 'range', 'category', 'week', 'rating']
+    .find((key) => rows.some((item) => item[key] !== undefined));
+  const countKey = ['count', 'responses'].find((key) => rows.some((item) => item[key] !== undefined));
+  const pctKey = ['pct'].find((key) => rows.some((item) => item[key] !== undefined));
+  const top = [...rows].sort((a, b) => {
+    if (pctKey) return Number(b[pctKey] || 0) - Number(a[pctKey] || 0);
+    return Number(b[countKey || ''] || 0) - Number(a[countKey || ''] || 0);
+  })[0];
+
+  if (!labelKey || !top) return 'Chart values reflect the current dashboard data.';
+  const count = countKey ? `, ${top[countKey]} responses` : '';
+  const percentage = pctKey ? ` (${top[pctKey]}%)` : '';
+  return `Most common displayed category: ${top[labelKey]}${count}${percentage}.`;
+}
+
+function ExplanationCallout({ data, chartId }: { data: any; chartId: string }) {
   return (
     <div className="mt-3.5 p-3 rounded-2xl bg-amber-50/70 border border-amber-200/70 flex items-start gap-2.5 text-xs text-amber-950 leading-relaxed shadow-2xs">
       <Lightbulb className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
       <div>
-        <span className="font-black text-amber-900 mr-1.5">What this data proves:</span>
-        <span className="text-slate-700 font-medium">{text}</span>
+        <span className="font-black text-amber-900 mr-1.5">Current data summary:</span>
+        <span className="text-slate-700 font-medium">{getChartInsight(data, chartId)}</span>
       </div>
     </div>
   );
+}
+
+function getCategoryShare(
+  items: any[] | undefined,
+  include: (item: any, index: number) => boolean
+): string {
+  if (!items?.length) return '—';
+  const total = items.reduce((sum, item) => sum + Number(item.count || 0), 0);
+  if (!total) return '—';
+  const selected = items.reduce(
+    (sum, item, index) => sum + (include(item, index) ? Number(item.count || 0) : 0),
+    0
+  );
+  return `${((selected / total) * 100).toFixed(1)}%`;
 }
 
 function SvgDonutChart({
@@ -56,7 +145,7 @@ function SvgDonutChart({
   centerText,
   centerSub,
 }: {
-  data: { label: string; value: number; color: string; pct?: number }[];
+  data: { label: string; value: number; color?: string; pct?: number }[];
   size?: number;
   strokeWidth?: number;
   centerText?: string;
@@ -83,6 +172,7 @@ function SvgDonutChart({
             const pct = (item.value || 0) / total;
             const dashArray = pct * circumference;
             const dashOffset = -(accumulated * circumference);
+            const color = item.color || DONUT_COLORS[idx % DONUT_COLORS.length];
             accumulated += pct;
             return (
               <circle
@@ -91,11 +181,11 @@ function SvgDonutChart({
                 cy={size / 2}
                 r={radius}
                 fill="transparent"
-                stroke={item.color}
+                stroke={color}
                 strokeWidth={strokeWidth}
                 strokeDasharray={`${dashArray} ${circumference}`}
                 strokeDashoffset={dashOffset}
-                strokeLinecap="round"
+                strokeLinecap="butt"
                 className="transition-all duration-700"
               />
             );
@@ -113,10 +203,11 @@ function SvgDonutChart({
       <div className="space-y-2 min-w-[210px]">
         {data.map((item, idx) => {
           const calcPct = Math.round(((item.value || 0) / total) * 100);
+          const color = item.color || DONUT_COLORS[idx % DONUT_COLORS.length];
           return (
             <div key={idx} className="flex items-center justify-between text-xs font-bold gap-3">
               <div className="flex items-center gap-2 truncate">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
                 <span className="text-slate-700 truncate">{item.label}</span>
               </div>
               <div className="text-slate-900 shrink-0 font-mono text-[11px]">
@@ -661,8 +752,8 @@ export default function SurveyAnalyticsView({
           {isChartAllowed('student_impact_radar') && (
             <ChartDownloadWrapper
               id="student-impact-radar"
-              title="Student 5-Dimensional Impact Radar (Pre vs Post)"
-              subtitle="Comparing normalized competency indices before vs after AI Bridge training."
+              title="Student Impact Summary (Before and After Training)"
+              subtitle="Self-reported study impact measures; some baseline values are estimates."
               dataForCsv={charts.student_impact_radar}
             >
               {viewMode === 'charts' ? (
@@ -721,7 +812,7 @@ export default function SurveyAnalyticsView({
                   </table>
                 </div>
               )}
-              <ExplanationCallout text="Proves holistic academic growth across all 5 dimensions: AI familiarity more than doubled (42% to 86%) and study efficiency surged from 35% to 88% after workshop intervention." />
+              <ExplanationCallout data={charts.student_impact_radar} chartId="student-impact-radar" />
             </ChartDownloadWrapper>
           )}
 
@@ -729,8 +820,8 @@ export default function SurveyAnalyticsView({
           {isChartAllowed('hours_saved_comparison') && (
             <ChartDownloadWrapper
               id="hours-saved-target"
-              title="Weekly Study & Lesson Prep Hours Saved (Target Met)"
-              subtitle="Aggregated from post-assessment surveys across both students and faculty."
+              title="Students’ Weekly Study Hours Saved"
+              subtitle="Student post-survey reports grouped by hours saved per week."
               dataForCsv={charts.hours_saved_comparison}
             >
               {viewMode === 'charts' ? (
@@ -738,10 +829,10 @@ export default function SurveyAnalyticsView({
                   {/* Visual Donut Chart */}
                   <SvgDonutChart
                     data={[
-                      { label: '< 2 hours', value: (charts.hours_saved_comparison || [])[0]?.count || 0, color: '#94a3b8' },
-                      { label: '3 to 5 hours (Target Met)', value: (charts.hours_saved_comparison || [])[1]?.count || 0, color: '#059669' },
-                      { label: '6 to 8 hours', value: (charts.hours_saved_comparison || [])[2]?.count || 0, color: '#10b981' },
-                      { label: '9+ hours', value: (charts.hours_saved_comparison || [])[3]?.count || 0, color: '#6366f1' },
+                      { label: '< 2 hours', value: (charts.hours_saved_comparison || [])[0]?.count || 0, color: '#667085' },
+                      { label: '3 to 5 hours (Target Met)', value: (charts.hours_saved_comparison || [])[1]?.count || 0, color: '#238a7b' },
+                      { label: '6 to 8 hours', value: (charts.hours_saved_comparison || [])[2]?.count || 0, color: '#3b6fb6' },
+                      { label: '9+ hours', value: (charts.hours_saved_comparison || [])[3]?.count || 0, color: '#e3a23b' },
                     ]}
                     centerText={`${kpi.qipTimeMetPct || kpi.targetHoursSavedPct || 0}%`}
                     centerSub="QIP Target Met"
@@ -805,7 +896,7 @@ export default function SurveyAnalyticsView({
                   </table>
                 </div>
               )}
-              <ExplanationCallout text="Demonstrates that over 74% of participants met or exceeded the core Quality Improvement Plan benchmark, saving 3 to 8+ hours each week in routine academic study and lesson planning." />
+              <ExplanationCallout data={charts.hours_saved_comparison} chartId="hours-saved-target" />
             </ChartDownloadWrapper>
           )}
 
@@ -813,8 +904,8 @@ export default function SurveyAnalyticsView({
           {isChartAllowed('ai_familiarity_shift') && (
             <ChartDownloadWrapper
               id="familiarity-shift"
-              title="AI Competency Shift: Before vs After Training"
-              subtitle="Distribution transition from Complete Beginner to Intermediate & Advanced users."
+              title="AI Familiarity and Learning Improvement (Before and After)"
+              subtitle="Student pre-survey AI familiarity compared with post-survey learning-improvement ratings."
               dataForCsv={charts.ai_familiarity_shift}
             >
               {viewMode === 'charts' ? (
@@ -862,7 +953,7 @@ export default function SurveyAnalyticsView({
                   </table>
                 </div>
               )}
-              <ExplanationCallout text="Shows a massive transformation: complete beginners plummeted from 47% down to 12%, while confident intermediate and advanced AI users quadrupled (from 16.9% up to 62%)." />
+              <ExplanationCallout data={charts.ai_familiarity_shift} chartId="familiarity-shift" />
             </ChartDownloadWrapper>
           )}
 
@@ -870,8 +961,8 @@ export default function SurveyAnalyticsView({
           {isChartAllowed('future_adoption_intent') && (
             <ChartDownloadWrapper
               id="adoption-intent"
-              title="Long-Term AI Adoption Intent (Students vs Faculty)"
-              subtitle="Commitment to integrate source-grounded AI tools in upcoming academic semesters."
+              title="Student and Faculty Plans to Continue Using AI"
+              subtitle="Post-survey intentions shown separately for students and faculty."
               dataForCsv={(charts.future_adoption_intent?.students || []).map((s: any, i: number) => ({
                 cohort: 'Students',
                 category: s.name,
@@ -887,17 +978,19 @@ export default function SurveyAnalyticsView({
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
                     <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
                       <span className="text-xs font-black text-slate-800">Student Intent (N={kpi.totalStudentPost || 0})</span>
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black">91.5% Intent</span>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black">
+                        {getCategoryShare(charts.future_adoption_intent?.students, (_item, index) => index < 2)} intend to continue
+                      </span>
                     </div>
                     <SvgDonutChart
                       data={(charts.future_adoption_intent?.students || []).map((item: any, idx: number) => ({
                         label: item.name,
                         value: item.count,
                         pct: item.pct,
-                        color: idx === 0 ? '#059669' : idx === 1 ? '#10b981' : idx === 2 ? '#f59e0b' : '#ef4444'
+                        color: DONUT_COLORS[idx % DONUT_COLORS.length]
                       }))}
-                      centerText="91.5%"
-                      centerSub="Adopt in Future"
+                      centerText={getCategoryShare(charts.future_adoption_intent?.students, (_item, index) => index < 2)}
+                      centerSub="intend to continue"
                       size={155}
                       strokeWidth={18}
                     />
@@ -906,17 +999,19 @@ export default function SurveyAnalyticsView({
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
                     <div className="flex items-center justify-between border-b border-slate-200/60 pb-2">
                       <span className="text-xs font-black text-slate-800">Faculty Intent (N={kpi.totalTeacherPost || 0})</span>
-                      <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-black">84.3% Intent</span>
+                      <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 text-[10px] font-black">
+                        {getCategoryShare(charts.future_adoption_intent?.faculty, (_item, index) => index < 2)} intend to continue
+                      </span>
                     </div>
                     <SvgDonutChart
                       data={(charts.future_adoption_intent?.faculty || []).map((item: any, idx: number) => ({
                         label: item.name,
                         value: item.count,
                         pct: item.pct,
-                        color: idx === 0 ? '#4f46e5' : idx === 1 ? '#6366f1' : idx === 2 ? '#f59e0b' : '#ef4444'
+                        color: DONUT_COLORS[idx % DONUT_COLORS.length]
                       }))}
-                      centerText="84.3%"
-                      centerSub="Curriculum Plan"
+                      centerText={getCategoryShare(charts.future_adoption_intent?.faculty, (_item, index) => index < 2)}
+                      centerSub="intend to continue"
                       size={155}
                       strokeWidth={18}
                     />
@@ -951,7 +1046,7 @@ export default function SurveyAnalyticsView({
                   </table>
                 </div>
               )}
-              <ExplanationCallout text="Demonstrates overwhelming post-workshop commitment: 91.5% of students and 84.3% of faculty members confirmed they will continue integrating NotebookLM into their coursework and lectures." />
+              <ExplanationCallout data={charts.future_adoption_intent} chartId="future_adoption_intent" />
             </ChartDownloadWrapper>
           )}
         </div>
@@ -1007,7 +1102,7 @@ export default function SurveyAnalyticsView({
                   </table>
                 </div>
               )}
-              <ExplanationCallout text="Identifies the baseline academic obstacles students struggled with before the workshop: 48.9% faced dense textbook overload, 33.4% struggled with revision notes, and 26.8% had difficulty synthesizing classical multilingual texts." />
+              <ExplanationCallout data={charts.student_obstacles_pre} chartId="student-obstacles" />
             </ChartDownloadWrapper>
           )}
 
@@ -1015,8 +1110,8 @@ export default function SurveyAnalyticsView({
           {isChartAllowed('needs_vs_delivery_matrix') && (
             <ChartDownloadWrapper
               id="needs-delivery-matrix"
-              title="Needs vs Delivery Alignment: Format Requested vs Format Valued"
-              subtitle="Comparing study formats requested in Pre-Survey against assets found most helpful in Post-Survey."
+              title="Study Formats Students Requested and Found Helpful"
+              subtitle="Student pre-survey preferences compared with post-survey helpful assets."
               dataForCsv={charts.needs_vs_delivery_matrix}
             >
               {viewMode === 'charts' ? (
@@ -1066,7 +1161,7 @@ export default function SurveyAnalyticsView({
                   </table>
                 </div>
               )}
-              <ExplanationCallout text="Validates that curriculum delivery directly fulfilled pre-workshop student demand: structured text chapter outlines and interactive practice quizzes emerged as the top requested and top delivered learning assets." />
+              <ExplanationCallout data={charts.needs_vs_delivery_matrix} chartId="needs-delivery-matrix" />
             </ChartDownloadWrapper>
           )}
 
@@ -1075,8 +1170,8 @@ export default function SurveyAnalyticsView({
             {isChartAllowed('student_concept_improvement') && (
               <ChartDownloadWrapper
                 id="concept-improvement"
-                title="Concept Understanding & Quiz Improvement (1-5)"
-                subtitle="62.4% rated comprehension improvement 4 or 5 out of 5."
+                title="Student-Reported Learning Improvement (1–5)"
+                subtitle="Post-survey ratings of perceived improvement in understanding and quiz performance."
                 dataForCsv={charts.student_concept_improvement}
               >
                 {viewMode === 'charts' ? (
@@ -1114,15 +1209,15 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="62.4% of students reported high concept comprehension improvement (rated 4 or 5 out of 5), confirming that source-grounded study packs significantly upgraded academic understanding." />
+                <ExplanationCallout data={charts.student_concept_improvement} chartId="concept-improvement" />
               </ChartDownloadWrapper>
             )}
 
             {isChartAllowed('student_reading_comprehension') && (
               <ChartDownloadWrapper
                 id="reading-ease"
-                title="Complex Reading & Text Processing Ease (1-5)"
-                subtitle="75.7% rated NotebookLM at 3/5 or above for easing text reading."
+                title="Ease of Reading Complex Texts (1–5)"
+                subtitle="Student post-survey ratings of reading and comprehension support."
                 dataForCsv={charts.student_reading_comprehension}
               >
                 {viewMode === 'charts' ? (
@@ -1160,7 +1255,7 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="75.7% of respondents reported a substantial reduction in reading fatigue, affirming that AI-generated summaries made lengthy academic textbooks accessible and digestible." />
+                <ExplanationCallout data={charts.student_reading_comprehension} chartId="reading-ease" />
               </ChartDownloadWrapper>
             )}
           </div>
@@ -1170,8 +1265,8 @@ export default function SurveyAnalyticsView({
             {isChartAllowed('student_learning_formats_pre') && (
               <ChartDownloadWrapper
                 id="learning-formats-pre"
-                title="Requested Study Formats (Pre-Survey)"
-                subtitle="Curriculum formats students asked for to ease comprehension."
+                title="Learning Formats Students Prefer (Before Training)"
+                subtitle="Student pre-survey learning-format preferences."
                 dataForCsv={charts.student_learning_formats_pre}
               >
                 {viewMode === 'charts' ? (
@@ -1210,15 +1305,15 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="Reveals strong pre-workshop demand for structured text guides (49.1%) and visual mind maps (33.2%) to dissect text-heavy courses." />
+                <ExplanationCallout data={charts.student_learning_formats_pre} chartId="learning-formats-pre" />
               </ChartDownloadWrapper>
             )}
 
             {isChartAllowed('student_helpful_assets_post') && (
               <ChartDownloadWrapper
                 id="helpful-assets-post"
-                title="Most Helpful AI Assets in Practice (Post-Survey)"
-                subtitle="Assets delivering the greatest measured revision efficiency."
+                title="AI Study Materials Students Found Helpful"
+                subtitle="Student post-survey reports of helpful revision materials."
                 dataForCsv={charts.student_helpful_assets_post}
               >
                 {viewMode === 'charts' ? (
@@ -1257,7 +1352,7 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="Structured chapter outlines (37.2%) and interactive practice quizzes (34.4%) ranked as the most effective revision tools deployed." />
+                <ExplanationCallout data={charts.student_helpful_assets_post} chartId="helpful-assets-post" />
               </ChartDownloadWrapper>
             )}
           </div>
@@ -1267,8 +1362,8 @@ export default function SurveyAnalyticsView({
             {isChartAllowed('student_burnout_reduction') && (
               <ChartDownloadWrapper
                 id="burnout-reduction"
-                title="Study Fatigue & Cognitive Burnout Relief (1 to 5)"
-                subtitle="79.4% rated post-training study burnout relief at 3/5 or higher."
+                title="Student Study Fatigue Rating (1–5)"
+                subtitle="Student post-survey rating of study fatigue after using the learning assets."
                 dataForCsv={charts.student_burnout_reduction}
               >
                 {viewMode === 'charts' ? (
@@ -1306,15 +1401,15 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="Demonstrates measurable mental wellness impact: 79.4% of students reported significant relief from academic fatigue when utilizing AI note packs." />
+                <ExplanationCallout data={charts.student_burnout_reduction} chartId="burnout-reduction" />
               </ChartDownloadWrapper>
             )}
 
             {isChartAllowed('student_study_pack_reliability') && (
               <ChartDownloadWrapper
                 id="study-pack-reliability"
-                title="AI Study Pack Accuracy & Hallucination Resistance"
-                subtitle="Source-grounded verification rating vs generic web search."
+                title="Student Ratings of AI Study-Pack Reliability"
+                subtitle="Perceived reliability compared with general online searching."
                 dataForCsv={charts.student_study_pack_reliability}
               >
                 {viewMode === 'charts' ? (
@@ -1323,10 +1418,10 @@ export default function SurveyAnalyticsView({
                       label: item.name,
                       value: item.count,
                       pct: item.pct,
-                      color: idx === 0 ? '#059669' : idx === 1 ? '#10b981' : idx === 2 ? '#f59e0b' : '#ef4444'
+                      color: DONUT_COLORS[idx % DONUT_COLORS.length]
                     }))}
-                    centerText="84.0%"
-                    centerSub="Reliable Rigor"
+                    centerText={getCategoryShare(charts.student_study_pack_reliability, (item) => /mostly|extremely/i.test(item.name))}
+                    centerSub="mostly or extremely reliable"
                     size={160}
                     strokeWidth={20}
                   />
@@ -1352,7 +1447,7 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="84.0% of students rated NotebookLM study packs as mostly or extremely reliable, validating the source-grounded model's resistance to hallucinations." />
+                <ExplanationCallout data={charts.student_study_pack_reliability} chartId="study-pack-reliability" />
               </ChartDownloadWrapper>
             )}
           </div>
@@ -1362,8 +1457,8 @@ export default function SurveyAnalyticsView({
             {isChartAllowed('student_pre_ai_tools') && (
               <ChartDownloadWrapper
                 id="pre-ai-tools"
-                title="Baseline AI Tools Used Prior to Workshop"
-                subtitle="ChatGPT dominated pre-training usage at 64.2%."
+                title="AI Tools Students Used Before Training"
+                subtitle="Student pre-survey reports of commonly used AI tools."
                 dataForCsv={charts.student_pre_ai_tools}
               >
                 {viewMode === 'charts' ? (
@@ -1372,10 +1467,10 @@ export default function SurveyAnalyticsView({
                       label: t.tool,
                       value: t.count,
                       pct: t.pct,
-                      color: idx === 0 ? '#10a37f' : idx === 1 ? '#1a73e8' : idx === 2 ? '#f59e0b' : '#8b5cf6'
+                      color: DONUT_COLORS[idx % DONUT_COLORS.length]
                     }))}
-                    centerText="64.2%"
-                    centerSub="ChatGPT Share"
+                    centerText={getCategoryShare(charts.student_pre_ai_tools, (item) => /chat ?gpt/i.test(item.tool))}
+                    centerSub="reported ChatGPT use"
                     size={160}
                     strokeWidth={20}
                   />
@@ -1401,15 +1496,15 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="Demonstrates that prior to AI Bridge workshops, students relied almost exclusively on general chatbots (ChatGPT 64.2%) lacking citation rigor." />
+                <ExplanationCallout data={charts.student_pre_ai_tools} chartId="pre-ai-tools" />
               </ChartDownloadWrapper>
             )}
 
             {isChartAllowed('student_notebooklm_awareness') && (
               <ChartDownloadWrapper
                 id="notebooklm-awareness"
-                title="Prior NotebookLM & Source-Grounded Tool Familiarity"
-                subtitle="63.5% had never used source-grounded document AI."
+                title="Students’ Prior NotebookLM Awareness"
+                subtitle="Student pre-survey awareness and use of source-grounded study tools."
                 dataForCsv={charts.student_notebooklm_awareness}
               >
                 {viewMode === 'charts' ? (
@@ -1418,10 +1513,10 @@ export default function SurveyAnalyticsView({
                       label: nb.status,
                       value: nb.count,
                       pct: nb.pct,
-                      color: idx === 0 ? '#10b981' : idx === 1 ? '#38bdf8' : '#6366f1'
+                      color: DONUT_COLORS[idx % DONUT_COLORS.length]
                     }))}
-                    centerText="63.5%"
-                    centerSub="Unfamiliar Pre"
+                    centerText={getCategoryShare(charts.student_notebooklm_awareness, (item) => /unfamiliar/i.test(item.status))}
+                    centerSub="unfamiliar before training"
                     size={160}
                     strokeWidth={20}
                   />
@@ -1447,7 +1542,7 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="Confirms a high training novelty factor: 63.5% of students either had never heard of or never tried uploading course PDFs to source-grounded tools." />
+                <ExplanationCallout data={charts.student_notebooklm_awareness} chartId="notebooklm-awareness" />
               </ChartDownloadWrapper>
             )}
           </div>
@@ -1457,8 +1552,8 @@ export default function SurveyAnalyticsView({
             {isChartAllowed('student_audio_aids') && (
               <ChartDownloadWrapper
                 id="audio-aids"
-                title="Audio Overviews & Conversational Podcast Receptivity"
-                subtitle="Baseline familiarity with audio and text-to-speech revision."
+                title="Student Use of Audio and Digital Study Aids"
+                subtitle="Student pre-survey reports of audio and text-to-speech use."
                 dataForCsv={charts.student_audio_aids}
               >
                 {viewMode === 'charts' ? (
@@ -1497,15 +1592,15 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="82.6% of students were either occasional users or interested to try conversational audio overviews, opening a major multimodal revision channel." />
+                <ExplanationCallout data={charts.student_audio_aids} chartId="audio-aids" />
               </ChartDownloadWrapper>
             )}
 
             {isChartAllowed('student_workshop_interest') && (
               <ChartDownloadWrapper
                 id="workshop-interest"
-                title="Training Workshop & SDG Ambassador Interest (Pre)"
-                subtitle="88.5% of students expressed high interest in joining hands-on sessions."
+                title="Student Interest in the Training Workshop"
+                subtitle="Student pre-survey interest in joining the workshop."
                 dataForCsv={charts.student_workshop_interest}
               >
                 {viewMode === 'charts' ? (
@@ -1514,10 +1609,10 @@ export default function SurveyAnalyticsView({
                       label: item.interest,
                       value: item.count,
                       pct: item.pct,
-                      color: idx === 0 ? '#059669' : idx === 1 ? '#f59e0b' : '#94a3b8'
+                      color: DONUT_COLORS[idx % DONUT_COLORS.length]
                     }))}
-                    centerText="88.5%"
-                    centerSub="High Interest"
+                    centerText={getCategoryShare(charts.student_workshop_interest, (item) => /highly interested/i.test(item.interest))}
+                    centerSub="highly interested"
                     size={160}
                     strokeWidth={20}
                   />
@@ -1543,7 +1638,7 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="Proves exceptional student enthusiasm: 88.5% actively expressed direct intent to join the AI Bridge training and collaborate with SDG Ambassadors." />
+                <ExplanationCallout data={charts.student_workshop_interest} chartId="workshop-interest" />
               </ChartDownloadWrapper>
             )}
           </div>
@@ -1552,8 +1647,8 @@ export default function SurveyAnalyticsView({
           {isChartAllowed('student_hours_vs_familiarity') && (
             <ChartDownloadWrapper
               id="hours-vs-familiarity"
-              title="Weekly Study Hours Saved vs Baseline AI Experience"
-              subtitle="Real correlation computed from matched pre/post student pairs."
+              title="Estimated Study Hours Saved by Prior AI Experience"
+              subtitle="Post-survey hour-range midpoints grouped by baseline familiarity."
               dataForCsv={charts.student_hours_vs_familiarity}
             >
               {viewMode === 'charts' ? (
@@ -1586,7 +1681,7 @@ export default function SurveyAnalyticsView({
                   </table>
                 </div>
               )}
-              <ExplanationCallout text="Proves broad utility across skill tiers: while beginners saved 3.1 hours, experienced intermediate students unlocked over 4.1 hours per week through advanced prompt chaining." />
+              <ExplanationCallout data={charts.student_hours_vs_familiarity} chartId="hours-vs-familiarity" />
             </ChartDownloadWrapper>
           )}
         </div>
@@ -1602,8 +1697,8 @@ export default function SurveyAnalyticsView({
           {isChartAllowed('teacher_impact_radar') && (
             <ChartDownloadWrapper
               id="faculty-radar"
-              title="Faculty Multi-Axis Impact Radar"
-              subtitle="Prep time saved, fatigue relief, multilingual utility, output accuracy, adoption."
+              title="Faculty Impact Summary"
+              subtitle="Faculty post-survey outcomes; some radar reference values are estimates."
               dataForCsv={charts.teacher_impact_radar}
             >
               {viewMode === 'charts' ? (
@@ -1662,7 +1757,7 @@ export default function SurveyAnalyticsView({
                   </table>
                 </div>
               )}
-              <ExplanationCallout text="Demonstrates comprehensive faculty impact: AI tool experience surged from 38% to 84%, and lesson prep time reduction climbed from 40% to 82% across diverse university departments." />
+              <ExplanationCallout data={charts.teacher_impact_radar} chartId="faculty-radar" />
             </ChartDownloadWrapper>
           )}
 
@@ -1671,8 +1766,8 @@ export default function SurveyAnalyticsView({
             {isChartAllowed('teacher_multilingual_burden') && (
               <ChartDownloadWrapper
                 id="multilingual-burden"
-                title="Multilingual Classical Text Translation Burden (Pre)"
-                subtitle="83.3% of faculty face constant or frequent multilingual translation needs."
+                title="Faculty Need for Multilingual Teaching Support"
+                subtitle="Teacher pre-survey reports of translation and explanation needs."
                 dataForCsv={charts.teacher_multilingual_burden}
               >
                 {viewMode === 'charts' ? (
@@ -1681,10 +1776,10 @@ export default function SurveyAnalyticsView({
                       label: item.frequency,
                       value: item.count,
                       pct: item.pct,
-                      color: idx === 0 ? '#f59e0b' : idx === 1 ? '#ef4444' : '#94a3b8'
+                      color: DONUT_COLORS[idx % DONUT_COLORS.length]
                     }))}
-                    centerText="77.4%"
-                    centerSub="Translation Need"
+                    centerText={getCategoryShare(charts.teacher_multilingual_burden, (item) => !/rarely|not applicable/i.test(item.frequency))}
+                    centerSub="report a translation need"
                     size={160}
                     strokeWidth={20}
                   />
@@ -1710,14 +1805,14 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="Highlights that 83.3% of faculty regularly face multilingual translation demands (Arabic, Urdu, English), where source-grounded NotebookLM provided immediate prep assistance." />
+                <ExplanationCallout data={charts.teacher_multilingual_burden} chartId="multilingual-burden" />
               </ChartDownloadWrapper>
             )}
 
             {isChartAllowed('teacher_prep_reduction') && (
               <ChartDownloadWrapper
                 id="prep-reduction"
-                title="Lesson Prep & Grading Time Reduction (1 to 5)"
+                title="Faculty-Reported Lesson Preparation Time Reduction (1–5)"
                 subtitle="Distribution of text processing and course preparation time reduction."
                 dataForCsv={charts.teacher_prep_reduction}
               >
@@ -1756,7 +1851,7 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="Proves measurable teaching efficiency gains: 78% of instructors rated lesson prep reduction 3/5 or higher, recovering hours previously spent creating slides and quiz banks." />
+                <ExplanationCallout data={charts.teacher_prep_reduction} chartId="prep-reduction" />
               </ChartDownloadWrapper>
             )}
           </div>
@@ -1766,8 +1861,8 @@ export default function SurveyAnalyticsView({
             {isChartAllowed('teacher_burnout') && (
               <ChartDownloadWrapper
                 id="faculty-burnout"
-                title="Teaching Burnout & Cognitive Fatigue Relief (1 to 5)"
-                subtitle="78.4% of instructors reported noticeable relief (3/5 or higher)."
+                title="Faculty-Reported Teaching Fatigue (1–5)"
+                subtitle="Teacher post-survey ratings of fatigue after using AI tools."
                 dataForCsv={charts.teacher_burnout}
               >
                 {viewMode === 'charts' ? (
@@ -1805,14 +1900,14 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="Demonstrates academic fatigue relief: 78.4% of faculty rated teaching burnout relief at 3/5 or higher, recovering energy previously consumed by repetitive administrative prep." />
+                <ExplanationCallout data={charts.teacher_burnout} chartId="faculty-burnout" />
               </ChartDownloadWrapper>
             )}
 
             {isChartAllowed('teacher_output_accuracy') && (
               <ChartDownloadWrapper
                 id="faculty-accuracy"
-                title="NotebookLM Output Accuracy for Academic Rigor"
+                title="Faculty Ratings of AI Output Accuracy"
                 subtitle="Source-grounded verification rating from university educators."
                 dataForCsv={charts.teacher_output_accuracy}
               >
@@ -1822,10 +1917,10 @@ export default function SurveyAnalyticsView({
                       label: item.name,
                       value: item.count,
                       pct: item.pct,
-                      color: idx === 0 ? '#4f46e5' : idx === 1 ? '#059669' : idx === 2 ? '#f59e0b' : '#ef4444'
+                      color: DONUT_COLORS[idx % DONUT_COLORS.length]
                     }))}
-                    centerText="96.1%"
-                    centerSub="Academic Rigor"
+                    centerText={getCategoryShare(charts.teacher_output_accuracy, (item) => !/inaccurate|hallucination/i.test(item.name))}
+                    centerSub="rated at least moderately accurate"
                     size={160}
                     strokeWidth={20}
                   />
@@ -1851,7 +1946,7 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="96.1% of educators affirmed NotebookLM outputs were accurate and reliable for academic teaching, with zero hallucination issues reported." />
+                <ExplanationCallout data={charts.teacher_output_accuracy} chartId="faculty-accuracy" />
               </ChartDownloadWrapper>
             )}
           </div>
@@ -1860,8 +1955,8 @@ export default function SurveyAnalyticsView({
           {isChartAllowed('teacher_goals_vs_outcomes') && (
             <ChartDownloadWrapper
               id="faculty-goals-outcomes"
-              title="Faculty Workshop Goals vs Actual Measured Outcomes"
-              subtitle="Comparing what instructors requested in pre-survey against what was realized in post-survey."
+              title="Faculty Workshop Goals and Post-Training Responses"
+              subtitle="Teacher pre-survey goals compared with related post-survey responses."
               dataForCsv={charts.teacher_goals_vs_outcomes}
             >
               {viewMode === 'charts' ? (
@@ -1910,7 +2005,7 @@ export default function SurveyAnalyticsView({
                   </table>
                 </div>
               )}
-              <ExplanationCallout text="Proves that post-training delivery directly met or exceeded faculty expectations across lesson prep time recovery, quiz bank generation, and source-grounded ethical AI frameworks." />
+              <ExplanationCallout data={charts.teacher_goals_vs_outcomes} chartId="faculty-goals-outcomes" />
             </ChartDownloadWrapper>
           )}
 
@@ -1919,8 +2014,8 @@ export default function SurveyAnalyticsView({
             {isChartAllowed('teacher_future_adoption') && (
               <ChartDownloadWrapper
                 id="faculty-future-adoption"
-                title="Faculty Long-Term Curriculum Integration Intent"
-                subtitle="84.3% plan continued semester adoption for course materials."
+                title="Faculty Plans to Continue Using NotebookLM"
+                subtitle="Teacher post-survey intentions for future use."
                 dataForCsv={charts.teacher_future_adoption}
               >
                 {viewMode === 'charts' ? (
@@ -1929,10 +2024,10 @@ export default function SurveyAnalyticsView({
                       label: item.name,
                       value: item.count,
                       pct: item.pct,
-                      color: idx === 0 ? '#4f46e5' : idx === 1 ? '#6366f1' : idx === 2 ? '#f59e0b' : '#ef4444'
+                      color: DONUT_COLORS[idx % DONUT_COLORS.length]
                     }))}
-                    centerText="84.3%"
-                    centerSub="Curriculum Plan"
+                    centerText={getCategoryShare(charts.teacher_future_adoption, (_item, index) => index < 2)}
+                    centerSub="intend to continue"
                     size={160}
                     strokeWidth={20}
                   />
@@ -1958,15 +2053,15 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="Demonstrates lasting pedagogical change: 84.3% of university instructors confirmed they will continue integrating NotebookLM into syllabus planning and student assessment in coming semesters." />
+                <ExplanationCallout data={charts.teacher_future_adoption} chartId="faculty-future-adoption" />
               </ChartDownloadWrapper>
             )}
 
             {isChartAllowed('institution_breakdown_teachers') && (
               <ChartDownloadWrapper
                 id="faculty-affiliation"
-                title="Faculty Institutional Representation (IIUI vs External)"
-                subtitle="Real departmental distribution across university faculties."
+                title="Faculty Institution (IIUI or Other)"
+                subtitle="Teacher pre- and post-survey affiliation estimates."
                 dataForCsv={charts.institution_breakdown_teachers}
               >
                 {viewMode === 'charts' ? (
@@ -2012,7 +2107,7 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="Highlights extensive inter-university outreach: while IIUI faculty represented 37–41% of participants, educators from multiple external colleges and institutions accounted for the remaining 59–63%." />
+                <ExplanationCallout data={charts.institution_breakdown_teachers} chartId="faculty-affiliation" />
               </ChartDownloadWrapper>
             )}
           </div>
@@ -2021,46 +2116,58 @@ export default function SurveyAnalyticsView({
           {isChartAllowed('teacher_experience_levels') && (
             <ChartDownloadWrapper
               id="teacher-experience"
-              title="Faculty Teaching Seniority & Experience Tiers"
-              subtitle="Distribution across early-career, mid-career, and senior professors."
+              title="Faculty Teaching Experience"
+              subtitle="Distribution based on available teacher survey answers."
               dataForCsv={charts.teacher_experience_levels}
             >
               {viewMode === 'charts' ? (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-center">
-                  {(charts.teacher_experience_levels || []).map((item: any, idx: number) => (
-                    <div key={item.range} className="p-4 bg-white rounded-2xl border border-slate-200 flex flex-col items-center justify-between text-center space-y-2 shadow-2xs">
-                      <MiniRadialRing percent={item.pct} color={idx === 0 ? '#059669' : idx === 1 ? '#4f46e5' : '#d97706'} size={56} strokeWidth={5} />
-                      <div className="w-full">
-                        <p className="text-sm font-black text-slate-900">{item.pct}%</p>
-                        <p className="text-xs font-bold text-slate-700 mt-0.5">{item.range}</p>
-                        <p className="text-[10px] font-mono text-slate-400 mt-0.5">{item.count} educators</p>
+                charts.teacher_experience_levels?.length ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-center">
+                    {charts.teacher_experience_levels.map((item: any, idx: number) => (
+                      <div key={item.range} className="p-4 bg-white rounded-2xl border border-slate-200 flex flex-col items-center justify-between text-center space-y-2 shadow-2xs">
+                        <MiniRadialRing percent={item.pct} color={DONUT_COLORS[idx % DONUT_COLORS.length]} size={56} strokeWidth={5} />
+                        <div className="w-full">
+                          <p className="text-sm font-black text-slate-900">{item.pct}%</p>
+                          <p className="text-xs font-bold text-slate-700 mt-0.5">{item.range}</p>
+                          <p className="text-[10px] font-mono text-slate-400 mt-0.5">{item.count} educators</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="py-8 text-center text-sm font-medium text-slate-500">
+                    No teaching-experience answers are available in the teacher pre-survey data.
+                  </p>
+                )
               ) : (
-                <div className="pt-2 overflow-x-auto">
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
-                      <tr>
-                        <th className="p-2.5 rounded-l-xl">Experience Tier</th>
-                        <th className="p-2.5">Faculty Count</th>
-                        <th className="p-2.5 rounded-r-xl">Proportion (%)</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 font-medium">
-                      {(charts.teacher_experience_levels || []).map((item: any) => (
-                        <tr key={item.range} className="hover:bg-slate-50">
-                          <td className="p-2.5 font-bold text-slate-900">{item.range}</td>
-                          <td className="p-2.5 font-mono text-slate-700">{item.count}</td>
-                          <td className="p-2.5 font-black text-indigo-700">{item.pct}%</td>
+                charts.teacher_experience_levels?.length ? (
+                  <div className="pt-2 overflow-x-auto">
+                    <table className="w-full text-xs text-left">
+                      <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
+                        <tr>
+                          <th className="p-2.5 rounded-l-xl">Experience Tier</th>
+                          <th className="p-2.5">Faculty Count</th>
+                          <th className="p-2.5 rounded-r-xl">Proportion (%)</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {charts.teacher_experience_levels.map((item: any) => (
+                          <tr key={item.range} className="hover:bg-slate-50">
+                            <td className="p-2.5 font-bold text-slate-900">{item.range}</td>
+                            <td className="p-2.5 font-mono text-slate-700">{item.count}</td>
+                            <td className="p-2.5 font-black text-indigo-700">{item.pct}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="py-8 text-center text-sm font-medium text-slate-500">
+                    No teaching-experience answers are available in the teacher pre-survey data.
+                  </p>
+                )
               )}
-              <ExplanationCallout text="Demonstrates balanced seniority representation: junior (40%), mid-career (35%), and senior professors (25%) actively participated in adopting AI pedagogical workflows." />
+              <ExplanationCallout data={charts.teacher_experience_levels} chartId="teacher-experience" />
             </ChartDownloadWrapper>
           )}
         </div>
@@ -2076,7 +2183,7 @@ export default function SurveyAnalyticsView({
             {isChartAllowed('department_participation') && (
               <ChartDownloadWrapper
                 id="dept-participation"
-                title="Top Academic Departments Enrolled"
+                title="Responses by Department"
                 subtitle="Departmental reach across participating faculties."
                 dataForCsv={charts.department_participation}
               >
@@ -2109,15 +2216,15 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="Displays multi-departmental campus engagement led by the Faculty of Management Sciences (FMS), alongside wide participation from Basic & Applied Sciences, Computing, and Social Sciences." />
+                <ExplanationCallout data={charts.department_participation} chartId="dept-participation" />
               </ChartDownloadWrapper>
             )}
 
             {isChartAllowed('semester_participation') && (
               <ChartDownloadWrapper
                 id="semester-distribution"
-                title="Intake Cohort & Semester Distribution"
-                subtitle="Identified automatically by email parser (F24, S25, etc.)."
+                title="Student Responses by Semester"
+                subtitle="Student pre-survey cohort distribution."
                 dataForCsv={charts.semester_participation}
               >
                 {viewMode === 'charts' ? (
@@ -2149,7 +2256,7 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="Demonstrates broad undergraduate and graduate participation across academic seniorities, with major representation from the Fall 2024 and Spring 2025 cohorts." />
+                <ExplanationCallout data={charts.semester_participation} chartId="semester-distribution" />
               </ChartDownloadWrapper>
             )}
           </div>
@@ -2158,8 +2265,8 @@ export default function SurveyAnalyticsView({
           {isChartAllowed('misrouted_submissions_audit') && (
             <ChartDownloadWrapper
               id="misrouted-audit"
-              title="Pipeline Survey Routing & Cross-Contamination Quality Audit"
-              subtitle="Automatic detection and correction of @student.iiu.edu.pk submissions inside faculty sheets."
+              title="Survey Routing Check"
+              subtitle="Counts records identified and corrected by the survey pipeline."
               dataForCsv={charts.misrouted_submissions_audit}
             >
               {viewMode === 'charts' ? (
@@ -2200,7 +2307,7 @@ export default function SurveyAnalyticsView({
                   </table>
                 </div>
               )}
-              <ExplanationCallout text="Maintains 100% research data integrity by automatically identifying @student.iiu.edu.pk submissions in faculty forms and re-routing them to the student assessment pool." />
+              <ExplanationCallout data={charts.misrouted_submissions_audit} chartId="misrouted-audit" />
             </ChartDownloadWrapper>
           )}
 
@@ -2209,8 +2316,8 @@ export default function SurveyAnalyticsView({
             {isChartAllowed('institution_breakdown_students') && (
               <ChartDownloadWrapper
                 id="student-institution"
-                title="Student Institutional Distribution (IIUI vs External)"
-                subtitle="Project penetration across internal campus and partner universities."
+                title="Student Institution (IIUI or Other)"
+                subtitle="Student post-survey institution responses."
                 dataForCsv={charts.institution_breakdown_students}
               >
                 {viewMode === 'charts' ? (
@@ -2219,10 +2326,10 @@ export default function SurveyAnalyticsView({
                       label: item.institution,
                       value: item.count,
                       pct: item.pct,
-                      color: idx === 0 ? '#059669' : '#6366f1'
+                      color: DONUT_COLORS[idx % DONUT_COLORS.length]
                     }))}
-                    centerText="81.8%"
-                    centerSub="IIUI Students"
+                    centerText={getCategoryShare(charts.institution_breakdown_students, (item) => /iiui|islamic/i.test(item.institution))}
+                    centerSub="from IIUI"
                     size={160}
                     strokeWidth={20}
                   />
@@ -2248,15 +2355,15 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="Demonstrates widespread outreach: 81.8% of enrolled students were from internal IIUI faculties, while 18.2% registered from partner external universities across Islamabad and Punjab." />
+                <ExplanationCallout data={charts.institution_breakdown_students} chartId="student-institution" />
               </ChartDownloadWrapper>
             )}
 
             {isChartAllowed('department_familiarity_heatmap') && (
               <ChartDownloadWrapper
                 id="dept-heatmap"
-                title="Department-Level AI Competency Matrix"
-                subtitle="Average baseline AI familiarity across university departments (scale 1 to 5)."
+                title="Approximate AI Familiarity by Department"
+                subtitle="Average familiarity score mapped from available pre-survey answers."
                 dataForCsv={charts.department_familiarity_heatmap}
               >
                 {viewMode === 'charts' ? (
@@ -2288,7 +2395,7 @@ export default function SurveyAnalyticsView({
                     </table>
                   </div>
                 )}
-                <ExplanationCallout text="Highlights real variation across fields: technical disciplines (Computing & Software) averaged 2.7–2.8/5, while non-IT humanities and social sciences averaged 2.1–2.5/5, pinpointing the highest learning need." />
+                <ExplanationCallout data={charts.department_familiarity_heatmap} chartId="dept-heatmap" />
               </ChartDownloadWrapper>
             )}
           </div>
@@ -2297,8 +2404,8 @@ export default function SurveyAnalyticsView({
           {isChartAllowed('timeline_velocity') && (
             <ChartDownloadWrapper
               id="timeline-velocity"
-              title="Assessment Response Momentum & Timeline Velocity"
-              subtitle="Real submission volume tracked across workshop training weeks."
+              title="Survey Responses by Week"
+              subtitle="Response counts grouped into the configured survey weeks."
               dataForCsv={charts.timeline_velocity}
             >
               {viewMode === 'charts' ? (
@@ -2331,7 +2438,7 @@ export default function SurveyAnalyticsView({
                   </table>
                 </div>
               )}
-              <ExplanationCallout text="Reflects genuine campaign trajectory: Week 3 saw an unprecedented surge with 1,964 submissions as live on-campus workshop sessions and digital quizzes launched concurrently." />
+              <ExplanationCallout data={charts.timeline_velocity} chartId="timeline-velocity" />
             </ChartDownloadWrapper>
           )}
         </div>
