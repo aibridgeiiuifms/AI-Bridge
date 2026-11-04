@@ -330,7 +330,7 @@ export default async function HomePageContent() {
               href="/verify/AIB-2025-0001"
               className="w-full px-4 py-2.5 rounded-lg font-semibold text-xs bg-white/10 hover:bg-white/20 text-white text-center border border-white/20 transition-colors sm:rounded-xl sm:px-5 sm:py-3 sm:text-sm"
             >
-              Sample QR Verification
+              QR Verification
             </Link>
           </div>
         </div>
