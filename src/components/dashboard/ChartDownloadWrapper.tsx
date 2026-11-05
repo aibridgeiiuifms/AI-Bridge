@@ -12,6 +12,7 @@ interface ChartDownloadWrapperProps {
   subtitle?: string;
   dataForCsv?: Record<string, any>[];
   allowDownload?: boolean;
+  tab?: string;
   children: React.ReactNode;
 }
 
@@ -21,6 +22,7 @@ export default function ChartDownloadWrapper({
   subtitle,
   dataForCsv,
   allowDownload = true,
+  tab,
   children,
 }: ChartDownloadWrapperProps) {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -101,6 +103,11 @@ export default function ChartDownloadWrapper({
     <div
       ref={cardRef}
       id={id}
+      data-chart-wrapper="true"
+      data-chart-id={id}
+      data-chart-title={title}
+      data-chart-subtitle={subtitle || ''}
+      data-tab={tab || ''}
       className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs relative overflow-hidden transition-all text-slate-900"
     >
       {/* Official Header Bar (Captured in PNG download) */}

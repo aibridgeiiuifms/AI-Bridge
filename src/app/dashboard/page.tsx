@@ -62,8 +62,9 @@ import AdminResourcesPanel from '@/components/dashboard/AdminResourcesPanel';
 import CertificateNameAuditPanel from '@/components/dashboard/CertificateNameAuditPanel';
 import CertificateIssuanceToggleCard from '@/components/dashboard/CertificateIssuanceToggleCard';
 import ReportQRManager from '@/components/dashboard/ReportQRManager';
-import SurveyAnalyticsView, { SurveySubTab } from '@/components/dashboard/SurveyAnalyticsView';
-import LiveAnalyticsView, { LiveAnalyticsSubTab } from '@/components/dashboard/LiveAnalyticsView';
+import SurveyAnalyticsView, { type SurveySubTab } from '@/components/dashboard/SurveyAnalyticsView';
+import SurveyExportStudio from '@/components/dashboard/SurveyExportStudio';
+import LiveAnalyticsView, { type LiveAnalyticsSubTab } from '@/components/dashboard/LiveAnalyticsView';
 import SdgLoading from '@/components/SdgLoading';
 import MobileDisplaySettingsPanel from '@/components/dashboard/MobileDisplaySettingsPanel';
 import TeamQrExportPanel from '@/components/dashboard/TeamQrExportPanel';
@@ -82,6 +83,7 @@ export type DashboardTab =
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<DashboardTab>('survey_impact');
+  const [showExportStudio, setShowExportStudio] = useState<boolean>(false);
   const [surveySubTab, setSurveySubTab] = useState<SurveySubTab>('overview');
   const [visibleSurveySubTabs, setVisibleSurveySubTabs] = useState<SurveySubTab[] | null>(null);
   const [liveSubTab, setLiveSubTab] = useState<LiveAnalyticsSubTab>('overview');
@@ -1302,6 +1304,10 @@ export default function AdminDashboard() {
     }
   };
 
+  if (showExportStudio) {
+    return <SurveyExportStudio onBack={() => setShowExportStudio(false)} />;
+  }
+
   return (
 
     <div className="dashboard-page mx-auto w-full min-w-0 max-w-[1600px] space-y-5 px-3 py-5 sm:space-y-6 sm:px-6 sm:py-8 lg:px-8 lg:pl-24">
@@ -1319,22 +1325,13 @@ export default function AdminDashboard() {
         </div>
 
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
-          <button
-            onClick={() => {
-              localStorage.setItem('aib_simulation_mode', 'student');
-              window.location.href = '/portal?view_as=student';
-            }}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-400 px-3.5 py-2.5 text-xs font-bold text-slate-950 shadow-sm transition-all hover:bg-amber-500 sm:w-auto cursor-pointer"
-          >
-            <Eye className="w-4 h-4" />
-            <span>Simulate Student View</span>
-          </button>
           <button 
-            onClick={() => alert('Full QIP report data exported in CSV!')}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-emerald-800 sm:w-auto"
+            onClick={() => setShowExportStudio(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white shadow-sm transition-all hover:bg-emerald-800 sm:w-auto cursor-pointer"
+            title="Open full research export paper studio (PDF, Word, PPTX, PNG ZIP, CSV)"
           >
             <Download className="w-4 h-4" />
-            <span>Export QIP Section H Report</span>
+            <span>Export Survey report & Charts</span>
           </button>
         </div>
       </div>
@@ -1540,6 +1537,7 @@ export default function AdminDashboard() {
                 onSubTabChange={(sub) => setSurveySubTab(sub)}
                 onVisibleSubTabsChange={handleVisibleSurveySubTabsChange}
                 hideHeaderBar={false}
+                onOpenExportStudio={() => setShowExportStudio(true)}
               />
             </div>
           )}

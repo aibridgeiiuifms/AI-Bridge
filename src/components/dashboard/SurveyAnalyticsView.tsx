@@ -29,6 +29,7 @@ import {
   FileText,
   Target,
   Percent,
+  FileDown,
 } from 'lucide-react';
 import SdgLoading from '@/components/SdgLoading';
 import ChartDownloadWrapper from '@/components/dashboard/ChartDownloadWrapper';
@@ -37,238 +38,14 @@ import MemberChartPermissionsModal from '@/components/dashboard/MemberChartPermi
 import GuestAccessModal from '@/components/dashboard/GuestAccessModal';
 
 // ─── Visual Chart & Callout Helpers ──────────────────────────────────────────
-const DONUT_COLORS = ['#3b6fb6', '#e3a23b', '#238a7b', '#8064a2', '#cc6677', '#667085'];
-
-function getChartInsight(data: any, chartId: string): string {
-  if (!data) return 'No chart data is currently available.';
-  if (chartId === 'teacher-experience' && Array.isArray(data) && data.length === 0) {
-    return 'No teaching-experience answers were found in the teacher pre-survey records.';
-  }
-
-  if (chartId === 'future_adoption_intent') {
-    const getIntent = (items: any[]) => {
-      const total = items.reduce((sum, item) => sum + Number(item.count || 0), 0);
-      const continuing = items
-        .filter((item) => String(item.name || '').toLowerCase().startsWith('yes'))
-        .reduce((sum, item) => sum + Number(item.count || 0), 0);
-      return total ? `${((continuing / total) * 100).toFixed(1)}%` : 'no responses';
-    };
-    return `Respondents indicating they will continue: students ${getIntent(data.students || [])}; faculty ${getIntent(data.faculty || [])}. This reflects stated intent, not observed future use.`;
-  }
-
-  const rows = Array.isArray(data) ? data : [];
-  if (!rows.length) return 'No responses are available to summarize.';
-
-  if (rows.some((item) => item.preNeedPct !== undefined || item.postDeliveredPct !== undefined)) {
-    const topNeed = [...rows].sort((a, b) => Number(b.preNeedPct || 0) - Number(a.preNeedPct || 0))[0];
-    const topDelivered = [...rows].sort((a, b) => Number(b.postDeliveredPct || 0) - Number(a.postDeliveredPct || 0))[0];
-    return `Highest pre-survey request: ${topNeed.format} (${topNeed.preNeedPct}%). Highest post-survey helpful asset: ${topDelivered.format} (${topDelivered.postDeliveredPct}%). These are separate survey groups, not necessarily paired students.`;
-  }
-
-  if (rows.some((item) => item.baselinePre !== undefined && item.postTraining !== undefined)) {
-    const top = [...rows].sort((a, b) => Number(b.postTraining || 0) - Number(a.postTraining || 0))[0];
-    return `Highest displayed post-training measure: ${top.axis} (${top.postTraining}%). Some radar baselines are configured reference values rather than measured pre-survey results, so this is not a measured overall gain.`;
-  }
-
-  if (rows.some((item) => item.prePct !== undefined && item.postPct !== undefined)) {
-    const largestShift = [...rows].sort((a, b) =>
-      Math.abs(Number(b.postPct || 0) - Number(b.prePct || 0)) -
-      Math.abs(Number(a.postPct || 0) - Number(a.prePct || 0))
-    )[0];
-    const direction = Number(largestShift.postPct) >= Number(largestShift.prePct) ? 'increased' : 'decreased';
-    const caveat = chartId === 'familiarity-shift'
-      ? 'Post responses measure perceived concept improvement, not AI familiarity.'
-      : 'Pre and post respondents may differ.';
-    return `Largest displayed change: ${largestShift.level} ${direction} from ${largestShift.prePct}% to ${largestShift.postPct}%. ${caveat}`;
-  }
-
-  if (rows.some((item) => item.avgHoursSaved !== undefined)) {
-    const top = [...rows].sort((a, b) => Number(b.avgHoursSaved || 0) - Number(a.avgHoursSaved || 0))[0];
-    return `Highest estimated average: ${top.level}, ${top.avgHoursSaved} hours saved per week. Hour ranges are represented by estimated midpoints; unmatched responses may be grouped as Novice.`;
-  }
-
-  if (rows.some((item) => item.achievedPct !== undefined)) {
-    const top = [...rows].sort((a, b) => Number(b.achievedPct || 0) - Number(a.achievedPct || 0))[0];
-    return `Highest post-survey outcome proxy: ${top.goal} (${top.achievedPct}%). Pre and post percentages use separate respondent groups and do not establish a matched change.`;
-  }
-
-  if (rows.some((item) => item.avgScore !== undefined)) {
-    const top = [...rows].sort((a, b) => Number(b.avgScore || 0) - Number(a.avgScore || 0))[0];
-    return `Highest displayed department average: ${top.dept}, ${top.avgScore}/5. The score is an approximate mapping of survey answer categories.`;
-  }
-
-  const labelKey = ['name', 'label', 'obstacle', 'format', 'asset', 'tool', 'status', 'habit', 'interest', 'frequency', 'institution', 'department', 'semester', 'range', 'category', 'week', 'rating']
-    .find((key) => rows.some((item) => item[key] !== undefined));
-  const countKey = ['count', 'responses'].find((key) => rows.some((item) => item[key] !== undefined));
-  const pctKey = ['pct'].find((key) => rows.some((item) => item[key] !== undefined));
-  const top = [...rows].sort((a, b) => {
-    if (pctKey) return Number(b[pctKey] || 0) - Number(a[pctKey] || 0);
-    return Number(b[countKey || ''] || 0) - Number(a[countKey || ''] || 0);
-  })[0];
-
-  if (!labelKey || !top) return 'Chart values reflect the current dashboard data.';
-  const count = countKey ? `, ${top[countKey]} responses` : '';
-  const percentage = pctKey ? ` (${top[pctKey]}%)` : '';
-  return `Most common displayed category: ${top[labelKey]}${count}${percentage}.`;
-}
-
-function ExplanationCallout({ data, chartId }: { data: any; chartId: string }) {
-  return (
-    <div className="mt-3.5 p-3 rounded-2xl bg-amber-50/70 border border-amber-200/70 flex items-start gap-2.5 text-xs text-amber-950 leading-relaxed shadow-2xs">
-      <Lightbulb className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
-      <div>
-        <span className="font-black text-amber-900 mr-1.5">Current data summary:</span>
-        <span className="text-slate-700 font-medium">{getChartInsight(data, chartId)}</span>
-      </div>
-    </div>
-  );
-}
-
-function getCategoryShare(
-  items: any[] | undefined,
-  include: (item: any, index: number) => boolean
-): string {
-  if (!items?.length) return '—';
-  const total = items.reduce((sum, item) => sum + Number(item.count || 0), 0);
-  if (!total) return '—';
-  const selected = items.reduce(
-    (sum, item, index) => sum + (include(item, index) ? Number(item.count || 0) : 0),
-    0
-  );
-  return `${((selected / total) * 100).toFixed(1)}%`;
-}
-
-function SvgDonutChart({
-  data,
-  size = 180,
-  strokeWidth = 22,
-  centerText,
-  centerSub,
-}: {
-  data: { label: string; value: number; color?: string; pct?: number }[];
-  size?: number;
-  strokeWidth?: number;
-  centerText?: string;
-  centerSub?: string;
-}) {
-  const total = data.reduce((sum, d) => sum + (d.value || 0), 0) || 1;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  let accumulated = 0;
-
-  return (
-    <div className="flex flex-col sm:flex-row items-center justify-center gap-6 py-3">
-      <div className="relative shrink-0" style={{ width: size, height: size }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="transform -rotate-90">
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="transparent"
-            stroke="#f1f5f9"
-            strokeWidth={strokeWidth}
-          />
-          {data.map((item, idx) => {
-            const pct = (item.value || 0) / total;
-            const dashArray = pct * circumference;
-            const dashOffset = -(accumulated * circumference);
-            const color = item.color || DONUT_COLORS[idx % DONUT_COLORS.length];
-            accumulated += pct;
-            return (
-              <circle
-                key={idx}
-                cx={size / 2}
-                cy={size / 2}
-                r={radius}
-                fill="transparent"
-                stroke={color}
-                strokeWidth={strokeWidth}
-                strokeDasharray={`${dashArray} ${circumference}`}
-                strokeDashoffset={dashOffset}
-                strokeLinecap="butt"
-                className="transition-all duration-700"
-              />
-            );
-          })}
-        </svg>
-        {centerText && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-            <span className="text-xl font-black text-slate-900 leading-none">{centerText}</span>
-            {centerSub && <span className="text-[10px] font-bold text-slate-400 mt-1">{centerSub}</span>}
-          </div>
-        )}
-      </div>
-
-      {/* Legend */}
-      <div className="space-y-2 min-w-[210px]">
-        {data.map((item, idx) => {
-          const calcPct = Math.round(((item.value || 0) / total) * 100);
-          const color = item.color || DONUT_COLORS[idx % DONUT_COLORS.length];
-          return (
-            <div key={idx} className="flex items-center justify-between text-xs font-bold gap-3">
-              <div className="flex items-center gap-2 truncate">
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                <span className="text-slate-700 truncate">{item.label}</span>
-              </div>
-              <div className="text-slate-900 shrink-0 font-mono text-[11px]">
-                <span className="font-black">{item.value}</span>
-                <span className="text-slate-400 ml-1">({item.pct ?? calcPct}%)</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function MiniRadialRing({
-  percent,
-  size = 46,
-  strokeWidth = 5,
-  color = '#059669',
-  trackColor = '#e2e8f0',
-}: {
-  percent: number;
-  size?: number;
-  strokeWidth?: number;
-  color?: string;
-  trackColor?: string;
-}) {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (Math.min(100, Math.max(0, percent)) / 100) * circumference;
-
-  return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="transform -rotate-90">
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="transparent"
-          stroke={trackColor}
-          strokeWidth={strokeWidth}
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="transparent"
-          stroke={color}
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-          className="transition-all duration-700"
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-slate-800">
-        {percent}%
-      </div>
-    </div>
-  );
-}
+import {
+  DONUT_COLORS,
+  getChartInsight,
+  ExplanationCallout,
+  getCategoryShare,
+  SvgDonutChart,
+  MiniRadialRing,
+} from './surveyChartVisuals';
 
 export type V2AnalyticsTab = 'executive' | 'student' | 'faculty' | 'demographics';
 export type SurveySubTab = string;
@@ -279,6 +56,9 @@ interface SurveyAnalyticsViewProps {
   onSubTabChange?: (tab: any) => void;
   onVisibleSubTabsChange?: (tabs: any[]) => void;
   hideHeaderBar?: boolean;
+  onOpenExportStudio?: () => void;
+  renderAllForExport?: boolean;
+  initialCohort?: 'all' | 'matched';
 }
 
 export default function SurveyAnalyticsView({
@@ -287,6 +67,9 @@ export default function SurveyAnalyticsView({
   onSubTabChange,
   onVisibleSubTabsChange,
   hideHeaderBar = false,
+  onOpenExportStudio,
+  renderAllForExport = false,
+  initialCohort = 'all',
 }: SurveyAnalyticsViewProps = {}) {
   const [loading, setLoading] = useState<boolean>(true);
   const [data, setData] = useState<any>(null);
@@ -294,7 +77,8 @@ export default function SurveyAnalyticsView({
   const [error, setError] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<V2AnalyticsTab>('executive');
-  const [cohortMode, setCohortMode] = useState<'all' | 'matched'>('all');
+  const [cohortMode, setCohortMode] = useState<'all' | 'matched'>(initialCohort || 'all');
+  useEffect(() => { if (initialCohort) setCohortMode(initialCohort); }, [initialCohort]);
   const [viewMode, setViewMode] = useState<'charts' | 'numbers'>('charts');
 
   // Modals
@@ -534,10 +318,23 @@ export default function SurveyAnalyticsView({
           >
             <RefreshCw className="w-4 h-4" />
           </button>
+
+          {onOpenExportStudio && (
+            <button
+              onClick={onOpenExportStudio}
+              className="px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+              title="Open full research export paper studio (PDF, Word, PPTX, PNG ZIP, CSV)"
+            >
+              <FileDown className="w-3.5 h-3.5 text-white" />
+              <span>Export Survey report & Charts</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* 3. The 4 Sub-Tabs Navigation */}
+      {!renderAllForExport && (
+        <>
+          {/* 3. The 4 Sub-Tabs Navigation */}
       <div className="flex flex-wrap gap-2 p-1.5 bg-white rounded-2xl border border-slate-200 shadow-xs">
         {[
           { id: 'executive', label: '1. Executive Summary', icon: Sparkles, badge: '5 Core Visuals' },
@@ -607,19 +404,42 @@ export default function SurveyAnalyticsView({
           </button>
         </div>
       </div>
+        </>
+      )}
 
       {/* =========================================================================
           TAB 1: EXECUTIVE SUMMARY
          ========================================================================= */}
-      {activeTab === 'executive' && (
+      {(renderAllForExport || activeTab === 'executive') && (
         <div className="space-y-6 animate-fade-in">
           
           {/* Executive 6 Core KPI Cards */}
           {isChartAllowed('kpi_cards') && (
-            <div className="space-y-3">
-              <div className="flex justify-end">
-                <ChartDataHelpButton sourceId="kpi-summary" />
+            <div
+              data-chart-wrapper="true"
+              data-chart-id="kpi-summary"
+              data-chart-title="Executive Summary & Core Impact KPIs"
+              data-chart-subtitle="High-level indicators across students, faculty, certificates, and learning retention."
+              data-tab="executive"
+              className="bg-white rounded-3xl border border-slate-200 p-5 sm:p-6 shadow-xs relative overflow-hidden text-slate-900 space-y-4"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                    <h3 className="font-extrabold text-sm sm:text-base text-slate-900 tracking-tight">
+                      Executive Summary & Core Impact KPIs
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5 leading-relaxed font-medium">
+                    Verified participant progression, 12-MCQ pass rates, and QIP weekly time saved benchmarks.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 no-export">
+                  <ChartDataHelpButton sourceId="kpi-summary" />
+                </div>
               </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               
               {/* Card 1: Total Students */}
@@ -745,12 +565,20 @@ export default function SurveyAnalyticsView({
               </div>
 
               </div>
+              <div className="mt-4 pt-2.5 border-t border-slate-100 text-[10px] text-slate-500 font-medium">
+                <span className="font-bold text-slate-700">Data Source:</span>{' '}
+                <span className="text-slate-600">survey_responses_v2, certificates, and quiz_attempts in Supabase V2 Analytics Engine</span>
+              </div>
+              <div className="mt-2 pt-2 border-t border-slate-50 flex items-center justify-between text-[10px] text-slate-400 font-medium">
+                <span>The AI Bridge · Faculty of Management Sciences · IIUI</span>
+                <span>Live Verified Assessment Data</span>
+              </div>
             </div>
           )}
 
           {/* Student 5-Dimensional Impact Radar Chart */}
           {isChartAllowed('student_impact_radar') && (
-            <ChartDownloadWrapper
+            <ChartDownloadWrapper tab="executive"
               id="student-impact-radar"
               title="Student Impact Summary (Before and After Training)"
               subtitle="Self-reported study impact measures; some baseline values are estimates."
@@ -818,7 +646,7 @@ export default function SurveyAnalyticsView({
 
           {/* Hours Saved Distribution */}
           {isChartAllowed('hours_saved_comparison') && (
-            <ChartDownloadWrapper
+            <ChartDownloadWrapper tab="executive"
               id="hours-saved-target"
               title="Students’ Weekly Study Hours Saved"
               subtitle="Student post-survey reports grouped by hours saved per week."
@@ -902,7 +730,7 @@ export default function SurveyAnalyticsView({
 
           {/* AI Familiarity Shift */}
           {isChartAllowed('ai_familiarity_shift') && (
-            <ChartDownloadWrapper
+            <ChartDownloadWrapper tab="executive"
               id="familiarity-shift"
               title="AI Familiarity and Learning Improvement (Before and After)"
               subtitle="Student pre-survey AI familiarity compared with post-survey learning-improvement ratings."
@@ -959,7 +787,7 @@ export default function SurveyAnalyticsView({
 
           {/* Long-Term AI Adoption Intent */}
           {isChartAllowed('future_adoption_intent') && (
-            <ChartDownloadWrapper
+            <ChartDownloadWrapper tab="executive"
               id="adoption-intent"
               title="Student and Faculty Plans to Continue Using AI"
               subtitle="Post-survey intentions shown separately for students and faculty."
@@ -1055,12 +883,12 @@ export default function SurveyAnalyticsView({
       {/* =========================================================================
           TAB 2: STUDENT JOURNEY
          ========================================================================= */}
-      {activeTab === 'student' && (
+      {(renderAllForExport || activeTab === 'student') && (
         <div className="space-y-6 animate-fade-in">
           
           {/* Obstacles Identified Pre */}
           {isChartAllowed('student_obstacles_pre') && (
-            <ChartDownloadWrapper
+            <ChartDownloadWrapper tab="student"
               id="student-obstacles"
               title={`Academic Obstacles Identified Before Training (N=${kpi.totalStudentPre || 0})`}
               subtitle="Key challenges faced in textbooks, dense terminology, and note preparation."
@@ -1108,7 +936,7 @@ export default function SurveyAnalyticsView({
 
           {/* Needs vs Delivery Alignment */}
           {isChartAllowed('needs_vs_delivery_matrix') && (
-            <ChartDownloadWrapper
+            <ChartDownloadWrapper tab="student"
               id="needs-delivery-matrix"
               title="Study Formats Students Requested and Found Helpful"
               subtitle="Student pre-survey preferences compared with post-survey helpful assets."
@@ -1168,7 +996,7 @@ export default function SurveyAnalyticsView({
           {/* Concept Comprehension & Reading Ease Likert Scales */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {isChartAllowed('student_concept_improvement') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="student"
                 id="concept-improvement"
                 title="Student-Reported Learning Improvement (1–5)"
                 subtitle="Post-survey ratings of perceived improvement in understanding and quiz performance."
@@ -1214,7 +1042,7 @@ export default function SurveyAnalyticsView({
             )}
 
             {isChartAllowed('student_reading_comprehension') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="student"
                 id="reading-ease"
                 title="Ease of Reading Complex Texts (1–5)"
                 subtitle="Student post-survey ratings of reading and comprehension support."
@@ -1263,7 +1091,7 @@ export default function SurveyAnalyticsView({
           {/* Preferred Formats Requested vs Actual Assets Helpful */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {isChartAllowed('student_learning_formats_pre') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="student"
                 id="learning-formats-pre"
                 title="Learning Formats Students Prefer (Before Training)"
                 subtitle="Student pre-survey learning-format preferences."
@@ -1310,7 +1138,7 @@ export default function SurveyAnalyticsView({
             )}
 
             {isChartAllowed('student_helpful_assets_post') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="student"
                 id="helpful-assets-post"
                 title="AI Study Materials Students Found Helpful"
                 subtitle="Student post-survey reports of helpful revision materials."
@@ -1360,7 +1188,7 @@ export default function SurveyAnalyticsView({
           {/* Burnout Relief & Study Pack Reliability */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {isChartAllowed('student_burnout_reduction') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="student"
                 id="burnout-reduction"
                 title="Student Study Fatigue Rating (1–5)"
                 subtitle="Student post-survey rating of study fatigue after using the learning assets."
@@ -1406,7 +1234,7 @@ export default function SurveyAnalyticsView({
             )}
 
             {isChartAllowed('student_study_pack_reliability') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="student"
                 id="study-pack-reliability"
                 title="Student Ratings of AI Study-Pack Reliability"
                 subtitle="Perceived reliability compared with general online searching."
@@ -1455,7 +1283,7 @@ export default function SurveyAnalyticsView({
           {/* Baseline AI Tools & Prior NotebookLM Awareness */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {isChartAllowed('student_pre_ai_tools') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="student"
                 id="pre-ai-tools"
                 title="AI Tools Students Used Before Training"
                 subtitle="Student pre-survey reports of commonly used AI tools."
@@ -1501,7 +1329,7 @@ export default function SurveyAnalyticsView({
             )}
 
             {isChartAllowed('student_notebooklm_awareness') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="student"
                 id="notebooklm-awareness"
                 title="Students’ Prior NotebookLM Awareness"
                 subtitle="Student pre-survey awareness and use of source-grounded study tools."
@@ -1550,7 +1378,7 @@ export default function SurveyAnalyticsView({
           {/* Audio Study Aids & Hours Saved vs Familiarity */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {isChartAllowed('student_audio_aids') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="student"
                 id="audio-aids"
                 title="Student Use of Audio and Digital Study Aids"
                 subtitle="Student pre-survey reports of audio and text-to-speech use."
@@ -1597,7 +1425,7 @@ export default function SurveyAnalyticsView({
             )}
 
             {isChartAllowed('student_workshop_interest') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="student"
                 id="workshop-interest"
                 title="Student Interest in the Training Workshop"
                 subtitle="Student pre-survey interest in joining the workshop."
@@ -1645,7 +1473,7 @@ export default function SurveyAnalyticsView({
 
           {/* Hours Saved vs Baseline Familiarity */}
           {isChartAllowed('student_hours_vs_familiarity') && (
-            <ChartDownloadWrapper
+            <ChartDownloadWrapper tab="student"
               id="hours-vs-familiarity"
               title="Estimated Study Hours Saved by Prior AI Experience"
               subtitle="Post-survey hour-range midpoints grouped by baseline familiarity."
@@ -1690,12 +1518,12 @@ export default function SurveyAnalyticsView({
       {/* =========================================================================
           TAB 3: FACULTY & TEACHERS
          ========================================================================= */}
-      {activeTab === 'faculty' && (
+      {(renderAllForExport || activeTab === 'faculty') && (
         <div className="space-y-6 animate-fade-in">
           
           {/* Faculty Multi-Axis Radar */}
           {isChartAllowed('teacher_impact_radar') && (
-            <ChartDownloadWrapper
+            <ChartDownloadWrapper tab="faculty"
               id="faculty-radar"
               title="Faculty Impact Summary"
               subtitle="Faculty post-survey outcomes; some radar reference values are estimates."
@@ -1764,7 +1592,7 @@ export default function SurveyAnalyticsView({
           {/* Multilingual Burden & Lesson Prep Reduction */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {isChartAllowed('teacher_multilingual_burden') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="faculty"
                 id="multilingual-burden"
                 title="Faculty Need for Multilingual Teaching Support"
                 subtitle="Teacher pre-survey reports of translation and explanation needs."
@@ -1810,7 +1638,7 @@ export default function SurveyAnalyticsView({
             )}
 
             {isChartAllowed('teacher_prep_reduction') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="faculty"
                 id="prep-reduction"
                 title="Faculty-Reported Lesson Preparation Time Reduction (1–5)"
                 subtitle="Distribution of text processing and course preparation time reduction."
@@ -1859,7 +1687,7 @@ export default function SurveyAnalyticsView({
           {/* Faculty Burnout & Output Accuracy */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {isChartAllowed('teacher_burnout') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="faculty"
                 id="faculty-burnout"
                 title="Faculty-Reported Teaching Fatigue (1–5)"
                 subtitle="Teacher post-survey ratings of fatigue after using AI tools."
@@ -1905,7 +1733,7 @@ export default function SurveyAnalyticsView({
             )}
 
             {isChartAllowed('teacher_output_accuracy') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="faculty"
                 id="faculty-accuracy"
                 title="Faculty Ratings of AI Output Accuracy"
                 subtitle="Source-grounded verification rating from university educators."
@@ -1953,7 +1781,7 @@ export default function SurveyAnalyticsView({
 
           {/* Goals vs Measured Outcomes */}
           {isChartAllowed('teacher_goals_vs_outcomes') && (
-            <ChartDownloadWrapper
+            <ChartDownloadWrapper tab="faculty"
               id="faculty-goals-outcomes"
               title="Faculty Workshop Goals and Post-Training Responses"
               subtitle="Teacher pre-survey goals compared with related post-survey responses."
@@ -2012,7 +1840,7 @@ export default function SurveyAnalyticsView({
           {/* Faculty Future Adoption & Institutional Affiliation */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {isChartAllowed('teacher_future_adoption') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="faculty"
                 id="faculty-future-adoption"
                 title="Faculty Plans to Continue Using NotebookLM"
                 subtitle="Teacher post-survey intentions for future use."
@@ -2058,7 +1886,7 @@ export default function SurveyAnalyticsView({
             )}
 
             {isChartAllowed('institution_breakdown_teachers') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="faculty"
                 id="faculty-affiliation"
                 title="Faculty Institution (IIUI or Other)"
                 subtitle="Teacher pre- and post-survey affiliation estimates."
@@ -2114,7 +1942,7 @@ export default function SurveyAnalyticsView({
 
           {/* Teacher Seniority / Experience Levels */}
           {isChartAllowed('teacher_experience_levels') && (
-            <ChartDownloadWrapper
+            <ChartDownloadWrapper tab="faculty"
               id="teacher-experience"
               title="Faculty Teaching Experience"
               subtitle="Distribution based on available teacher survey answers."
@@ -2176,12 +2004,12 @@ export default function SurveyAnalyticsView({
       {/* =========================================================================
           TAB 4: DEMOGRAPHICS & OUTREACH
          ========================================================================= */}
-      {activeTab === 'demographics' && (
+      {(renderAllForExport || activeTab === 'demographics') && (
         <div className="space-y-6 animate-fade-in">
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {isChartAllowed('department_participation') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="demographics"
                 id="dept-participation"
                 title="Responses by Department"
                 subtitle="Departmental reach across participating faculties."
@@ -2221,7 +2049,7 @@ export default function SurveyAnalyticsView({
             )}
 
             {isChartAllowed('semester_participation') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="demographics"
                 id="semester-distribution"
                 title="Student Responses by Semester"
                 subtitle="Student pre-survey cohort distribution."
@@ -2263,7 +2091,7 @@ export default function SurveyAnalyticsView({
 
           {/* Misrouted Submissions Quality Audit */}
           {isChartAllowed('misrouted_submissions_audit') && (
-            <ChartDownloadWrapper
+            <ChartDownloadWrapper tab="demographics"
               id="misrouted-audit"
               title="Survey Routing Check"
               subtitle="Counts records identified and corrected by the survey pipeline."
@@ -2314,7 +2142,7 @@ export default function SurveyAnalyticsView({
           {/* Institutional Breakdown (Students) & Department Heatmap */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {isChartAllowed('institution_breakdown_students') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="demographics"
                 id="student-institution"
                 title="Student Institution (IIUI or Other)"
                 subtitle="Student post-survey institution responses."
@@ -2360,7 +2188,7 @@ export default function SurveyAnalyticsView({
             )}
 
             {isChartAllowed('department_familiarity_heatmap') && (
-              <ChartDownloadWrapper
+              <ChartDownloadWrapper tab="demographics"
                 id="dept-heatmap"
                 title="Approximate AI Familiarity by Department"
                 subtitle="Average familiarity score mapped from available pre-survey answers."
@@ -2402,7 +2230,7 @@ export default function SurveyAnalyticsView({
 
           {/* Timeline Velocity from Google Form Timestamps */}
           {isChartAllowed('timeline_velocity') && (
-            <ChartDownloadWrapper
+            <ChartDownloadWrapper tab="demographics"
               id="timeline-velocity"
               title="Survey Responses by Week"
               subtitle="Response counts grouped into the configured survey weeks."
