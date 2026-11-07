@@ -584,14 +584,27 @@ export default function SurveyAnalyticsView({
               title="Student Impact Summary (Before and After Training)"
               subtitle="Five core dimensions evaluated across baseline pre-survey measures and post-training outcomes."
               dataForCsv={charts.student_impact_radar}
+              selectableCards={(charts.student_impact_radar || []).map((axis: any, idx: number) => ({
+                id: axis.axis,
+                label: axis.axis,
+                index: idx + 1,
+                baselinePre: axis.baselinePre,
+                postTraining: axis.postTraining,
+                gain: axis.postTraining - axis.baselinePre,
+              }))}
             >
               {viewMode === 'charts' ? (
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3 pt-2">
-                  {(charts.student_impact_radar || []).map((axis: any) => {
+                  {(charts.student_impact_radar || []).map((axis: any, idx: number) => {
                     const gain = axis.postTraining - axis.baselinePre;
                     return (
                       <div key={axis.axis} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center space-y-2.5">
-                        <p className="text-xs font-black text-slate-800">{axis.axis}</p>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-slate-200 text-slate-700">
+                            #{idx + 1}
+                          </span>
+                          <p className="text-xs font-black text-slate-800">{axis.axis}</p>
+                        </div>
                         <div className="space-y-1">
                           <div className="flex justify-between text-[11px] font-bold">
                             <span className="text-slate-400">Baseline Pre:</span>
@@ -1542,14 +1555,27 @@ export default function SurveyAnalyticsView({
               title="Faculty Impact Summary"
               subtitle="Faculty post-survey outcomes; some radar reference values are estimates."
               dataForCsv={charts.teacher_impact_radar}
+              selectableCards={(charts.teacher_impact_radar || []).map((axis: any, idx: number) => ({
+                id: axis.axis,
+                label: axis.axis,
+                index: idx + 1,
+                baselinePre: axis.baselinePre,
+                postTraining: axis.postTraining,
+                gain: axis.postTraining - axis.baselinePre,
+              }))}
             >
               {viewMode === 'charts' ? (
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-3 pt-2">
-                  {(charts.teacher_impact_radar || []).map((axis: any) => {
+                  {(charts.teacher_impact_radar || []).map((axis: any, idx: number) => {
                     const gain = axis.postTraining - axis.baselinePre;
                     return (
                       <div key={axis.axis} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center space-y-2.5">
-                        <p className="text-xs font-black text-slate-800">{axis.axis}</p>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <span className="text-[10px] font-black px-1.5 py-0.5 rounded-md bg-slate-200 text-slate-700">
+                            #{idx + 1}
+                          </span>
+                          <p className="text-xs font-black text-slate-800">{axis.axis}</p>
+                        </div>
                         <div className="space-y-1">
                           <div className="flex justify-between text-[11px] font-bold">
                             <span className="text-slate-400">Pre:</span>
