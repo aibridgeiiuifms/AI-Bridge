@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
 
     let userRole = 'guest';
     let isAdmin = false;
+    let canViewChartDataHelp = false;
     let allowedChartMap: Record<string, boolean> = {};
 
     ANALYTICS_V2_CHARTS.forEach(c => {
@@ -47,6 +48,8 @@ export async function GET(req: NextRequest) {
       }
 
       isAdmin = isSuperAdmin || String(profile?.role || '').trim().toLowerCase() === 'admin';
+      canViewChartDataHelp =
+        isAdmin || String(profile?.role || '').trim().toLowerCase() === 'member';
       userRole = isAdmin ? 'admin' : 'member';
 
       // If team member, check granular permissions
@@ -830,6 +833,7 @@ export async function GET(req: NextRequest) {
     const responsePayload = {
       role: userRole,
       isAdmin,
+      canViewChartDataHelp,
       cohortMode: cohortParam,
       recentCertificates: recentCerts || [],
       allowedCharts: allowedChartMap,

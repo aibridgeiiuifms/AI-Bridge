@@ -158,6 +158,7 @@ export default function SurveyAnalyticsView({
   };
 
   const isSurveyAdmin = isAdmin || data?.isAdmin === true || data?.role === 'admin';
+  const canViewChartDataHelp = data?.canViewChartDataHelp === true;
 
   const isChartAllowed = (chartId: string) => {
     if (!data) return false;
@@ -205,7 +206,7 @@ export default function SurveyAnalyticsView({
   }
 
   return (
-    <ChartDataHelpProvider isAdmin={isSurveyAdmin}>
+    <ChartDataHelpProvider canView={canViewChartDataHelp}>
     <div className="space-y-6">
       
       {/* 1. Live Guest Notification Banner (if any outsider logged in) */}

@@ -8,21 +8,21 @@ import { SURVEY_CHART_SOURCES } from '@/lib/surveyChartSources';
 const ChartDataHelpContext = createContext(false);
 
 export function ChartDataHelpProvider({
-  isAdmin,
+  canView,
   children,
 }: {
-  isAdmin: boolean;
+  canView: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <ChartDataHelpContext.Provider value={isAdmin}>
+    <ChartDataHelpContext.Provider value={canView}>
       {children}
     </ChartDataHelpContext.Provider>
   );
 }
 
 export function ChartDataHelpButton({ sourceId }: { sourceId: string }) {
-  const isAdmin = useContext(ChartDataHelpContext);
+  const canView = useContext(ChartDataHelpContext);
   const [isOpen, setIsOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const source = SURVEY_CHART_SOURCES[sourceId];
@@ -40,7 +40,7 @@ export function ChartDataHelpButton({ sourceId }: { sourceId: string }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen]);
 
-  if (!isAdmin) return null;
+  if (!canView) return null;
 
   return (
     <>
