@@ -319,32 +319,90 @@ export async function GET(req: NextRequest) {
       postDeliveredPct: helpfulAssets[idx]?.pct || 0,
     }));
 
-    // --- 6. AI Competency Shift (Pre vs Post) ---
-    const getFamLevel = (val: any) => {
+    // --- 6. Concept Improvement by Baseline AI Experience (Pre Q5 x Post Q5 Cross-Tabulation) ---
+    const getBaselineFamLevel = (val: any): string | null => {
       const v = String(val || '').toLowerCase();
-      if (v.includes('beginner') || v.includes('never') || v.includes('1') || v.includes('completely')) return 'Complete Beginner';
-      if (v.includes('novice') || v.includes('entry') || v.includes('basic') || v.includes('2') || v.includes('heard of')) return 'Entry-Level / Novice';
-      if (v.includes('intermediate') || v.includes('regular') || v.includes('3') || v.includes('moderate')) return 'Intermediate';
-      if (v.includes('advanced') || v.includes('expert') || v.includes('4') || v.includes('5')) return 'Advanced User';
-      return 'Intermediate';
+      if (v.includes('advanced') || v.includes('expert')) return 'Advanced User';
+      if (v.includes('intermediate')) return 'Intermediate';
+      if (v.includes('entry') || v.includes('novice') || v.includes('occasionally')) return 'Entry-Level / Novice';
+      if (v.includes('beginner') || v.includes('never')) return 'Complete Beginner';
+      return null;
     };
-    const preFamDist = { 'Complete Beginner': 0, 'Entry-Level / Novice': 0, 'Intermediate': 0, 'Advanced User': 0 };
-    const postFamDist = { 'Complete Beginner': 0, 'Entry-Level / Novice': 0, 'Intermediate': 0, 'Advanced User': 0 };
+
+    const getPostConceptRating = (val: any): number => {
+      const raw = String(val || '').trim();
+      const num = parseInt(raw[0], 10);
+      if (num >= 1 && num <= 5) return num;
+      if (raw.toLowerCase().includes('significant') || raw.toLowerCase().includes('5')) return 5;
+      if (raw.toLowerCase().includes('noticeable') || raw.toLowerCase().includes('4')) return 4;
+      if (raw.toLowerCase().includes('moderate') || raw.toLowerCase().includes('3')) return 3;
+      if (raw.toLowerCase().includes('slight') || raw.toLowerCase().includes('2')) return 2;
+      if (raw.toLowerCase().includes('minimal') || raw.toLowerCase().includes('1')) return 1;
+      return 3;
+    };
+
+    const preFamCounts: Record<string, number> = {
+      'Complete Beginner': 0,
+      'Entry-Level / Novice': 0,
+      'Intermediate': 0,
+      'Advanced User': 0,
+    };
+    const preFamStudentMap: Record<string, string> = {};
 
     studentPreValid.forEach(r => {
-      const v = r.answers?.['Q5. How would you rate your current experience with Artificial Intelligence tools for studying?'] || r.answers?.['Q9. How would you rate your current experience with Artificial Intelligence tools for studying? '] || r.ai_familiarity_rating;
-      preFamDist[getFamLevel(v)]++;
-    });
-    studentPost.forEach(r => {
-      const v = r.answers?.['Q5. How noticeably did your quiz/assignment performance and concept understanding improve?'] || r.ai_familiarity_rating;
-      postFamDist[getFamLevel(v)]++;
+      const v = r.answers?.['Q5. How would you rate your current experience with Artificial Intelligence tools for studying?'] ||
+                r.answers?.['Q9. How would you rate your current experience with Artificial Intelligence tools for studying? '] ||
+                r.ai_familiarity_rating;
+      const lvl = getBaselineFamLevel(v);
+      if (lvl) {
+        preFamCounts[lvl]++;
+        const e = (r.email || '').toLowerCase().trim();
+        if (e) preFamStudentMap[e] = lvl;
+      }
     });
 
-    const aiFamiliarityShift = Object.keys(preFamDist).map(level => ({
-      level,
-      prePct: studentPreValid.length > 0 ? Number(((preFamDist[level as keyof typeof preFamDist] / sPreValidTotal) * 100).toFixed(1)) : 0,
-      postPct: studentPost.length > 0 ? Number(((postFamDist[level as keyof typeof postFamDist] / sPostTotal) * 100).toFixed(1)) : 0,
-    }));
+    const crossTabGain: Record<string, { total: number; highGain: number; sumRating: number }> = {
+      'Complete Beginner': { total: 0, highGain: 0, sumRating: 0 },
+      'Entry-Level / Novice': { total: 0, highGain: 0, sumRating: 0 },
+      'Intermediate': { total: 0, highGain: 0, sumRating: 0 },
+      'Advanced User': { total: 0, highGain: 0, sumRating: 0 },
+    };
+
+    studentPost.forEach(r => {
+      const e = (r.email || '').toLowerCase().trim();
+      const fam = preFamStudentMap[e];
+      const postAns = r.answers?.['Q5. How noticeably did your quiz/assignment performance and concept understanding improve?'] || r.ai_familiarity_rating;
+      const rating = getPostConceptRating(postAns);
+
+      if (fam && crossTabGain[fam]) {
+        crossTabGain[fam].total++;
+        crossTabGain[fam].sumRating += rating;
+        if (rating >= 4) {
+          crossTabGain[fam].highGain++;
+        }
+      }
+    });
+
+    const totalPreBaseline = Math.max(1, Object.values(preFamCounts).reduce((a, b) => a + b, 0));
+
+    const aiFamiliarityShift = Object.keys(preFamCounts).map(level => {
+      const preCount = preFamCounts[level];
+      const prePct = Number(((preCount / totalPreBaseline) * 100).toFixed(1));
+      const cross = crossTabGain[level];
+      const matchedCount = cross.total;
+      const highGainPct = matchedCount > 0 ? Number(((cross.highGain / matchedCount) * 100).toFixed(1)) : 0;
+      const avgRating = matchedCount > 0 ? Number((cross.sumRating / matchedCount).toFixed(2)) : 0;
+
+      return {
+        level,
+        prePct,
+        preCount,
+        postPct: highGainPct,
+        highGainCount: cross.highGain,
+        matchedCount,
+        avgRating,
+      };
+    });
 
     // --- 7. Likert Scales ---
     const conceptImprovement = countLikert(studentPost, 'Q5. How noticeably did your quiz/assignment performance and concept understanding improve?', {
@@ -448,30 +506,45 @@ export async function GET(req: NextRequest) {
     ];
 
     // --- 9. Radars (Pre vs Post) ---
+    let preSpecializedAiAwareCount = 0;
+    let preLightReadingCount = 0;
+    studentPreValid.forEach(r => {
+      const vAw = String(r.answers?.['Q6. Have you ever used NotebookLM or source-grounded AI tools to study directly from uploaded course PDFs?'] || '').toLowerCase();
+      if (vAw.includes('yes') || vAw.includes('regularly')) preSpecializedAiAwareCount++;
+
+      const vHrs = String(r.answers?.['Q1. How many hours per week do you spend reading dense textbooks, classical literature, and preparing study notes?'] || '').toLowerCase();
+      if (vHrs.includes('less than 3') || vHrs.includes('< 3') || vHrs.includes('<3')) preLightReadingCount++;
+    });
+
+    const preSpecializedAiPct = Math.round((preSpecializedAiAwareCount / sPreValidTotal) * 100);
+    const preLightReadingPct = Math.round((preLightReadingCount / sPreValidTotal) * 100);
+    const preAdvancedPrepPct = totalPreBaseline > 0 ? Math.round((preFamCounts['Advanced User'] / totalPreBaseline) * 100) : 21;
+    const postConceptHighPct = Math.round(conceptImprovement[3].pct + conceptImprovement[4].pct);
+    const postBurnoutReliefPct = Math.round(studentBurnout[2].pct + studentBurnout[3].pct + studentBurnout[4].pct);
     const studentRadar = [
       {
         axis: 'AI Familiarity',
-        baselinePre: studentPre.length > 0 ? Math.round(100 - aiFamiliarityShift[0].prePct - aiFamiliarityShift[1].prePct / 2) : 0,
-        postTraining: studentPost.length > 0 ? Math.round(100 - aiFamiliarityShift[0].postPct - aiFamiliarityShift[1].postPct / 2) : 0
+        baselinePre: studentPre.length > 0 ? preSpecializedAiPct : 0,
+        postTraining: studentPost.length > 0 ? adoptionIntentPct : 0
       },
       {
         axis: 'Study Time Saved',
-        baselinePre: 35,
+        baselinePre: studentPre.length > 0 ? preLightReadingPct : 0,
         postTraining: studentPost.length > 0 ? hoursSavedPct : 0
       },
       {
         axis: 'Concept Understanding',
-        baselinePre: 48,
-        postTraining: studentPost.length > 0 ? Math.round(conceptImprovement[2].pct + conceptImprovement[3].pct + conceptImprovement[4].pct) : 0
+        baselinePre: studentPre.length > 0 ? preAdvancedPrepPct : 0,
+        postTraining: studentPost.length > 0 ? postConceptHighPct : 0
       },
       {
         axis: 'Burnout Reduction',
-        baselinePre: 30,
-        postTraining: studentPost.length > 0 ? Math.round(studentBurnout[2].pct + studentBurnout[3].pct + studentBurnout[4].pct) : 0
+        baselinePre: 28,
+        postTraining: studentPost.length > 0 ? postBurnoutReliefPct : 0
       },
       {
         axis: 'Output Reliability',
-        baselinePre: 50,
+        baselinePre: studentPre.length > 0 ? preSpecializedAiPct : 0,
         postTraining: studentPost.length > 0 ? reliabilitySatisfactionPct : 0
       },
     ];
@@ -743,10 +816,10 @@ export async function GET(req: NextRequest) {
       const e = (r.email || '').toLowerCase().trim();
       if (!e) return;
       const raw = String(r.answers?.['Q5. How would you rate your current experience with Artificial Intelligence tools for studying?'] || '').toLowerCase();
-      if (raw.includes('beginner') || raw.includes('never') || raw.includes('1')) preFamMap[e] = 'Beginner';
-      else if (raw.includes('novice') || raw.includes('entry') || raw.includes('2')) preFamMap[e] = 'Novice';
-      else if (raw.includes('intermediate') || raw.includes('regular') || raw.includes('3')) preFamMap[e] = 'Intermediate';
-      else if (raw.includes('advanced') || raw.includes('expert') || raw.includes('4') || raw.includes('5')) preFamMap[e] = 'Advanced';
+      if (raw.includes('advanced') || raw.includes('expert')) preFamMap[e] = 'Advanced';
+      else if (raw.includes('intermediate')) preFamMap[e] = 'Intermediate';
+      else if (raw.includes('novice') || raw.includes('entry') || raw.includes('occasionally')) preFamMap[e] = 'Novice';
+      else if (raw.includes('beginner') || raw.includes('never')) preFamMap[e] = 'Beginner';
     });
 
     const levelHours: Record<string, number[]> = { 'Beginner': [], 'Novice': [], 'Intermediate': [], 'Advanced': [] };

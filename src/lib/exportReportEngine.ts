@@ -121,7 +121,7 @@ export function exportMasterCsv({
   if (selectedTabs.executive) {
     appendChartTable('Executive', 'Student Impact Radar', charts?.student_impact_radar || []);
     appendChartTable('Executive', 'Weekly Study Hours Saved', charts?.hours_saved_comparison || []);
-    appendChartTable('Executive', 'AI Familiarity Shift', charts?.ai_familiarity_shift || []);
+    appendChartTable('Executive', 'Concept Improvement by Prior AI Experience', charts?.ai_familiarity_shift || []);
     appendChartTable('Executive', 'Student Future Adoption Intent', charts?.future_adoption_intent?.students || []);
     appendChartTable('Executive', 'Faculty Future Adoption Intent', charts?.future_adoption_intent?.faculty || []);
     appendChartTable('Executive', 'Student Obstacles (Pre)', charts?.student_obstacles_pre || []);

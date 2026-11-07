@@ -94,6 +94,21 @@ export function ChartDataHelpButton({ sourceId }: { sourceId: string }) {
 
             {source ? (
               <div className="mt-5 space-y-5 text-sm">
+                {source.interpretation && (
+                  <section className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 shadow-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white text-[11px] font-black">
+                        ✓
+                      </span>
+                      <h3 className="text-xs font-black uppercase tracking-wider text-emerald-950">
+                        How to Interpret / What This Chart Is Saying
+                      </h3>
+                    </div>
+                    <p className="mt-2 text-xs sm:text-sm leading-relaxed text-slate-800 font-medium">
+                      {source.interpretation}
+                    </p>
+                  </section>
+                )}
                 <section>
                   <h3 className="text-xs font-black uppercase tracking-wide text-slate-500">
                     Survey / data source

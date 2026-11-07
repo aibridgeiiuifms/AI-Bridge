@@ -43,10 +43,10 @@ export const ANALYTICS_V2_CHARTS: AnalyticsV2ChartDef[] = [
   },
   {
     id: 'ai_familiarity_shift',
-    title: 'AI Competency Distribution Shift (Pre vs Post)',
+    title: 'Concept Improvement by Prior AI Experience',
     category: 'executive',
     categoryTitle: 'Executive Summary',
-    description: 'Transition from Complete Beginner to Intermediate & Advanced AI competency.',
+    description: 'Post-training concept understanding gains cross-tabulated across student baseline AI familiarity tiers.',
     defaultVisible: true,
   },
 

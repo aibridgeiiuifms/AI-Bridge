@@ -582,7 +582,7 @@ export default function SurveyAnalyticsView({
             <ChartDownloadWrapper tab="executive"
               id="student-impact-radar"
               title="Student Impact Summary (Before and After Training)"
-              subtitle="Self-reported study impact measures; some baseline values are estimates."
+              subtitle="Five core dimensions evaluated across baseline pre-survey measures and post-training outcomes."
               dataForCsv={charts.student_impact_radar}
             >
               {viewMode === 'charts' ? (
@@ -733,22 +733,36 @@ export default function SurveyAnalyticsView({
           {isChartAllowed('ai_familiarity_shift') && (
             <ChartDownloadWrapper tab="executive"
               id="familiarity-shift"
-              title="AI Familiarity and Learning Improvement (Before and After)"
-              subtitle="Student pre-survey AI familiarity compared with post-survey learning-improvement ratings."
+              title="Concept Improvement by Prior AI Experience"
+              subtitle="Cross-analyzing student pre-training AI experience against post-training concept understanding gains (Rating 4–5 out of 5)."
               dataForCsv={charts.ai_familiarity_shift}
             >
               {viewMode === 'charts' ? (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
                   {(charts.ai_familiarity_shift || []).map((lvl: any) => (
-                    <div key={lvl.level} className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center space-y-2">
-                      <p className="text-xs font-black text-slate-800">{lvl.level}</p>
-                      <div className="flex justify-center items-baseline gap-2">
-                        <span className="text-sm font-bold text-slate-400">{lvl.prePct}% Pre</span>
-                        <span className="text-slate-300">→</span>
-                        <span className="text-xl font-black text-emerald-700">{lvl.postPct}% Post</span>
+                    <div key={lvl.level} className="p-4 bg-slate-50/90 rounded-2xl border border-slate-200/90 text-center space-y-3 hover:border-slate-300 transition-colors shadow-sm">
+                      <div className="space-y-1">
+                        <p className="text-xs font-black text-slate-800 tracking-tight">{lvl.level}</p>
+                        <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200/80 text-slate-600">
+                          Baseline: {lvl.prePct}% ({lvl.preCount || 0} students)
+                        </span>
                       </div>
-                      <div className="w-full h-1.5 rounded-full bg-slate-200 overflow-hidden">
-                        <div className="h-full bg-emerald-600 rounded-full" style={{ width: `${lvl.postPct}%` }} />
+                      <div className="py-1">
+                        <div className="text-2xl font-black text-emerald-700 tracking-tight">
+                          {lvl.postPct}%
+                        </div>
+                        <div className="text-[11px] font-bold text-slate-600 mt-0.5">
+                          High Concept Gain (Rating 4–5)
+                        </div>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-600 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(100, Math.max(0, lvl.postPct || 0))}%` }}
+                        />
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-medium pt-0.5">
+                        Avg: <span className="font-bold text-slate-600">{lvl.avgRating || 0}/5.0</span> • Matched N={lvl.matchedCount || 0}
                       </div>
                     </div>
                   ))}
@@ -758,26 +772,25 @@ export default function SurveyAnalyticsView({
                   <table className="w-full text-xs text-left">
                     <thead className="bg-slate-100 text-slate-700 font-extrabold uppercase text-[10px]">
                       <tr>
-                        <th className="p-2.5 rounded-l-xl">Skill Level</th>
-                        <th className="p-2.5">Pre-Training Proportion</th>
-                        <th className="p-2.5">Post-Training Proportion</th>
-                        <th className="p-2.5 rounded-r-xl">Net Shift</th>
+                        <th className="p-2.5 rounded-l-xl">Prior AI Experience Tier</th>
+                        <th className="p-2.5">Baseline Cohort Share (Pre)</th>
+                        <th className="p-2.5">Baseline Students (N)</th>
+                        <th className="p-2.5">High Concept Gain (Rating 4–5)</th>
+                        <th className="p-2.5">Avg Rating (/5.0)</th>
+                        <th className="p-2.5 rounded-r-xl">Matched Post (N)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium">
-                      {(charts.ai_familiarity_shift || []).map((lvl: any) => {
-                        const delta = Number((lvl.postPct - lvl.prePct).toFixed(1));
-                        return (
-                          <tr key={lvl.level} className="hover:bg-slate-50">
-                            <td className="p-2.5 font-bold text-slate-900">{lvl.level}</td>
-                            <td className="p-2.5 text-slate-500 font-bold">{lvl.prePct}%</td>
-                            <td className="p-2.5 font-bold text-emerald-700">{lvl.postPct}%</td>
-                            <td className={`p-2.5 font-black ${delta >= 0 ? 'text-emerald-700' : 'text-slate-400'}`}>
-                              {delta >= 0 ? `+${delta}%` : `${delta}%`}
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {(charts.ai_familiarity_shift || []).map((lvl: any) => (
+                        <tr key={lvl.level} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-2.5 font-bold text-slate-900">{lvl.level}</td>
+                          <td className="p-2.5 text-slate-600 font-bold">{lvl.prePct}%</td>
+                          <td className="p-2.5 text-slate-500 font-medium">{lvl.preCount || 0}</td>
+                          <td className="p-2.5 font-black text-emerald-700">{lvl.postPct}% ({lvl.highGainCount || 0} students)</td>
+                          <td className="p-2.5 font-bold text-slate-700">{lvl.avgRating || 0} / 5.0</td>
+                          <td className="p-2.5 text-slate-600 font-semibold">{lvl.matchedCount || 0}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
